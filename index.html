@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>m4ster-sprite-gen — free 2D game sprite generator</title>
+<meta name="description" content="m4ster-sprite-gen: generate clean 2D game sprites and animation atlases in your browser. Free forever, open source, unlimited use. No keys, no signup, no payments. For the gamers, by the gamers.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="monogram" viewBox="0 0 48 48" aria-hidden="true">
+      <rect x="2" y="2" width="44" height="44" rx="9" fill="none" stroke="#b8f53d" stroke-width="3"/>
+      <text x="24" y="31" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"
+            font-size="19" font-weight="700" fill="#b8f53d">MT</text>
+    </svg>
+    <div class="brand-text">
+      <div class="brand-name">M4STER <span class="brand-sub">SPRITE GEN</span></div>
+      <div class="tagline">For the gamers, by the gamers</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="pill">free · unlimited · no keys · no signup</span>
+    <a class="gh-link" href="https://github.com/m4sternoob/m4ster-sprite-gen" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ============ LEFT: CONTROLS ============ -->
+  <aside class="panel controls">
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-cat="character" role="tab">Character</button>
+      <button class="tab" data-cat="tile" role="tab">Tile</button>
+      <button class="tab" data-cat="ui" role="tab">UI</button>
+      <button class="tab" data-cat="effect" role="tab">Effect</button>
+    </div>
+
+    <div id="params"></div>
+
+    <label class="field-label" for="prompt">Describe it</label>
+    <textarea id="prompt" rows="3" placeholder="e.g. zombie pirate with a rusty hook hand"></textarea>
+
+    <div class="field-label">Source</div>
+    <div class="seg" id="sourceSeg">
+      <button class="seg-btn active" data-src="ai">AI image</button>
+      <button class="seg-btn" data-src="procedural">Procedural <span class="offline">offline</span></button>
+      <button class="seg-btn" data-src="upload">Upload</button>
+    </div>
+    <input type="file" id="uploadInput" accept="image/*" hidden>
+
+    <div class="field-label">Background key <span class="dim">(stripped from the sprite)</span></div>
+    <div class="keys" id="keyRow">
+      <button class="key active" data-key="255,0,255" style="--kc:#ff00ff" title="Magenta"></button>
+      <button class="key" data-key="0,255,0" style="--kc:#00ff00" title="Green"></button>
+      <button class="key" data-key="0,120,255" style="--kc:#0078ff" title="Blue"></button>
+      <button class="key" data-key="255,255,255" style="--kc:#ffffff" title="White"></button>
+      <button class="key" data-key="0,0,0" style="--kc:#000000" title="Black"></button>
+    </div>
+
+    <button id="generate" class="generate">GENERATE SPRITE</button>
+    <div class="gen-note">AI source uses Pollinations (free, no key). Procedural runs 100% offline.</div>
+  </aside>
+
+  <!-- ============ RIGHT: PIPELINE + OUTPUT ============ -->
+  <section class="panel stage-panel">
+    <ol class="stepper" id="stepper">
+      <li data-step="prompt"><span class="dot"></span>Prompt</li>
+      <li data-step="row"><span class="dot"></span>Row gen</li>
+      <li data-step="alpha"><span class="dot"></span>Alpha cleanup</li>
+      <li data-step="extract"><span class="dot"></span>Frame extract</li>
+      <li data-step="atlas"><span class="dot"></span>Atlas pack</li>
+      <li data-step="done"><span class="dot"></span>Done</li>
+    </ol>
+
+    <div class="canvas-wrap">
+      <canvas id="stage"></canvas>
+      <div id="stageMsg" class="stage-msg">Pick a category, describe your sprite, hit generate.</div>
+    </div>
+
+    <div class="frames-head">
+      <span class="field-label">Frames <span class="dim" id="framesMeta"></span></span>
+      <span class="dim">originals kept untouched — reorder arrows only change the manifest</span>
+    </div>
+    <div class="frames-row" id="framesRow"></div>
+
+    <div class="preview-export">
+      <div class="preview-box">
+        <div class="field-label">Preview <span class="dim" id="previewMeta"></span></div>
+        <canvas id="preview" width="256" height="256"></canvas>
+        <div class="preview-controls">
+          <select id="previewState"></select>
+          <select id="previewFps">
+            <option value="6">6 fps</option>
+            <option value="8" selected>8 fps</option>
+            <option value="12">12 fps</option>
+            <option value="24">24 fps</option>
+          </select>
+        </div>
+      </div>
+      <div class="export-box">
+        <div class="field-label">Export</div>
+        <button class="btn" id="dlSheet" disabled>sprite sheet PNG</button>
+        <button class="btn" id="dlJson" disabled>atlas manifest JSON</button>
+        <button class="btn ghost" id="dlFrames" disabled>frames (individual PNGs)</button>
+        <div class="export-note">Manifest = absolute frame rects + per-state fps/durations + loop flags. Your game reads the rects — never recompute.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <span>m4ster-sprite-gen · MIT open source · runs 100% in your browser · your pixels never leave your machine except the AI prompt</span>
+</footer>
+
+<script src="js/app.js"></script>
+</body>
+</html>
