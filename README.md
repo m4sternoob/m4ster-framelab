@@ -8,6 +8,26 @@ browser. No API keys, no signup, no credit card, no payments — ever.
 Pick a category, describe the sprite, hit **Generate**. You get a packed
 sprite sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v2
+
+- **M4-styled UI** — same design language as the portfolio and tracker
+  (violet accent, cards, chips), sticky blurred top bar.
+- **Dedicated phone layout** — stacked thumb-first flow with a sticky
+  bottom Generate button; PC keeps the wide two-panel tool layout.
+- **Prompt booster** — one-word prompts ("Zombie") are auto-expanded with
+  style / view / palette guidance before hitting the AI. The exact prompt
+  sent is shown under "prompt sent to AI" (collapsible).
+- **Flat-background enforcement** — stronger prompt language plus a
+  key-coverage sanity check: if the model returns a gradient/wash instead
+  of a flat key, you get an amber warning + retry instead of silent garbage.
+- **Hi-res strips** — AI rows now request ≥1024px wide so frames carry
+  usable detail.
+- **Slot-slice fallback** — when blob recovery can't find N poses (merged
+  strip), the pipeline cuts even slots and continues with an amber warning
+  instead of dying. Frames are flagged `slotSliced` in the manifest.
+- **Retry with stricter prompt** — one tap re-runs with hard isolation
+  instructions appended.
+
 ## Live
 
 **https://m4ster-sprite-gen.vercel.app**
@@ -36,7 +56,9 @@ Every generation walks six visible steps in the UI:
 4. **Frame extract** — content-based: flood-fill connected components, take
    the N biggest as pose seeds, sort left-to-right, fit into cells
    (aspect-preserving, never upscaled, feet bottom-aligned). If N poses can't
-   be recovered it **fails loudly** — no silent guessed frames.
+   be recovered it falls back to **even slot slicing** with an amber warning
+   (frames flagged `slotSliced` in the manifest) instead of dying — loud fail
+   remains only when the strip has no usable ink at all.
 5. **Atlas pack** — one state per row, frames left-to-right, plus a manifest
    JSON with absolute frame rects, per-state fps/durations, and loop flags.
    Your game reads the rects; it never recomputes them.

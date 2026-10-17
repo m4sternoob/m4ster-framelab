@@ -48,6 +48,7 @@ const state = {
   revision: null,          // run-revision stamp; curation (order) is tied to it
   atlas: null,             // { canvas, manifest }
   busy: false,
+  strict: false,           // retry mode: appends the strict isolation clause to prompts
 };
 
 /* non-destructive curation sidecar: order lives here, never in the frames */
@@ -62,19 +63,20 @@ const STEPS = ["prompt", "row", "alpha", "extract", "atlas", "done"];
 function setStep(name, status, msg) {
   const li = document.querySelector(`#stepper li[data-step="${name}"]`);
   if (!li) return;
-  li.classList.remove("active", "done", "error");
+  li.classList.remove("active", "done", "error", "warn");
   if (status) li.classList.add(status);
-  if (msg) stageMsg(msg, status === "error");
+  if (msg) stageMsg(msg, status === "error" ? "err" : status === "warn" ? "warn" : undefined);
 }
 
 function resetSteps() {
-  document.querySelectorAll("#stepper li").forEach(li => li.classList.remove("active", "done", "error"));
+  document.querySelectorAll("#stepper li").forEach(li => li.classList.remove("active", "done", "error", "warn"));
 }
 
-function stageMsg(msg, isErr) {
+function stageMsg(msg, kind) {
   const el = $("#stageMsg");
   el.textContent = msg;
-  el.classList.toggle("err", !!isErr);
+  el.classList.toggle("err", kind === true || kind === "err");
+  el.classList.toggle("warn", kind === "warn");
 }
 
 function showStage(canvas, msg) {
@@ -188,8 +190,40 @@ function clampInt(v, lo, hi, fb) {
 }
 
 function describe(fallback) {
-  const t = $("#prompt").value.trim();
-  return t || fallback;
+  const t = $("#prompt").value.trim() || fallback;
+  const b = boostPromptText(state.category, t);
+  state.lastBoost = b;
+  return b.text;
+}
+
+/* ---------------- prompt booster ----------------
+ * One-word prompts ("Zombie") make the free model guess — and it guesses
+ * badly. Short descriptions get auto-expanded with the style/view/structure/
+ * palette guidance a sprite prompt needs. 8+ words are left alone. The exact
+ * prompt sent to the AI is shown in the UI (collapsible) so it's never magic. */
+
+const BOOST_BITS = {
+  character: ["single character only, no extra figures or limbs", "bold readable silhouette",
+    "limited harmonious color palette", "crisp clean edges", "game-ready sprite"],
+  effect: ["bold simple shapes, readable at small size", "limited harmonious color palette",
+    "smooth color falloff", "no smoke text artifacts"],
+  ui: ["crisp vector-clean edges", "subtle depth, no photorealism", "limited harmonious color palette"],
+  tile: ["cohesive limited color palette", "no focal object, pure texture", "even detail distribution"],
+};
+
+function boostPromptText(cat, raw) {
+  const base = (raw || "").trim();
+  if (!base) return { text: base, boosted: false };
+  const words = base.split(/\s+/).filter(Boolean);
+  if (words.length >= 8) return { text: base, boosted: false };
+  const bits = BOOST_BITS[cat] || [];
+  return { text: base + ", " + bits.join(", "), boosted: true };
+}
+
+function showPromptPeek(prompt) {
+  $("#promptSent").textContent = prompt;
+  $("#boostTag").hidden = !(state.lastBoost && state.lastBoost.boosted);
+  $("#promptPeek").hidden = false;
 }
 
 /* ---------------- prompt builder ----------------
@@ -206,14 +240,25 @@ function keyName() {
   return "black";
 }
 
-function buildPrompt(cat, p, sub) {
+function buildPrompt(cat, p, sub, strict) {
   const key = keyName();
+  // Flat-key phrasing is load-bearing: the model loves gradients/washes, and
+  // anything but a solid single-color background defeats chroma extraction.
+  const flatBg = `solid flat single-color ${key} background, absolutely no gradient, ` +
+    `no shading, no vignette, no scenery, no floor, no backdrop details`;
+  const strictClause = strict
+    ? ` CRITICAL: every frame must be fully isolated — if any two frames touch, overlap, ` +
+      `or merge into one shape the output is unusable. Keep wide empty ${key} gaps on all sides of each frame, ` +
+      `and keep the background perfectly flat with zero gradient or shading.`
+    : "";
   if (cat === "character") {
     return `2D game character sprite, ${describe("brave knight")}, ${p.style} style, ${sub} animation: ` +
-      `${p.frames} distinct poses in ONE horizontal row, side by side, evenly spaced, ` +
-      `each pose centered in its own invisible vertical slot, ${p.view} view, full body visible, ` +
-      `feet aligned on the same ground line, clean flat colors, bold readable silhouette, ` +
-      `solid ${key} background, no shadows, no outline glow, no text, no watermark, game asset`;
+      `${p.frames} SEPARATE non-overlapping poses in ONE horizontal row, ` +
+      `large clear gaps of flat ${key} between every pose, ` +
+      `poses never touching or blending into each other, each pose centered in its own slot, ` +
+      `${p.view} view, full body visible, feet aligned on the same ground line, ` +
+      `clean flat colors, bold readable silhouette, ` +
+      flatBg + `, no shadows, no outline glow, no text, no watermark, game asset` + strictClause;
   }
   if (cat === "tile") {
     return `seamless tileable 2D game texture, ${describe("mossy dungeon floor")}, ` +
@@ -222,14 +267,17 @@ function buildPrompt(cat, p, sub) {
   }
   if (cat === "ui") {
     return `2D game UI ${p.kind}, ${describe("round fantasy RPG menu button")}, ` +
-      `${p.states} variations in ONE horizontal row left to right (normal, hover, pressed states), ` +
-      `each centered in its own invisible vertical slot, clean vector game UI style, ` +
-      `solid ${key} background, no text letters, no watermark`;
+      `${p.states} SEPARATE non-overlapping variations in ONE horizontal row left to right (normal, hover, pressed states), ` +
+      `large clear gaps of flat ${key} between variations, never touching, ` +
+      `each centered in its own slot, clean vector game UI style, ` +
+      flatBg + `, no text letters, no watermark` + strictClause;
   }
   return `2D game effect sprite sequence, ${describe("fiery explosion")}, ${p.type} effect, ` +
-    `${p.frames} animation frames in ONE horizontal row left to right showing the full progression, ` +
-    `each frame centered in its own invisible vertical slot, vibrant flat game art, ` +
-    `solid ${key} background, no text, no watermark`;
+    `${p.frames} SEPARATE non-overlapping frames in ONE horizontal row left to right, ` +
+    `showing the burst progression from ignition to dissipation, each burst stage centered in its own slot, ` +
+    `large clear gaps of flat ${key} between every frame, ` +
+    `frames never touching, overlapping, or blending into each other, ` +
+    `vibrant flat game art, ` + flatBg + `, no text, no watermark` + strictClause;
 }
 
 /* ---------------- AI row generation (Pollinations, no auth) ---------------- */
@@ -247,9 +295,10 @@ function pollinationsURL(prompt, w, h, seed) {
 }
 
 async function genRowAI(prompt, frames, cellH) {
-  // Wide strip: one cell per frame. Height fixed, width scales with frame count.
-  const h = cellH || 256;
-  const w = Math.min(1536, Math.max(512, 256 * frames));
+  // Wide strip: one cell per frame. Keep the strip >=1024px wide so frames
+  // carry usable detail (the model returns blurry mush at small sizes).
+  const h = cellH || 384;
+  const w = Math.min(2048, Math.max(1024, h * frames));
   const seed = (Math.random() * 1e9) | 0;
   const url = pollinationsURL(prompt, w, h, seed);
   const bmp = await fetchImageBitmap(url);
@@ -398,6 +447,104 @@ function extractFrames(strip, count, opts = {}) {
   return frames;
 }
 
+/* ---------------- key-coverage sanity check ----------------
+ * The model sometimes ignores the flat-background instruction and returns a
+ * gradient/wash instead — chroma keying can't cleanly strip that. Measure how
+ * much of the strip actually keyed out (alpha <= 12); if it's suspiciously
+ * low, warn amber and offer the retry path instead of failing silently later. */
+
+function checkKeyCoverage(keyed) {
+  const w = keyed.width, h = keyed.height;
+  const d = keyed.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+  let clear = 0, sampled = 0;
+  for (let i = 3; i < d.length; i += 16) { // sample every 4th pixel
+    sampled++;
+    if (d[i] <= 12) clear++;
+  }
+  const cov = clear / sampled;
+  if (cov < 0.30) {
+    stageMsg(`background isn't flat — key covered only ${Math.round(cov * 100)}% of the strip. Extraction may be messy.`, "warn");
+    showRetry(`Background came back as a gradient/wash instead of flat ${keyName()}. ` +
+      `Retry with a stricter prompt, or pick a different background key.`);
+    return false;
+  }
+  return true;
+}
+
+/* ---------------- slot-slice fallback ----------------
+ * When blob recovery can't find N poses (merged strip, leftover key wash),
+ * slice the strip into N even slots and content-crop each slot instead of
+ * dying. Frames are flagged slotSliced:true in the manifest — amber warning,
+ * not a red dead end. Loud fail remains only when there is no ink at all. */
+
+function sliceSlots(strip, count, opts = {}) {
+  const align = opts.align || "bottom";
+  const w = strip.width, h = strip.height;
+  const ctx = strip.getContext("2d", { willReadFrequently: true });
+  const px = ctx.getImageData(0, 0, w, h).data;
+  const slotW = w / count;
+  const frames = [];
+  for (let s = 0; s < count; s++) {
+    const sx0 = Math.floor(s * slotW), sx1 = Math.min(w, Math.ceil((s + 1) * slotW));
+    let x0 = sx1, x1 = sx0, y0 = h, y1 = -1;
+    for (let y = 0; y < h; y++) {
+      for (let x = sx0; x < sx1; x++) {
+        if (px[(y * w + x) * 4 + 3] > 12) {
+          if (x < x0) x0 = x; if (x > x1) x1 = x;
+          if (y < y0) y0 = y; if (y > y1) y1 = y;
+        }
+      }
+    }
+    const cell = makeCanvas(Math.ceil(slotW), h);
+    const cctx = cell.getContext("2d");
+    if (x1 >= x0) {
+      const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+      const sc = Math.min((slotW * 0.94) / bw, (h * 0.94) / bh, 1);
+      const dw = Math.max(1, Math.round(bw * sc)), dh = Math.max(1, Math.round(bh * sc));
+      const dx = Math.round((slotW - dw) / 2);
+      const dy = align === "bottom" ? Math.round(h - dh - h * 0.03) : Math.round((h - dh) / 2);
+      cctx.imageSmoothingEnabled = true;
+      cctx.imageSmoothingQuality = "high";
+      cctx.drawImage(strip, x0, y0, bw, bh, dx, dy, dw, dh);
+    }
+    frames.push(cell);
+  }
+  return frames;
+}
+
+function extractFramesRobust(strip, count, opts = {}) {
+  try {
+    return { frames: extractFrames(strip, count, opts), method: "blobs" };
+  } catch (e) {
+    if (/zero non-transparent pixels/.test(e.message)) throw e; // nothing to slice
+    return { frames: sliceSlots(strip, count, opts), method: "slots", warning: e.message };
+  }
+}
+
+function noteExtraction(ex, count, unit) {
+  if (ex.method === "slots") {
+    setStep("extract", "warn", `slot-sliced ${ex.frames.length}/${count} ${unit} (even slots — verify edges)`);
+    stageMsg(`blob recovery failed (${ex.warning}) — fell back to even slot slicing. ` +
+      `Frames flagged slotSliced in the manifest; check edges before shipping.`, "warn");
+  } else {
+    setStep("extract", "done", `extracted ${ex.frames.length}/${count} ${unit}`);
+  }
+  return ex.method === "slots";
+}
+
+/* ---------------- retry bar (recovery path, not a dead end) ---------------- */
+
+function hideRetry() { $("#retryBar").hidden = true; }
+function showRetry(msg) {
+  $("#retryMsg").textContent = msg;
+  $("#retryBar").hidden = false;
+}
+
+function setBusy(b) {
+  state.busy = b;
+  document.querySelectorAll(".generate").forEach(x => { x.disabled = b; });
+}
+
 /* ---------------- atlas packing + manifest ----------------
  * Contract (borrowed from the component-row playbook):
  * atlas = one state per row, frames left-to-right;
@@ -438,13 +585,14 @@ function buildAtlas(rows, pad = 2) {
       loop: r.loop !== false,
       durationsMs: r.order.map(() => Math.round(1000 / fps)),
       frameOrder: r.order.slice(),
+      slotSliced: !!r.slotSliced, // true when blob recovery failed and even slots were cut
     };
     y += ch + pad;
   });
 
   const manifest = {
     tool: "m4ster-sprite-gen",
-    version: "1.0.0",
+    version: "2.0.0",
     engine: "component-row",
     runRevision: state.revision,
     atlas: "m4ster-sprite-sheet.png",
@@ -934,9 +1082,10 @@ function pushRow(name, frames, extra = {}) {
 
 async function runPipeline() {
   if (state.busy) return;
-  state.busy = true;
-  $("#generate").disabled = true;
+  setBusy(true);
   resetSteps();
+  hideRetry();
+  $("#promptPeek").hidden = true;
   enableExport(false);
   state.rows = []; state.originals = []; state.atlas = null;
   state.revision = Date.now().toString(36);
@@ -953,12 +1102,13 @@ async function runPipeline() {
     if (cat === "character") {
       if (!p.states.length) fail("select at least one animation state.");
       for (const sname of p.states) {
-        const prompt = buildPrompt(cat, p, sname);
+        const prompt = buildPrompt(cat, p, sname, state.strict);
+        showPromptPeek(prompt);
         stageMsg(`prompt [${sname}]: ${prompt}`);
         setStep("prompt", "done");
         setStep("row", "active", `row gen [${sname}] — one AI call, ${p.frames} poses on flat ${keyName()}…`);
         let strip;
-        if (state.source === "ai") strip = await genRowAI(prompt, p.frames, 256);
+        if (state.source === "ai") strip = await genRowAI(prompt, p.frames, 384);
         else if (state.source === "procedural") strip = procCharacter(p, sname, seed);
         else strip = await uploadStrip(p.frames);
         showStage(strip, `row [${sname}]: raw ${strip.width}×${strip.height}`);
@@ -967,14 +1117,16 @@ async function runPipeline() {
         const keyed = chromaKey(strip, state.key);
         showStage(keyed, `row [${sname}]: background keyed out`);
         setStep("alpha", "done");
+        checkKeyCoverage(keyed);
         setStep("extract", "active", `extracting ${p.frames} poses (content-based)…`);
-        const frames = extractFrames(keyed, p.frames, { align: "bottom" });
-        setStep("extract", "done", `extracted ${frames.length}/${p.frames} poses`);
-        pushRow(sname, frames, { fps: STATE_FPS[sname] || 8, loop: true });
+        const exC = extractFramesRobust(keyed, p.frames, { align: "bottom" });
+        const slicedC = noteExtraction(exC, p.frames, "poses");
+        pushRow(sname, exC.frames, { fps: STATE_FPS[sname] || 8, loop: true, slotSliced: slicedC });
         setStep("prompt", "active");
       }
     } else if (cat === "tile") {
-      const prompt = buildPrompt(cat, p);
+      const prompt = buildPrompt(cat, p, undefined, state.strict);
+      showPromptPeek(prompt);
       stageMsg("prompt: " + prompt);
       setStep("prompt", "done");
       setStep("row", "active", "generating tile…");
@@ -986,31 +1138,34 @@ async function runPipeline() {
       setStep("row", "done"); setStep("alpha", "done"); setStep("extract", "done");
       pushRow("tile", [tile], { fps: 0, loop: false, tileable: true });
     } else if (cat === "ui") {
-      const prompt = buildPrompt(cat, p);
+      const prompt = buildPrompt(cat, p, undefined, state.strict);
+      showPromptPeek(prompt);
       stageMsg("prompt: " + prompt);
       setStep("prompt", "done");
       setStep("row", "active", `generating ${p.states} UI variant(s)…`);
       let strip;
-      if (state.source === "ai") strip = await genRowAI(prompt, p.states, 160);
+      if (state.source === "ai") strip = await genRowAI(prompt, p.states, 256);
       else if (state.source === "procedural") strip = procUI(p.kind, p.states, seed);
       else strip = await uploadStrip(p.states);
       showStage(strip, `UI row: raw ${strip.width}×${strip.height}`);
       setStep("row", "done");
       setStep("alpha", "active", "chroma key + despill…");
-      const keyed = state.source === "procedural" && false ? strip : chromaKey(strip, state.key);
+      const keyed = chromaKey(strip, state.key);
       showStage(keyed, "UI row: keyed");
       setStep("alpha", "done");
+      checkKeyCoverage(keyed);
       setStep("extract", "active", `extracting ${p.states} variant(s)…`);
-      const frames = extractFrames(keyed, p.states, { align: "center" });
-      setStep("extract", "done");
-      pushRow(p.kind, frames, { fps: 0, loop: false });
+      const exU = extractFramesRobust(keyed, p.states, { align: "center" });
+      const slicedU = noteExtraction(exU, p.states, "variants");
+      pushRow(p.kind, exU.frames, { fps: 0, loop: false, slotSliced: slicedU });
     } else {
-      const prompt = buildPrompt(cat, p);
+      const prompt = buildPrompt(cat, p, undefined, state.strict);
+      showPromptPeek(prompt);
       stageMsg("prompt: " + prompt);
       setStep("prompt", "done");
       setStep("row", "active", `generating ${p.frames}-frame ${p.type}…`);
       let strip;
-      if (state.source === "ai") strip = await genRowAI(prompt, p.frames, 256);
+      if (state.source === "ai") strip = await genRowAI(prompt, p.frames, 384);
       else if (state.source === "procedural") strip = procEffect(p.type, p.frames, seed);
       else strip = await uploadStrip(p.frames);
       showStage(strip, `effect row: raw ${strip.width}×${strip.height}`);
@@ -1019,10 +1174,11 @@ async function runPipeline() {
       const keyed = chromaKey(strip, state.key);
       showStage(keyed, "effect row: keyed");
       setStep("alpha", "done");
+      checkKeyCoverage(keyed);
       setStep("extract", "active", `extracting ${p.frames} frames…`);
-      const frames = extractFrames(keyed, p.frames, { align: "center" });
-      setStep("extract", "done");
-      pushRow(p.type, frames, { fps: 12, loop: true });
+      const exE = extractFramesRobust(keyed, p.frames, { align: "center" });
+      const slicedE = noteExtraction(exE, p.frames, "frames");
+      pushRow(p.type, exE.frames, { fps: 12, loop: true, slotSliced: slicedE });
     }
 
     setStep("atlas", "active", "packing rows → sprite sheet + manifest…");
@@ -1038,9 +1194,9 @@ async function runPipeline() {
     const active = document.querySelector("#stepper li.active");
     if (active) { active.classList.remove("active"); active.classList.add("error"); }
     stageMsg("FAILED: " + e.message, true);
+    showRetry("Extraction found nothing usable. Retry with a stricter prompt, lower the frame count, or pick a different background key.");
   } finally {
-    state.busy = false;
-    $("#generate").disabled = false;
+    setBusy(false);
   }
 }
 
@@ -1102,7 +1258,10 @@ function init() {
     };
   });
 
-  $("#generate").onclick = runPipeline;
+  const startFresh = () => { state.strict = false; hideRetry(); runPipeline(); };
+  $("#generate").onclick = startFresh;
+  $("#generateMobile").onclick = startFresh;
+  $("#retryBtn").onclick = () => { state.strict = true; hideRetry(); runPipeline(); };
 }
 
 document.addEventListener("DOMContentLoaded", init);

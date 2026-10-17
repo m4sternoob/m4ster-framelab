@@ -12,9 +12,9 @@
 <header class="topbar">
   <div class="brand">
     <svg class="monogram" viewBox="0 0 48 48" aria-hidden="true">
-      <rect x="2" y="2" width="44" height="44" rx="9" fill="none" stroke="#b8f53d" stroke-width="3"/>
+      <rect x="2" y="2" width="44" height="44" rx="9" fill="none" stroke="#a78bfa" stroke-width="3"/>
       <text x="24" y="31" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"
-            font-size="19" font-weight="700" fill="#b8f53d">MT</text>
+            font-size="19" font-weight="700" fill="#a78bfa">MT</text>
     </svg>
     <div class="brand-text">
       <div class="brand-name">M4STER <span class="brand-sub">SPRITE GEN</span></div>
@@ -42,6 +42,10 @@
 
     <label class="field-label" for="prompt">Describe it</label>
     <textarea id="prompt" rows="3" placeholder="e.g. zombie pirate with a rusty hook hand"></textarea>
+    <details class="prompt-peek" id="promptPeek" hidden>
+      <summary>prompt sent to AI <span id="boostTag" class="boost-tag" hidden>auto-boosted</span></summary>
+      <p id="promptSent"></p>
+    </details>
 
     <div class="field-label">Source</div>
     <div class="seg" id="sourceSeg">
@@ -80,6 +84,11 @@
       <div id="stageMsg" class="stage-msg">Pick a category, describe your sprite, hit generate.</div>
     </div>
 
+    <div id="retryBar" class="retry-bar" hidden>
+      <span class="retry-msg" id="retryMsg"></span>
+      <button id="retryBtn" class="btn-ghost">Retry with stricter prompt</button>
+    </div>
+
     <div class="frames-head">
       <span class="field-label">Frames <span class="dim" id="framesMeta"></span></span>
       <span class="dim">originals kept untouched — reorder arrows only change the manifest</span>
@@ -110,6 +119,11 @@
     </div>
   </section>
 </main>
+
+<!-- phone-only sticky generate bar: thumb-reachable, always visible -->
+<div class="mobile-bar">
+  <button id="generateMobile" class="generate">GENERATE SPRITE</button>
+</div>
 
 <footer class="foot">
   <span>m4ster-sprite-gen · MIT open source · runs 100% in your browser · your pixels never leave your machine except the AI prompt</span>
