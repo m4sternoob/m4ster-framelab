@@ -3223,18 +3223,30 @@ if (document.readyState === "loading") {
     orb.classList.toggle("is-hover", !!(hov && !hov.disabled && !(cta && !cta.disabled)));
   }, { passive: true });
 
-  var root = document.documentElement;
+  var auraEl = document.getElementById("aura");
+  var lastT = "", lastA = "";
   (function tick() {
-    x += (tx - x) * 0.22;
-    y += (ty - y) * 0.22;
-    orb.style.transform = "translate3d(" + x.toFixed(1) + "px," + y.toFixed(1) + "px,0)";
-    /* background aura gently reaches toward the cursor */
+    /* tight follow (was 0.22 — felt floaty) + snap when converged, so the
+     * loop writes nothing once the orb settles instead of micro-lerping */
+    var dx = tx - x, dy = ty - y;
+    if (dx * dx + dy * dy < 0.01) { x = tx; y = ty; }
+    else { x += dx * 0.45; y += dy * 0.45; }
+    var k = x.toFixed(1) + "," + y.toFixed(1);
+    if (k !== lastT) {
+      orb.style.transform = "translate3d(" + x.toFixed(1) + "px," + y.toFixed(1) + "px,0)";
+      lastT = k;
+    }
+    /* aura parallax: direct composited transform on the aura layer, written
+     * only when it changed — the old :root var write forced a full style
+     * recalc every frame, which was the jank */
     var nx = (tx / window.innerWidth - 0.5) * 2;
     var ny = (ty / window.innerHeight - 0.5) * 2;
-    ax += (nx - ax) * 0.05;
-    ay += (ny - ay) * 0.05;
-    root.style.setProperty("--aura-px", (ax * 1.5).toFixed(3) + "vmax");
-    root.style.setProperty("--aura-py", (ay * 1.5).toFixed(3) + "vmax");
+    ax += (nx - ax) * 0.08; ay += (ny - ay) * 0.08;
+    var ak = (ax * 1.5).toFixed(2) + "," + (ay * 1.5).toFixed(2);
+    if (ak !== lastA && auraEl) {
+      auraEl.style.transform = "translate3d(" + (ax * 1.5).toFixed(2) + "vmax," + (ay * 1.5).toFixed(2) + "vmax,0)";
+      lastA = ak;
+    }
     requestAnimationFrame(tick);
   })();
 })();

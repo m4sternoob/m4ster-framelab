@@ -819,10 +819,10 @@ textarea:focus:not(:focus-visible) { outline: none; }
   .cursor-orb.is-cta::after { animation: none; }
 }
 
-/* ---------- v6.5: background aura reaches toward the cursor ---------- */
-@media (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .aura { transform: translate3d(var(--aura-px, 0vmax), var(--aura-py, 0vmax), 0); }
-}
+/* ---------- v6.5: background aura reaches toward the cursor ----------
+ * driven by JS via inline transform on #aura (composited, no style recalc) —
+ * only when the pointer is fine and motion is allowed (guarded in JS) */
+.aura { will-change: transform; }
 
 /* ---------- v6.5: logo glows harder (already alive, now stronger) ---------- */
 .monogram-wrap::after { opacity: .24; }
