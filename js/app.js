@@ -50,6 +50,7 @@ const state = {
   busy: false,
   strict: false,           // retry mode: appends the strict isolation clause to prompts
   split: null,             // v5 sheet splitter: { pieces:[{canvas,empty}], selection:[idx...], rows, cols, mode, bg, imgW, imgH }
+  pixelart: null,          // v6.5 image→pixel-art: { src:{data,w,h}, imgW, imgH, w, h, colors, dither, scale, out }
 };
 
 /* non-destructive curation sidecar: order lives here, never in the frames */
@@ -103,6 +104,7 @@ const CATEGORY_DEFAULTS = {
   tile:      { size: 128, pattern: "grass" },
   ui:        { kind: "button", states: 3 },
   effect:    { type: "explosion", frames: 8 },
+  pixelart:  { w: 64, h: 64, colors: 16 },
 };
 
 const STATE_FPS = { idle: 6, walk: 8, run: 10, jump: 8, attack: 10 };
@@ -179,6 +181,39 @@ function renderParams() {
         <button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button>
       </div>
       <div class="dim">Variants = normal / hover / pressed style states, extracted left to right.</div>`;
+  } else if (cat === "pixelart") {
+    const px = CATEGORY_DEFAULTS.pixelart;
+    box.innerHTML = `
+      <div class="field-label">Image &rarr; pixel art <span class="dim">(100% offline)</span></div>
+      <div class="row">
+        <button type="button" class="btn-ghost" id="pxPick" style="text-align:center">Upload image</button>
+        <input type="file" id="pxFile" accept="image/*" hidden>
+      </div>
+      <div class="field-label">Output size</div>
+      <div class="px-dims" id="pxDims">
+        ${[16, 32, 48, 64, 96, 128].map(s => `<button type="button" class="seg-btn${s === px.w ? " active" : ""}" data-px="${s}">${s}</button>`).join("")}
+      </div>
+      <div class="row" style="margin-top:8px">
+        <span class="dim">W</span>
+        <input type="number" class="num" id="pxW" min="8" max="256" value="${px.w}">
+        <span class="dim">H</span>
+        <input type="number" class="num" id="pxH" min="8" max="256" value="${px.h}">
+      </div>
+      <div class="field-label">Colors</div>
+      <div class="row">
+        <select id="pxColors" class="grow">
+          ${[[2, "2 colors"], [4, "4 colors"], [8, "8 colors"], [16, "16 colors"], [32, "32 colors"], [256, "256 colors"], [0, "Full color"]].map(([v, lbl]) => `<option value="${v}"${v === px.colors ? " selected" : ""}>${lbl}</option>`).join("")}
+        </select>
+      </div>
+      <label class="chk"><input type="checkbox" id="pxDither"> dithering <span class="dim">(Floyd&ndash;Steinberg)</span></label>
+      <div class="row" style="margin-top:8px">
+        <span class="dim">preview</span>
+        <input type="range" id="pxScale" min="2" max="16" value="8" class="grow" aria-label="preview scale">
+        <span class="dim" id="pxScaleVal">&times;8</span>
+      </div>
+      <button type="button" class="btn-ghost px-download" id="pxDownload">Download pixel art</button>
+      <div class="dim">Upload any image — it never leaves your browser.</div>`;
+    wirePixelArt();
   } else {
     box.innerHTML = `
       <div class="field-label">Effect</div>
@@ -198,6 +233,7 @@ function renderParams() {
     tile: "mossy dungeon floor stones",
     ui: "round fantasy RPG menu button, gold trim",
     effect: "fiery explosion with smoke",
+    pixelart: "not used — upload an image instead",
   };
   $("#prompt").placeholder = "e.g. " + prompts[cat];
 
@@ -1729,6 +1765,273 @@ async function runPipeline() {
   }
 }
 
+/* ================= v6.5: image → pixel art (pure pixel pipeline, DOM-free) =================
+ * Every function below operates on plain {data:Uint8ClampedArray, w, h} pixel
+ * buffers — no canvas, no DOM — so the whole pipeline unit-tests in node.
+ * Alpha is preserved throughout: quantization and dithering touch RGB only;
+ * fully transparent pixels stay fully transparent. */
+
+/* box-average downscale: deterministic, identical in browser and node */
+function pxDownscaleData(src, dw, dh) {
+  const data = src.data, sw = src.w, sh = src.h;
+  const out = new Uint8ClampedArray(dw * dh * 4);
+  const sx = sw / dw, sy = sh / dh;
+  for (let y = 0; y < dh; y++) {
+    const y0 = Math.floor(y * sy), y1 = Math.max(y0 + 1, Math.floor((y + 1) * sy));
+    for (let x = 0; x < dw; x++) {
+      const x0 = Math.floor(x * sx), x1 = Math.max(x0 + 1, Math.floor((x + 1) * sx));
+      let r = 0, g = 0, b = 0, a = 0, n = 0;
+      for (let yy = y0; yy < y1; yy++) for (let xx = x0; xx < x1; xx++) {
+        const i = (yy * sw + xx) * 4;
+        r += data[i]; g += data[i + 1]; b += data[i + 2]; a += data[i + 3]; n++;
+      }
+      const o = (y * dw + x) * 4;
+      out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n; out[o + 3] = a / n;
+    }
+  }
+  return { data: out, w: dw, h: dh };
+}
+
+/* median-cut: px = array of [r,g,b]; returns palette of ≤ maxColors [r,g,b] */
+function pxMedianCut(px, maxColors) {
+  if (!px.length || maxColors < 1) return [];
+  const rangeOf = (box) => {
+    const mn = [255, 255, 255], mx = [0, 0, 0];
+    for (const p of box) for (let c = 0; c < 3; c++) {
+      if (p[c] < mn[c]) mn[c] = p[c];
+      if (p[c] > mx[c]) mx[c] = p[c];
+    }
+    return { mn, mx };
+  };
+  const boxes = [px.slice()];
+  while (boxes.length < maxColors) {
+    let bi = -1, best = -1;
+    for (let i = 0; i < boxes.length; i++) {
+      const b = boxes[i];
+      if (b.length < 2) continue;
+      const { mn, mx } = rangeOf(b);
+      const range = Math.max(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]);
+      const score = range * Math.log2(b.length + 1);
+      if (score > best) { best = score; bi = i; }
+    }
+    if (bi < 0) break;
+    const box = boxes[bi];
+    const { mn, mx } = rangeOf(box);
+    let ch = 0;
+    if (mx[1] - mn[1] > mx[ch] - mn[ch]) ch = 1;
+    if (mx[2] - mn[2] > mx[ch] - mn[ch]) ch = 2;
+    box.sort((a, b2) => a[ch] - b2[ch]);
+    const mid = Math.floor(box.length / 2);
+    boxes.splice(bi, 1, box.slice(0, mid), box.slice(mid));
+  }
+  return boxes.map(b => {
+    let r = 0, g = 0, bl = 0;
+    for (const p of b) { r += p[0]; g += p[1]; bl += p[2]; }
+    const n = b.length || 1;
+    return [Math.round(r / n), Math.round(g / n), Math.round(bl / n)];
+  });
+}
+
+function pxNearestColor(palette, r, g, b) {
+  let bi = 0, bd = Infinity;
+  for (let i = 0; i < palette.length; i++) {
+    const p = palette[i];
+    const d = (p[0] - r) * (p[0] - r) + (p[1] - g) * (p[1] - g) + (p[2] - b) * (p[2] - b);
+    if (d < bd) { bd = d; bi = i; }
+  }
+  return palette[bi];
+}
+
+/* quantize RGB to ≤ maxColors; maxColors 0 = full color (copy). Alpha untouched. */
+function pxQuantize(src, maxColors) {
+  const data = src.data, w = src.w, h = src.h;
+  const out = new Uint8ClampedArray(data.length);
+  if (!maxColors || maxColors >= 256) { out.set(data); return { data: out, w, h }; }
+  const opaque = [];
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] > 8) opaque.push([data[i], data[i + 1], data[i + 2]]);
+  }
+  const palette = pxMedianCut(opaque, maxColors);
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3];
+    if (a <= 8 || !palette.length) { out[i] = 0; out[i + 1] = 0; out[i + 2] = 0; out[i + 3] = 0; continue; }
+    const c = pxNearestColor(palette, data[i], data[i + 1], data[i + 2]);
+    out[i] = c[0]; out[i + 1] = c[1]; out[i + 2] = c[2]; out[i + 3] = a;
+  }
+  return { data: out, w, h };
+}
+
+/* Floyd–Steinberg dithering over a quantized buffer. RGB only; alpha preserved. */
+function pxDitherFS(src, maxColors) {
+  const data = src.data, w = src.w, h = src.h;
+  const f = new Float32Array(data);
+  const opaque = [];
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] > 8) opaque.push([data[i], data[i + 1], data[i + 2]]);
+  }
+  const palette = pxMedianCut(opaque, maxColors);
+  const out = new Uint8ClampedArray(data.length);
+  const spread = (x, y, er, dx, dy, fct) => {
+    const nx = x + dx, ny = y + dy;
+    if (nx < 0 || nx >= w || ny < 0 || ny >= h) return;
+    const ni = (ny * w + nx) * 4;
+    if (data[ni + 3] <= 8) return;
+    f[ni] += er[0] * fct; f[ni + 1] += er[1] * fct; f[ni + 2] += er[2] * fct;
+  };
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4, a = data[i + 3];
+      if (a <= 8 || !palette.length) { out[i] = out[i + 1] = out[i + 2] = 0; out[i + 3] = 0; continue; }
+      const oldR = f[i], oldG = f[i + 1], oldB = f[i + 2];
+      const nc = pxNearestColor(palette, oldR, oldG, oldB);
+      out[i] = nc[0]; out[i + 1] = nc[1]; out[i + 2] = nc[2]; out[i + 3] = a;
+      const er = [oldR - nc[0], oldG - nc[1], oldB - nc[2]];
+      spread(x, y, er, 1, 0, 7 / 16); spread(x, y, er, -1, 1, 3 / 16);
+      spread(x, y, er, 0, 1, 5 / 16); spread(x, y, er, 1, 1, 1 / 16);
+    }
+  }
+  return { data: out, w, h };
+}
+
+/* nearest-neighbor upscale — crisp pixels, never blurry */
+function pxUpscaleNearest(src, scale) {
+  const data = src.data, w = src.w, h = src.h;
+  const W = w * scale, H = h * scale;
+  const out = new Uint8ClampedArray(W * H * 4);
+  for (let y = 0; y < H; y++) {
+    const sy = Math.floor(y / scale);
+    for (let x = 0; x < W; x++) {
+      const sx = Math.floor(x / scale);
+      const si = (sy * w + sx) * 4, oi = (y * W + x) * 4;
+      out[oi] = data[si]; out[oi + 1] = data[si + 1]; out[oi + 2] = data[si + 2]; out[oi + 3] = data[si + 3];
+    }
+  }
+  return { data: out, w: W, h: H };
+}
+
+/* full pipeline: downscale → quantize (or dither). colors 0 = full color. */
+function pxConvert(src, opts) {
+  const small = pxDownscaleData(src, opts.w, opts.h);
+  if (!opts.colors) return small;
+  return opts.dither ? pxDitherFS(small, opts.colors) : pxQuantize(small, opts.colors);
+}
+
+/* ---------- v6.5: pixel-art converter wiring (browser side) ---------- */
+
+function pxState() {
+  if (!state.pixelart) {
+    const d = CATEGORY_DEFAULTS.pixelart;
+    state.pixelart = { src: null, imgW: 0, imgH: 0, w: d.w, h: d.h, colors: d.colors, dither: false, scale: 8, out: null };
+  }
+  return state.pixelart;
+}
+
+function pxColorLabel(n) {
+  return n === 0 ? "full color" : n + " colors";
+}
+
+function syncPixelMode() {
+  const on = state.category === "pixelart";
+  const aside = document.querySelector("aside.controls");
+  const stage = document.querySelector("section.stage-panel");
+  if (aside) aside.classList.toggle("mode-pixelart", on);
+  if (stage) stage.classList.toggle("mode-pixelart", on);
+  document.body.classList.toggle("mode-pixelart", on);
+  const side = $("#pixelSide");
+  if (side) side.hidden = !(on && state.pixelart && state.pixelart.src);
+}
+
+function pxRender() {
+  const P = pxState();
+  const side = $("#pixelSide");
+  if (!P.src) { if (side) side.hidden = true; return; }
+  const t0 = performance.now();
+  P.out = pxConvert(P.src, { w: P.w, h: P.h, colors: P.colors, dither: P.dither });
+  const ms = Math.round(performance.now() - t0);
+
+  const oc = $("#pxOrig"), pc = $("#pxOut");
+  oc.width = P.imgW; oc.height = P.imgH;
+  const octx = oc.getContext("2d");
+  const tmp = document.createElement("canvas");
+  tmp.width = P.src.w; tmp.height = P.src.h;
+  tmp.getContext("2d").putImageData(new ImageData(P.src.data, P.src.w, P.src.h), 0, 0);
+  octx.drawImage(tmp, 0, 0);
+  oc.style.maxWidth = "100%";
+
+  pc.width = P.w; pc.height = P.h;
+  pc.getContext("2d").putImageData(new ImageData(P.out.data, P.out.w, P.out.h), 0, 0);
+  pc.style.width = Math.min(P.w * P.scale, 420) + "px";
+
+  $("#pxOrigCap").textContent = `original · ${P.imgW} × ${P.imgH}`;
+  $("#pxOutCap").textContent = `pixel art · ${P.w} × ${P.h} · ${pxColorLabel(P.colors)}${P.dither ? " · dithered" : ""} · ${ms}ms`;
+  side.hidden = false;
+}
+
+function pxDownloadArt() {
+  const P = state.pixelart;
+  if (!P || !P.out) { stageMsg("Upload an image first.", true); return; }
+  const big = pxUpscaleNearest(P.out, 8); // crisp ×8 nearest-neighbor export
+  const cv = document.createElement("canvas");
+  cv.width = big.w; cv.height = big.h;
+  cv.getContext("2d").putImageData(new ImageData(big.data, big.w, big.h), 0, 0);
+  downloadCanvas(cv, `m4ster-pixel-art-${P.w}x${P.h}-${P.colors || "full"}c.png`);
+}
+
+function wirePixelArt() {
+  const P = pxState();
+  const clampWH = (v) => Math.max(8, Math.min(256, Math.round(v) || 64));
+
+  $("#pxPick").onclick = () => $("#pxFile").click();
+  $("#pxFile").onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      const bmp = await createImageBitmap(f);
+      const cv = document.createElement("canvas");
+      cv.width = bmp.width; cv.height = bmp.height;
+      const cx = cv.getContext("2d", { willReadFrequently: true });
+      cx.drawImage(bmp, 0, 0);
+      const id = cx.getImageData(0, 0, bmp.width, bmp.height);
+      P.src = { data: id.data, w: bmp.width, h: bmp.height };
+      P.imgW = bmp.width; P.imgH = bmp.height;
+      if (bmp.close) bmp.close();
+      stageMsg(`loaded ${f.name} — ${bmp.width}×${bmp.height}`);
+    } catch (err) {
+      stageMsg("couldn't read that image — try a PNG or JPG.", true);
+      return;
+    }
+    pxRender();
+    e.target.value = "";
+  };
+
+  document.querySelectorAll("#pxDims .seg-btn").forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll("#pxDims .seg-btn").forEach(x => x.classList.toggle("active", x === b));
+      P.w = P.h = parseInt(b.dataset.px, 10);
+      $("#pxW").value = P.w; $("#pxH").value = P.h;
+      pxRender();
+    };
+  });
+  const wh = () => {
+    P.w = clampWH(parseInt($("#pxW").value, 10));
+    P.h = clampWH(parseInt($("#pxH").value, 10));
+    $("#pxW").value = P.w; $("#pxH").value = P.h;
+    document.querySelectorAll("#pxDims .seg-btn").forEach(x => x.classList.toggle("active", parseInt(x.dataset.px, 10) === P.w && P.w === P.h));
+    pxRender();
+  };
+  $("#pxW").onchange = wh; $("#pxH").onchange = wh;
+  $("#pxColors").onchange = (e) => { P.colors = parseInt(e.target.value, 10); pxRender(); };
+  $("#pxDither").onchange = (e) => { P.dither = e.target.checked; pxRender(); };
+  $("#pxScale").oninput = (e) => {
+    P.scale = parseInt(e.target.value, 10);
+    $("#pxScaleVal").textContent = "×" + P.scale;
+    const pc = $("#pxOut");
+    if (P.out && pc.width) pc.style.width = Math.min(P.w * P.scale, 420) + "px";
+  };
+  $("#pxDownload").onclick = pxDownloadArt;
+  syncPixelMode();
+}
+
 /* ================= v5: sheet splitter =================
  * Upload a whole sprite sheet -> split into numbered pieces -> click pieces
  * in order (1st click = frame 1) -> animated preview -> download animation.
@@ -2139,6 +2442,7 @@ let uploadImg = null;
 function init() {
   renderParams();
   wireExport();
+  syncPixelMode();
 
   document.querySelectorAll(".tab").forEach(t => {
     t.onclick = () => {
@@ -2146,6 +2450,7 @@ function init() {
       t.classList.add("active");
       state.category = t.dataset.cat;
       renderParams();
+      syncPixelMode();
     };
   });
 

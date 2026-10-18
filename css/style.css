@@ -846,3 +846,54 @@ textarea:focus:not(:focus-visible) { outline: none; }
   box-shadow: 0 10px 30px -12px var(--glow);
 }
 .gh-link:hover { color: var(--violet); }
+
+/* ---------- v6.5: image → pixel art converter ---------- */
+/* pixelart mode hides the sprite-pipeline controls; the converter owns the lab */
+.controls.mode-pixelart #prompt,
+.controls.mode-pixelart label[for="prompt"],
+.controls.mode-pixelart #promptPeek,
+.controls.mode-pixelart #sourceLabel,
+.controls.mode-pixelart #sourceSeg,
+.controls.mode-pixelart #keyLabel,
+.controls.mode-pixelart #keyRow,
+.controls.mode-pixelart #generate,
+.controls.mode-pixelart .gen-note,
+.controls.mode-pixelart #splitterPanel { display: none !important; }
+.stage-panel.mode-pixelart .canvas-wrap,
+.stage-panel.mode-pixelart #retryBar,
+.stage-panel.mode-pixelart #framesHead,
+.stage-panel.mode-pixelart #framesRow,
+.stage-panel.mode-pixelart #splitHead,
+.stage-panel.mode-pixelart #splitGrid,
+.stage-panel.mode-pixelart .preview-export,
+.stage-panel.mode-pixelart .stepper { display: none !important; }
+/* phone sticky generate bar must not fire the sprite pipeline in pixelart mode */
+body.mode-pixelart .mobile-bar { display: none !important; }
+
+/* side-by-side: original | pixel art */
+.pixel-side { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+.pixel-side[hidden] { display: none; }
+.px-fig {
+  margin: 0; background: var(--ink); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 12px; text-align: center; min-width: 0;
+}
+.px-fig canvas {
+  image-rendering: pixelated; max-width: 100%; height: auto; display: block; margin: 0 auto;
+  border-radius: 8px;
+  background: repeating-conic-gradient(#221d38 0 25%, #141126 0 50%) 0 0 / 18px 18px;
+}
+.px-fig figcaption { margin-top: 8px; font-size: 12px; font-family: var(--mono); }
+.px-dims { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.px-download {
+  border-color: var(--violet); color: var(--violet); font-weight: 700;
+  text-align: center; margin-top: 10px;
+}
+.px-download:hover { background: var(--violet); color: var(--on-accent); }
+.px-empty {
+  grid-column: 1 / -1; text-align: center; color: var(--dim);
+  font-size: 13px; padding: 40px 16px; border: 1px dashed var(--line); border-radius: var(--r);
+}
+@media (max-width: 767px) {
+  .pixel-side { grid-template-columns: 1fr; }
+  .px-dims { grid-template-columns: repeat(3, 1fr); }
+}

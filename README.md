@@ -10,6 +10,19 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.5 — image → pixel art converter
+
+Upload any image and convert it to pixel art at the dimensions you choose —
+side-by-side original vs pixel art, exactly like the reference. 100% offline,
+zero dependencies, your image never leaves the browser.
+
+- **Output sizes** — presets 16 / 32 / 48 / 64 / 96 / 128px, or custom W×H (8–256).
+- **Color control** — 2 / 4 / 8 / 16 / 32 / 256 colors via median-cut quantization, or full color.
+- **Floyd–Steinberg dithering** toggle for smooth gradients at low color counts.
+- **Transparency preserved** — alpha is never quantized; transparent stays transparent.
+- **Crisp preview** — nearest-neighbor upscale only, never blurry; adjustable ×2–×16.
+- **One-button export** — pixel-art PNG at a crisp ×8 nearest-neighbor upscale.
+
 ## v6.1 — "ALIVE" + reveal fix
 
 - **Fixed: gallery + preset chips now paint.** The v6 scroll-reveal never

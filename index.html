@@ -95,6 +95,10 @@
       <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="6" width="36" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><line x1="24" y1="6" x2="24" y2="42" stroke="currentColor" stroke-width="3"/><line x1="6" y1="24" x2="42" y2="24" stroke="currentColor" stroke-width="3"/></svg>
       <b>Splitter</b><span>cut a sheet into frames, animate</span>
     </button>
+    <button class="cat-card" data-cat="pixelart" type="button">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="6" width="11" height="11" fill="currentColor"/><rect x="18.5" y="6" width="11" height="11" fill="currentColor" opacity=".55"/><rect x="31" y="6" width="11" height="11" fill="currentColor"/><rect x="6" y="18.5" width="11" height="11" fill="currentColor" opacity=".55"/><rect x="18.5" y="18.5" width="11" height="11" fill="currentColor"/><rect x="31" y="18.5" width="11" height="11" fill="currentColor" opacity=".55"/><rect x="6" y="31" width="11" height="11" fill="currentColor"/><rect x="18.5" y="31" width="11" height="11" fill="currentColor" opacity=".55"/><rect x="31" y="31" width="11" height="11" fill="currentColor"/></svg>
+      <b>Pixel Art</b><span>photo → crisp pixels</span>
+    </button>
   </div>
 </section>
 
@@ -120,6 +124,7 @@
       <button class="tab" data-cat="tile" role="tab">Tile</button>
       <button class="tab" data-cat="ui" role="tab">UI</button>
       <button class="tab" data-cat="effect" role="tab">Effect</button>
+      <button class="tab" data-cat="pixelart" role="tab">Pixel Art</button>
     </div>
 
     <div id="params"></div>
@@ -158,7 +163,7 @@
       <p id="promptSent"></p>
     </details>
 
-    <div class="field-label">Source</div>
+    <div class="field-label" id="sourceLabel">Source</div>
     <div class="seg" id="sourceSeg">
       <button class="seg-btn active" data-src="ai">AI image</button>
       <button class="seg-btn" data-src="procedural">Procedural <span class="offline">offline</span></button>
@@ -166,7 +171,7 @@
     </div>
     <input type="file" id="uploadInput" accept="image/*" hidden>
 
-    <div class="field-label">Background key <span class="dim">(stripped from the sprite)</span></div>
+    <div class="field-label" id="keyLabel">Background key <span class="dim">(stripped from the sprite)</span></div>
     <div class="keys" id="keyRow">
       <button class="key active" data-key="255,0,255" style="--kc:#ff00ff" title="Magenta"></button>
       <button class="key" data-key="0,255,0" style="--kc:#00ff00" title="Green"></button>
@@ -193,6 +198,17 @@
     <div class="canvas-wrap">
       <canvas id="stage"></canvas>
       <div id="stageMsg" class="stage-msg">Pick a category, describe your sprite, hit generate.</div>
+    </div>
+
+    <div id="pixelSide" class="pixel-side" hidden>
+      <figure class="px-fig">
+        <canvas id="pxOrig"></canvas>
+        <figcaption id="pxOrigCap" class="dim">original</figcaption>
+      </figure>
+      <figure class="px-fig">
+        <canvas id="pxOut"></canvas>
+        <figcaption id="pxOutCap" class="dim">pixel art</figcaption>
+      </figure>
     </div>
 
     <div id="retryBar" class="retry-bar" hidden>
