@@ -2838,3 +2838,69 @@ if (document.readyState === "loading") {
 } else {
   initV6();
 }
+
+/* ---------- v6.5: m4ster signature cursor (orb) + aura parallax ----------
+ * Desktop/fine-pointer only; skipped entirely on touch + reduced-motion.
+ * Orb glow is theme-accent via CSS (--violet). Download/export/generate
+ * CTAs trigger the signature pulse-ring state. */
+(function () {
+  "use strict";
+  if (!window.matchMedia) return;
+  var fine = window.matchMedia("(pointer: fine)").matches;
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!fine || reduced) return;
+
+  var orb = document.createElement("div");
+  orb.className = "cursor-orb";
+  orb.setAttribute("aria-hidden", "true");
+  document.body.appendChild(orb);
+  document.documentElement.classList.add("has-orb");
+
+  var tx = -100, ty = -100, x = -100, y = -100; /* target / lerped orb pos */
+  var ax = 0, ay = 0;                            /* lerped aura parallax -1..1 */
+  var HOVER = "a, button, input, select, textarea, .gcard, .cat-card, .preset-chip, " +
+              ".swatch, .tab, .seg-btn, .stepper li, .icon-btn, .frame-card, " +
+              ".key, label, summary, [role=button]";
+  var CTA = "#dlBundle, #dlSheet, #dlJson, #dlFrames, #dlAnim, " +
+            "#generate, #heroGenerate, #generateMobile";
+
+  document.addEventListener("mousemove", function (e) {
+    tx = e.clientX; ty = e.clientY;
+  }, { passive: true });
+  document.addEventListener("mouseout", function (e) {
+    if (!e.relatedTarget) orb.style.opacity = "0";
+  });
+  document.addEventListener("mouseover", function (e) {
+    if (orb.style.opacity === "0") orb.style.opacity = "";
+  });
+
+  function closest(el, sel) {
+    while (el && el !== document.documentElement) {
+      if (el.matches && el.matches(sel)) return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  document.addEventListener("mouseover", function (e) {
+    var cta = closest(e.target, CTA);
+    var hov = cta || closest(e.target, HOVER);
+    orb.classList.toggle("is-cta", !!(cta && !cta.disabled));
+    orb.classList.toggle("is-hover", !!(hov && !hov.disabled && !(cta && !cta.disabled)));
+  }, { passive: true });
+
+  var root = document.documentElement;
+  (function tick() {
+    x += (tx - x) * 0.22;
+    y += (ty - y) * 0.22;
+    orb.style.transform = "translate3d(" + x.toFixed(1) + "px," + y.toFixed(1) + "px,0)";
+    /* background aura gently reaches toward the cursor */
+    var nx = (tx / window.innerWidth - 0.5) * 2;
+    var ny = (ty / window.innerHeight - 0.5) * 2;
+    ax += (nx - ax) * 0.05;
+    ay += (ny - ay) * 0.05;
+    root.style.setProperty("--aura-px", (ax * 1.5).toFixed(3) + "vmax");
+    root.style.setProperty("--aura-py", (ay * 1.5).toFixed(3) + "vmax");
+    requestAnimationFrame(tick);
+  })();
+})();
