@@ -117,163 +117,52 @@ function renderParams() {
 
   if (cat === "character") {
     box.innerHTML = `
-      <div class="field-label">Animation states <span class="dim">(one AI call per state)</span></div>
-      <div class="row" id="stateRow">
+      <div class="field-label">Animation states <span class="dim">(one AI call per state)</span></div><div class="row" id="stateRow">
         ${["idle", "walk", "run", "jump", "attack"].map(s =>
           `<label class="chk"><input type="checkbox" data-state="${s}" ${d.states.includes(s) ? "checked" : ""}>${s}</label>`).join("")}
-      </div>
-      <div class="row">
-        <span class="dim">frames/state</span>
-        <input type="number" class="num" id="pFrames" min="2" max="12" value="${d.frames}">
-        <span class="dim">style</span>
-        <select id="pStyle" class="grow">
-          <option value="clean 2d">clean 2D</option>
-          <option value="pixel art">pixel art</option>
-          <option value="cartoon">cartoon</option>
-          <option value="dark fantasy">dark fantasy</option>
-        </select>
-      </div>
-      <div class="row">
-        <span class="dim">view</span>
-        <select id="pView"><option value="side">side</option><option value="front">front</option></select>
-        <span class="dim">facing</span>
-        <div class="seg" id="pFlipSeg" style="grid-template-columns:repeat(2,minmax(0,1fr));flex:1">
-          <button type="button" class="seg-btn${state.flipX ? "" : " active"}" data-flip="0" title="face right">&#8594; right</button>
-          <button type="button" class="seg-btn${state.flipX ? " active" : ""}" data-flip="1" title="face left">&#8592; left</button>
-        </div>
-      </div>
-      <div class="row">
-        <span class="dim">archetype</span>
-        <select id="pArch" class="grow">
+      </div><div class="row"><span class="dim">frames/state</span><input type="number" class="num" id="pFrames" min="2" max="12" value="${d.frames}"><span class="dim">style</span><select id="pStyle" class="grow"><option value="clean 2d">clean 2D</option><option value="pixel art">pixel art</option><option value="cartoon">cartoon</option><option value="dark fantasy">dark fantasy</option></select></div><div class="row"><span class="dim">view</span><select id="pView"><option value="side">side</option><option value="front">front</option></select><span class="dim">facing</span><div class="seg" id="pFlipSeg" style="grid-template-columns:repeat(2,minmax(0,1fr));flex:1"><button type="button" class="seg-btn${state.flipX ? "" : " active"}" data-flip="0" title="face right">&#8594; right</button><button type="button" class="seg-btn${state.flipX ? " active" : ""}" data-flip="1" title="face left">&#8592; left</button></div></div><div class="row"><span class="dim">archetype</span><select id="pArch" class="grow">
           ${[["biped", "biped"], ["quadruped", "quadruped"], ["flyer", "flyer / bird"], ["slime", "slime"], ["robot", "robot"]]
             .map(([v, lbl]) => `<option value="${v}" ${v === d.archetype ? "selected" : ""}>${lbl}</option>`).join("")}
-        </select>
-        <span class="dim">palette</span>
-        <select id="pPal">
+        </select><span class="dim">palette</span><select id="pPal">
           ${["classic", "ember", "frost", "toxic"].map(pl => `<option ${pl === d.palette ? "selected" : ""}>${pl}</option>`).join("")}
-        </select>
-        <button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button>
-      </div>`;
+        </select><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div>`;
   } else if (cat === "tile") {
     box.innerHTML = `
-      <div class="field-label">Tile</div>
-      <div class="row">
-        <span class="dim">size</span>
-        <select id="pSize">
+      <div class="field-label">Tile</div><div class="row"><span class="dim">size</span><select id="pSize">
           ${[32, 64, 128, 256].map(s => `<option value="${s}" ${s === d.size ? "selected" : ""}>${s}px</option>`).join("")}
-        </select>
-        <span class="dim">procedural pattern</span>
-        <select id="pPattern" class="grow">
+        </select><span class="dim">procedural pattern</span><select id="pPattern" class="grow">
           ${TILE_PATTERNS.map(pat => `<option ${pat === d.pattern ? "selected" : ""}>${pat}</option>`).join("")}
-        </select>
-        <button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button>
-      </div>
-      <div class="dim" style="margin-bottom:4px">Tiles export edge-to-edge (no keying) and preview in a 3&times;3 wrap.</div>`;
+        </select><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div><div class="dim" style="margin-bottom:4px">Tiles export edge-to-edge (no keying) and preview in a 3&times;3 wrap.</div>`;
   } else if (cat === "ui") {
     box.innerHTML = `
-      <div class="field-label">UI element</div>
-      <div class="row">
-        <select id="pKind" class="grow">
+      <div class="field-label">UI element</div><div class="row"><select id="pKind" class="grow">
           ${[["button", "button"], ["icon", "icon"], ["panel", "panel"], ["coin", "coin"], ["gem", "gem"], ["heart", "heart"], ["star", "star"], ["health", "health bar"]]
             .map(([v, lbl]) => `<option value="${v}" ${v === d.kind ? "selected" : ""}>${lbl}</option>`).join("")}
-        </select>
-        <span class="dim">variants</span>
-        <input type="number" class="num" id="pStates" min="1" max="4" value="${d.states}">
-        <button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button>
-      </div>
-      <div class="dim">Variants = normal / hover / pressed style states, extracted left to right.</div>`;
+        </select><span class="dim">variants</span><input type="number" class="num" id="pStates" min="1" max="4" value="${d.states}"><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div><div class="dim">Variants = normal / hover / pressed style states, extracted left to right.</div>`;
   } else if (cat === "pixelart") {
     const px = CATEGORY_DEFAULTS.pixelart;
     box.innerHTML = `
-      <div class="field-label">Image &rarr; pixel art <span class="dim">(100% offline)</span></div>
-      <div class="row">
-        <button type="button" class="btn-ghost" id="pxPick" style="text-align:center">Upload image</button>
-        <input type="file" id="pxFile" accept="image/*" hidden>
-      </div>
-      <div class="field-label">Output size</div>
-      <div class="px-dims" id="pxDims">
+      <div class="field-label">Image &rarr; pixel art <span class="dim">(100% offline)</span></div><div class="row"><button type="button" class="btn-ghost" id="pxPick" style="text-align:center">Upload image</button><input type="file" id="pxFile" accept="image/*" hidden></div><div class="field-label">Output size</div><div class="px-dims" id="pxDims">
         ${[16, 32, 48, 64, 96, 128].map(s => `<button type="button" class="seg-btn${s === px.w ? " active" : ""}" data-px="${s}">${s}</button>`).join("")}
-      </div>
-      <div class="row" style="margin-top:8px">
-        <span class="dim">W</span>
-        <input type="number" class="num" id="pxW" min="8" max="256" value="${px.w}">
-        <span class="dim">H</span>
-        <input type="number" class="num" id="pxH" min="8" max="256" value="${px.h}">
-      </div>
-      <div class="field-label">Colors</div>
-      <div class="row">
-        <select id="pxColors" class="grow">
+      </div><div class="row" style="margin-top:8px"><span class="dim">W</span><input type="number" class="num" id="pxW" min="8" max="256" value="${px.w}"><span class="dim">H</span><input type="number" class="num" id="pxH" min="8" max="256" value="${px.h}"></div><div class="field-label">Colors</div><div class="row"><select id="pxColors" class="grow">
           ${[[2, "2 colors"], [4, "4 colors"], [8, "8 colors"], [16, "16 colors"], [32, "32 colors"], [256, "256 colors"], [0, "Full color"]].map(([v, lbl]) => `<option value="${v}"${v === px.colors ? " selected" : ""}>${lbl}</option>`).join("")}
-        </select>
-      </div>
-      <label class="chk"><input type="checkbox" id="pxDither"> dithering <span class="dim">(Floyd&ndash;Steinberg)</span></label>
-      <div class="row" style="margin-top:8px">
-        <span class="dim">preview</span>
-        <input type="range" id="pxScale" min="2" max="16" value="8" class="grow" aria-label="preview scale">
-        <span class="dim" id="pxScaleVal">&times;8</span>
-      </div>
-      <button type="button" class="btn-ghost px-download" id="pxDownload">Download pixel art</button>
-      <div class="dim">Upload any image — it never leaves your browser.</div>`;
+        </select></div><label class="chk"><input type="checkbox" id="pxDither"> dithering <span class="dim">(Floyd&ndash;Steinberg)</span></label><div class="row" style="margin-top:8px"><span class="dim">preview</span><input type="range" id="pxScale" min="2" max="16" value="8" class="grow" aria-label="preview scale"><span class="dim" id="pxScaleVal">&times;8</span></div><button type="button" class="btn-ghost px-download" id="pxDownload">Download pixel art</button><div class="dim">Upload any image — it never leaves your browser.</div>`;
     wirePixelArt();
   } else if (cat === "slicer") {
     const sl = slState();
     box.innerHTML = `
-      <div class="field-label">Sprite slicer <span class="dim">(100% offline)</span></div>
-      <div class="row">
-        <button type="button" class="btn-ghost" id="slPick" style="text-align:center">Upload sheet</button>
-        <input type="file" id="slFile" accept="image/*" hidden>
-      </div>
-      <div class="sl-seg-label">Mode</div>
-      <div class="seg" id="slModeSeg">
-        <button type="button" class="seg-btn${sl.mode === "grid" ? " active" : ""}" data-mode="grid">Grid</button>
-        <button type="button" class="seg-btn${sl.mode === "auto" ? " active" : ""}" data-mode="auto">Auto-detect</button>
-      </div>
-      <div id="slGridRow"${sl.mode === "grid" ? "" : " hidden"}>
-        <div class="sl-row"><span class="dim">rows</span><input type="range" id="slRows" min="1" max="32" value="${sl.rows}" aria-label="grid rows"><span class="sl-val" id="slRowsVal">${sl.rows}</span></div>
-        <div class="sl-row"><span class="dim">cols</span><input type="range" id="slCols" min="1" max="32" value="${sl.cols}" aria-label="grid columns"><span class="sl-val" id="slColsVal">${sl.cols}</span></div>
-        <div class="sl-grid4">
-          <label>margin<input type="number" class="num" id="slMargin" min="0" max="200" value="${sl.margin}"></label>
-          <label>padding<input type="number" class="num" id="slPad" min="0" max="200" value="${sl.pad}"></label>
-          <label>offset x<input type="number" class="num" id="slOx" min="0" max="500" value="${sl.ox}"></label>
-          <label>offset y<input type="number" class="num" id="slOy" min="0" max="500" value="${sl.oy}"></label>
-        </div>
-      </div>
-      <div class="sl-readout" id="slReadout">upload a sheet to start</div>
-      <div class="sl-seg-label">Background <span class="dim">(treated as empty)</span></div>
-      <div class="seg cols4" id="slBgSeg">
+      <div class="field-label">Sprite slicer <span class="dim">(100% offline)</span></div><div class="row"><button type="button" class="btn-ghost" id="slPick" style="text-align:center">Upload sheet</button><input type="file" id="slFile" accept="image/*" hidden></div><div class="field-label">Mode</div><div class="seg" id="slModeSeg"><button type="button" class="seg-btn${sl.mode === "grid" ? " active" : ""}" data-mode="grid">Grid</button><button type="button" class="seg-btn${sl.mode === "auto" ? " active" : ""}" data-mode="auto">Auto-detect</button></div><div id="slGridRow"${sl.mode === "grid" ? "" : " hidden"}><div class="sl-row"><span class="dim">rows</span><input type="range" id="slRows" min="1" max="32" value="${sl.rows}" aria-label="grid rows"><span class="sl-val" id="slRowsVal">${sl.rows}</span></div><div class="sl-row"><span class="dim">cols</span><input type="range" id="slCols" min="1" max="32" value="${sl.cols}" aria-label="grid columns"><span class="sl-val" id="slColsVal">${sl.cols}</span></div><div class="sl-grid4"><label>margin<input type="number" class="num" id="slMargin" min="0" max="200" value="${sl.margin}"></label><label>padding<input type="number" class="num" id="slPad" min="0" max="200" value="${sl.pad}"></label><label>offset x<input type="number" class="num" id="slOx" min="0" max="500" value="${sl.ox}"></label><label>offset y<input type="number" class="num" id="slOy" min="0" max="500" value="${sl.oy}"></label></div></div><div class="sl-readout" id="slReadout">upload a sheet to start</div><div class="field-label">Background <span class="dim">(treated as empty)</span></div><div class="seg cols4" id="slBgSeg">
         ${[["transparent", "Alpha"], ["black", "Black"], ["white", "White"], ["chroma", "Key"]].map(([v, lbl]) => `<button type="button" class="seg-btn${v === sl.bg ? " active" : ""}" data-bg="${v}">${lbl}</button>`).join("")}
-      </div>
-      <label class="knock-row"><input type="checkbox" id="slKnockout"${sl.knockout ? " checked" : ""}> Knock out background &rarr; transparent</label>
-      <div class="sl-pick-row">
-        <button type="button" class="btn-ghost" id="slSelectAll">Select all</button>
-        <button type="button" class="btn-ghost" id="slClear">Clear</button>
-        <button type="button" class="btn-ghost" id="slReslice">Re-slice</button>
-      </div>
-      <div class="sl-hint">Click pieces in order &mdash; 1st click = frame 1, 2nd = frame 2. Empty cells are flagged.</div>
-      <div class="sl-seg-label">Playback</div>
-      <div class="row">
-        <span class="dim">fps</span>
-        <select id="slFps">${[6, 8, 12, 24].map(f => `<option value="${f}"${f === sl.fps ? " selected" : ""}>${f} fps</option>`).join("")}</select>
-      </div>
-      <div class="seg" id="slPlaybackSeg" style="margin-top:8px">
+      </div><label class="knock-row"><input type="checkbox" id="slKnockout"${sl.knockout ? " checked" : ""}> Knockout bg &rarr; transparent</label><div class="sl-pick-row"><button type="button" class="btn-ghost" id="slSelectAll">Select all</button><button type="button" class="btn-ghost" id="slClear">Clear</button><button type="button" class="btn-ghost" id="slReslice">Re-slice</button></div><div class="sl-hint">Click pieces in order &mdash; 1st = frame 1. Empty cells flagged.</div><div class="field-label">Playback</div><div class="row"><span class="dim">fps</span><select id="slFps">${[6, 8, 12, 24].map(f => `<option value="${f}"${f === sl.fps ? " selected" : ""}>${f} fps</option>`).join("")}</select></div><div class="seg" id="slPlaybackSeg" style="margin-top:8px">
         ${[["loop", "Loop"], ["once", "Once"], ["pingpong", "Ping-pong"]].map(([v, lbl]) => `<button type="button" class="seg-btn${v === sl.playback ? " active" : ""}" data-playback="${v}">${lbl}</button>`).join("")}
-      </div>
-      <button type="button" class="btn-ghost sl-download" id="slDownload" disabled>Download animation <span class="dim">PNG + JSON</span></button>
-      <button type="button" class="btn-ghost sl-download" id="slCells" disabled>Download cells <span class="dim">individual PNGs</span></button>
-      <div class="dim">The sheet never leaves your browser.</div>`;
+      </div><button type="button" class="btn-ghost sl-download" id="slDownload" disabled>Download animation <span class="dim">PNG + JSON</span></button><button type="button" class="btn-ghost sl-download" id="slCells" disabled>Download cells <span class="dim">individual PNGs</span></button><div class="dim">100% offline.</div>`;
     wireSlicer();
   } else {
     box.innerHTML = `
-      <div class="field-label">Effect</div>
-      <div class="row">
-        <select id="pType" class="grow">
+      <div class="field-label">Effect</div><div class="row"><select id="pType" class="grow">
           ${["explosion", "fire", "smoke", "sparkle", "ring", "slash", "particles", "power-up", "magic"]
             .map(t => `<option ${t === d.type ? "selected" : ""}>${t}</option>`).join("")}
-        </select>
-        <span class="dim">frames</span>
-        <input type="number" class="num" id="pFrames" min="4" max="16" value="${d.frames}">
-        <button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button>
-      </div>`;
+        </select><span class="dim">frames</span><input type="number" class="num" id="pFrames" min="4" max="16" value="${d.frames}"><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div>`;
   }
 
   const prompts = {

@@ -527,23 +527,13 @@ input, .stepper li, .canvas-wrap, .preview-box #preview, .generate,
   }
 }
 
-/* ---------- v5: sheet splitter ---------- */
-#splitterPanel { margin-top: 4px; }
+/* ---------- v6.6: slicer (piece picker reused from v5) ---------- */
 .seg.cols4 { grid-template-columns: repeat(4, 1fr); }
-#splitGridRow { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
-#splitterPanel .num {
-  width: 68px; background: var(--ink); color: var(--text); border: 1px solid var(--line);
-  border-radius: 10px; padding: 9px 11px; font-size: 13px; font-family: var(--sans); min-height: 38px;
-}
-#splitterPanel .num:focus { outline: none; border-color: var(--violet); }
 .knock-row {
   display: flex; align-items: center; gap: 8px; margin-top: 10px;
   font-size: 13px; color: var(--mute); cursor: pointer; user-select: none;
 }
 .knock-row input { accent-color: var(--violet); width: 16px; height: 16px; }
-.split-actions { display: flex; gap: 8px; margin-top: 10px; }
-.split-actions .btn-ghost { margin-bottom: 0; flex: 1; text-align: center; }
-
 .split-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
   gap: 8px; padding: 10px 2px; max-height: 340px; overflow-y: auto; scrollbar-width: thin;
@@ -572,7 +562,6 @@ input, .stepper li, .canvas-wrap, .preview-box #preview, .generate,
 @media (max-width: 767px) {
   .split-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); max-height: 300px; }
   .piece-card { min-height: 64px; }
-  .split-actions { flex-direction: row; }
 }
 
 /* ================= v6 "THE MIXTURE" =================
@@ -945,13 +934,8 @@ body.mode-slicer .mobile-bar { display: none !important; }
 }
 .sl-download:hover { background: var(--violet); color: var(--on-accent); }
 .sl-download:disabled { opacity: .4; cursor: not-allowed; }
-.sl-seg-label { font-size: 12px; color: var(--dim); margin: 10px 0 6px; }
 /* sheet + grid overlay sits on the stage canvas; cut lines drawn in JS */
 .stage-panel.mode-slicer .canvas-wrap { position: relative; }
-.sl-overlay-cap {
-  font-family: var(--mono); font-size: 12px; color: var(--dim);
-  text-align: center; margin-top: 6px;
-}
 @media (max-width: 767px) {
   .sl-grid4 { grid-template-columns: repeat(2, 1fr); }
 }
