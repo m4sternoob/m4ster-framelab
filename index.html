@@ -54,6 +54,33 @@
 
     <div id="params"></div>
 
+    <div id="splitterPanel" hidden>
+      <div class="field-label">Sheet splitter</div>
+      <div class="seg" id="splitModeSeg">
+        <button class="seg-btn active" data-mode="grid" type="button">Grid</button>
+        <button class="seg-btn" data-mode="auto" type="button">Auto-detect</button>
+      </div>
+      <div id="splitGridRow">
+        <span class="dim">rows</span>
+        <input type="number" class="num" id="splitRows" min="1" max="32" value="1">
+        <span class="dim">cols</span>
+        <input type="number" class="num" id="splitCols" min="1" max="32" value="1">
+      </div>
+      <div class="field-label">Piece background <span class="dim">(treated as empty)</span></div>
+      <div class="seg cols4" id="splitBgSeg">
+        <button class="seg-btn active" data-bg="transparent" type="button">Alpha</button>
+        <button class="seg-btn" data-bg="black" type="button">Black</button>
+        <button class="seg-btn" data-bg="white" type="button">White</button>
+        <button class="seg-btn" data-bg="chroma" type="button">Key</button>
+      </div>
+      <label class="knock-row"><input type="checkbox" id="splitKnockout" checked> Knock out background → transparent</label>
+      <div class="split-actions">
+        <button class="btn-ghost" id="splitSelectAll" type="button">Select all</button>
+        <button class="btn-ghost" id="splitClear" type="button">Clear</button>
+      </div>
+      <div class="dim" style="margin-top:8px">Click pieces in order — 1st click = frame 1, 2nd = frame 2…</div>
+    </div>
+
     <label class="field-label" for="prompt">Describe it</label>
     <textarea id="prompt" rows="3" placeholder="e.g. zombie pirate with a rusty hook hand"></textarea>
     <details class="prompt-peek" id="promptPeek" hidden>
@@ -106,11 +133,17 @@
       </div>
     </div>
 
-    <div class="frames-head">
+    <div class="frames-head" id="framesHead">
       <span class="field-label">Frames <span class="dim" id="framesMeta"></span></span>
       <span class="dim">originals kept untouched — reorder arrows only change the manifest</span>
     </div>
     <div class="frames-row" id="framesRow"></div>
+
+    <div class="frames-head" id="splitHead" hidden>
+      <span class="field-label">Pieces <span class="dim" id="splitMeta"></span></span>
+      <span class="dim">click in order — 1st = frame 1</span>
+    </div>
+    <div class="split-grid" id="splitGrid" hidden></div>
 
     <div class="preview-export">
       <div class="preview-box">
@@ -131,6 +164,7 @@
         <button class="btn" id="dlSheet" disabled>sprite sheet PNG</button>
         <button class="btn" id="dlJson" disabled>atlas manifest JSON</button>
         <button class="btn ghost" id="dlFrames" disabled>frames (individual PNGs)</button>
+        <button class="btn" id="dlAnim" disabled>Download animation</button>
         <div class="export-note">Manifest = absolute frame rects + per-state fps/durations + loop flags. Your game reads the rects — never recompute.</div>
       </div>
     </div>

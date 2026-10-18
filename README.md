@@ -8,6 +8,23 @@ browser. No API keys, no signup, no credit card, no payments — ever.
 Pick a category, describe the sprite, hit **Generate**. You get a packed
 sprite sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v5 — Sheet Splitter
+
+Upload a whole sprite sheet and the app no longer treats it as one blob:
+
+- **Split it** — even **Grid** mode (rows × cols, row-major numbering) or
+  **Auto-detect** (content-based blob detection, reading order).
+- **Background selector** — what counts as "empty": alpha, black, white,
+  or your chroma key color. Optional **knockout** punches that background
+  to transparent in the pieces (leave it off for opaque tilesets).
+- **Numbered piece picker** — click pieces in order: 1st click = frame 1,
+  2nd = frame 2… Selected pieces get order badges. Select all / Clear.
+- **Animated preview** — your picked frames play in motion with the fps
+  selector, bottom-aligned so walk cycles don't jitter.
+- **Download animation** — one button packs the picked frames into a
+  sprite-sheet PNG + manifest JSON (v2.1.0, `engine: "splitter"`).
+  Individual picked frames export too.
+
 ## v4 — reliability + procedural variety
 
 - **AI retry with backoff** — Pollinations rate-limits anonymous bursts
@@ -106,6 +123,29 @@ same output pixels, every time.
 - `m4ster-sprite-sheet.png` — the packed atlas
 - `m4ster-sprite-atlas.json` — manifest (frame rects, fps, durations, loop flags, run revision)
 - individual frame PNGs (click any frame thumbnail, or bulk download)
+- **Splitter:** `m4ster-split-animation.png` + `m4ster-split-animation.json`
+  (manifest v2.1.0, `engine: "splitter"`) — one button downloads both
+
+## Using exports in engines
+
+The manifest JSON carries absolute frame rects (`frameLayout.rows.<name>.rects`
+as `{x, y, w, h}`) plus per-animation `fps`, `durationsMs`, and `loop`.
+Your game reads the rects — never recomputes them.
+
+**Unity** — import the PNG into `Assets/`, select it → Texture Type:
+Sprite (2D and UI) → Sprite Mode: Multiple → Apply → open Sprite Editor →
+Slice → Grid By Cell Size (or Automatic) → Slice → Apply. Drag sprites into
+the scene; match animation order to the manifest's `frameOrder`.
+
+**Godot 4** — import the PNG; in an `AnimatedSprite2D` add a `SpriteFrames`
+resource → "Add frames from sprite sheet" (set H/V frames to the atlas
+grid). Or in code: `var t := AtlasTexture.new(); t.atlas = load("sheet.png");`
+`t.region = Rect2(x, y, w, h)` ← rects straight from the manifest JSON.
+
+**Unreal (Paper 2D)** — import the PNG → right-click → Sprite Actions →
+Extract Sprites (grid mode) → select the sprites → right-click → Create
+Flipbook → set Frames Per Second from the manifest `fps`. Drop the flipbook
+into a Paper Flipbook component; `loop` comes from the manifest too.
 
 ## Run it locally
 

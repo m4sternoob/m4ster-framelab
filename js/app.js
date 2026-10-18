@@ -46,9 +46,10 @@ const state = {
   rows: [],                // [{ name, frames:[canvas], order:[idx], fps, loop }]
   originals: [],           // untouched extracted frames, parallel to rows
   revision: null,          // run-revision stamp; curation (order) is tied to it
-  atlas: null,             // { canvas, manifest }
+  atlas: null,             // { canvas, manifest, pngName, jsonName }
   busy: false,
   strict: false,           // retry mode: appends the strict isolation clause to prompts
+  split: null,             // v5 sheet splitter: { pieces:[{canvas,empty}], selection:[idx...], rows, cols, mode, bg, imgW, imgH }
 };
 
 /* non-destructive curation sidecar: order lives here, never in the frames */
@@ -669,7 +670,7 @@ function buildAtlas(rows, pad = 2) {
     curation: curation(),
   };
 
-  return { canvas: sheet, manifest };
+  return { canvas: sheet, manifest, pngName: "m4ster-sprite-sheet.png", jsonName: "m4ster-sprite-atlas.json" };
 }
 
 /* ---------------- frames strip UI (non-destructive reorder) ---------------- */
@@ -730,8 +731,10 @@ let previewRAF = 0, previewRow = 0, previewT = 0;
 
 function startPreview() {
   cancelAnimationFrame(previewRAF);
+  cancelAnimationFrame(splitRAF);
   const sel = $("#previewState");
   sel.innerHTML = "";
+  sel.disabled = false;
   state.rows.forEach((r, i) => {
     const o = document.createElement("option");
     o.value = i; o.textContent = r.name;
@@ -799,9 +802,25 @@ function downloadJSON(obj, filename) {
 }
 
 function wireExport() {
-  $("#dlSheet").onclick = () => state.atlas && downloadCanvas(state.atlas.canvas, "m4ster-sprite-sheet.png");
-  $("#dlJson").onclick = () => state.atlas && downloadJSON(state.atlas.manifest, "m4ster-sprite-atlas.json");
+  $("#dlSheet").onclick = () => state.atlas && downloadCanvas(state.atlas.canvas, state.atlas.pngName || "m4ster-sprite-sheet.png");
+  $("#dlJson").onclick = () => state.atlas && downloadJSON(state.atlas.manifest, state.atlas.jsonName || "m4ster-sprite-atlas.json");
+  $("#dlAnim").onclick = () => {
+    // one button, both files: the picked animation as sheet PNG + manifest JSON
+    if (!state.atlas) return;
+    downloadCanvas(state.atlas.canvas, state.atlas.pngName || "m4ster-sprite-sheet.png");
+    setTimeout(() => downloadJSON(state.atlas.manifest, state.atlas.jsonName || "m4ster-sprite-atlas.json"), 400);
+  };
   $("#dlFrames").onclick = () => {
+    if (state.split) {
+      // splitter: export the picked frames in order
+      let delay = 0;
+      state.split.selection.forEach((pi, oi) => {
+        const c = state.split.pieces[pi].canvas;
+        setTimeout(() => downloadCanvas(c, `m4ster-split-frame${oi}.png`), delay);
+        delay += 350;
+      });
+      return;
+    }
     if (!state.rows.length) return;
     let delay = 0;
     state.rows.forEach(r => {
@@ -814,7 +833,7 @@ function wireExport() {
 }
 
 function enableExport(on) {
-  ["#dlSheet", "#dlJson", "#dlFrames"].forEach(s => { $(s).disabled = !on; });
+  ["#dlSheet", "#dlJson", "#dlFrames", "#dlAnim"].forEach(s => { $(s).disabled = !on; });
 }
 /* ================= procedural (offline) generators =================
  * Seeded pixel-art mode: palette-locked, selective outline, binary alpha.
@@ -1570,6 +1589,8 @@ function pushRow(name, frames, extra = {}) {
 }
 
 async function runPipeline() {
+  // v5: uploads go through the sheet splitter (grid/auto -> numbered picker)
+  if (state.source === "upload") { await runSplitter(); return; }
   if (state.busy) return;
   setBusy(true);
   resetSteps();
@@ -1577,6 +1598,8 @@ async function runPipeline() {
   $("#promptPeek").hidden = true;
   enableExport(false);
   state.rows = []; state.originals = []; state.atlas = null;
+  state.split = null;
+  showSplitUI(false);
   state.revision = Date.now().toString(36);
   renderFramesUI();
   $("#previewMeta").textContent = "";
@@ -1598,8 +1621,7 @@ async function runPipeline() {
         setStep("row", "active", `row gen [${sname}] — one AI call, ${p.frames} poses on flat ${keyName()}…`);
         let strip;
         if (state.source === "ai") strip = await genRowAI(prompt, p.frames, 384, sname);
-        else if (state.source === "procedural") strip = procCharacter(p, sname, seed);
-        else strip = await uploadStrip(p.frames);
+        else strip = procCharacter(p, sname, seed);
         showStage(strip, `row [${sname}]: raw ${strip.width}×${strip.height}`);
         setStep("row", "done");
         setStep("alpha", "active", "chroma key + despill (soft edges)…");
@@ -1621,8 +1643,7 @@ async function runPipeline() {
       setStep("row", "active", "generating tile…");
       let tileFrames;
       if (state.source === "ai") tileFrames = [await genTileAI(prompt, p.size)];
-      else if (state.source === "procedural") tileFrames = procTile(p.pattern, p.size, seed);
-      else tileFrames = [await uploadTile(p.size)];
+      else tileFrames = procTile(p.pattern, p.size, seed);
       showStage(tileFrames[0], `tile: ${p.size}×${p.size}${tileFrames.length > 1 ? ` × ${tileFrames.length} frames (animated)` : ""}, edge-to-edge (no keying)`);
       setStep("row", "done"); setStep("alpha", "done"); setStep("extract", "done");
       pushRow("tile", tileFrames, { fps: tileFrames.length > 1 ? 4 : 0, loop: tileFrames.length > 1, tileable: true });
@@ -1634,8 +1655,7 @@ async function runPipeline() {
       setStep("row", "active", `generating ${p.states} UI variant(s)…`);
       let strip;
       if (state.source === "ai") strip = await genRowAI(prompt, p.states, 256, p.kind);
-      else if (state.source === "procedural") strip = procUI(p.kind, p.states, seed);
-      else strip = await uploadStrip(p.states);
+      else strip = procUI(p.kind, p.states, seed);
       showStage(strip, `UI row: raw ${strip.width}×${strip.height}`);
       setStep("row", "done");
       setStep("alpha", "active", "chroma key + despill…");
@@ -1655,8 +1675,7 @@ async function runPipeline() {
       setStep("row", "active", `generating ${p.frames}-frame ${p.type}…`);
       let strip;
       if (state.source === "ai") strip = await genRowAI(prompt, p.frames, 384, p.type);
-      else if (state.source === "procedural") strip = procEffect(p.type, p.frames, seed);
-      else strip = await uploadStrip(p.frames);
+      else strip = procEffect(p.type, p.frames, seed);
       showStage(strip, `effect row: raw ${strip.width}×${strip.height}`);
       setStep("row", "done");
       setStep("alpha", "active", "chroma key + despill…");
@@ -1699,20 +1718,398 @@ async function runPipeline() {
   }
 }
 
-/* upload source: provider-agnostic — any image in, frames out */
-let uploadImg = null;
-async function uploadStrip(count) {
-  if (!uploadImg) fail("upload source selected but no image chosen — pick a file first.");
-  return uploadImg;
+/* ================= v5: sheet splitter =================
+ * Upload a whole sprite sheet -> split into numbered pieces -> click pieces
+ * in order (1st click = frame 1) -> animated preview -> download animation.
+ * Split modes: even grid (rows x cols, row-major numbering) or content
+ * auto-detect (flood-fill blobs, reading order). The background selector
+ * decides what counts as "empty": alpha, black, white, or the chroma key.
+ * Knockout punches that background to transparent in the pieces. */
+
+function splitState() {
+  const modeEl = document.querySelector("#splitModeSeg .seg-btn.active");
+  const bgEl = document.querySelector("#splitBgSeg .seg-btn.active");
+  return {
+    rows: clampInt($("#splitRows").value, 1, 32, 1),
+    cols: clampInt($("#splitCols").value, 1, 32, 1),
+    mode: modeEl ? modeEl.dataset.mode : "grid",
+    bg: bgEl ? bgEl.dataset.bg : "transparent",
+    knockout: $("#splitKnockout") ? $("#splitKnockout").checked : true,
+  };
 }
-async function uploadTile(size) {
-  if (!uploadImg) fail("upload source selected but no image chosen — pick a file first.");
-  const out = makeCanvas(size, size);
-  const c = out.getContext("2d");
-  c.imageSmoothingEnabled = false;
-  c.drawImage(uploadImg, 0, 0, size, size);
+
+/* what counts as "ink" vs "empty background" for trim + auto-detect.
+ * bg: "transparent" | "black" | "white" (chroma is pre-keyed to transparent) */
+function contentTest(data, w, h, bg) {
+  if (bg === "black") {
+    return (x, y) => {
+      const o = (y * w + x) * 4;
+      return data[o + 3] > 12 && Math.max(data[o], data[o + 1], data[o + 2]) > 28;
+    };
+  }
+  if (bg === "white") {
+    return (x, y) => {
+      const o = (y * w + x) * 4;
+      return data[o + 3] > 12 && Math.min(data[o], data[o + 1], data[o + 2]) < 227;
+    };
+  }
+  return (x, y) => data[(y * w + x) * 4 + 3] > 12;
+}
+
+function copyCanvas(src) {
+  const c = makeCanvas(src.width, src.height);
+  c.getContext("2d").drawImage(src, 0, 0);
+  return c;
+}
+
+/* punch the selected background to transparent, in place */
+function knockoutBg(canvas, bg) {
+  const w = canvas.width, h = canvas.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const img = ctx.getImageData(0, 0, w, h);
+  const isContent = contentTest(img.data, w, h, bg);
+  const d = img.data;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      if (!isContent(x, y)) d[(y * w + x) * 4 + 3] = 0;
+  ctx.putImageData(img, 0, 0);
+  return canvas;
+}
+
+/* crop to the content bbox (+2px pad). Returns null when the cell is empty. */
+function trimToContent(cell, bg) {
+  const w = cell.width, h = cell.height;
+  const data = cell.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+  const isContent = contentTest(data, w, h, bg);
+  let x0 = w, x1 = -1, y0 = h, y1 = -1;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      if (isContent(x, y)) {
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+  if (x1 < x0) return null;
+  const pad = 2;
+  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad);
+  x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
+  const out = makeCanvas(x1 - x0 + 1, y1 - y0 + 1);
+  out.getContext("2d").drawImage(cell, x0, y0, x1 - x0 + 1, y1 - y0 + 1, 0, 0, x1 - x0 + 1, y1 - y0 + 1);
   return out;
 }
+
+/* even grid slice, row-major order (piece 1 = top-left). Handles fractional cells. */
+function splitGridCells(img, rows, cols) {
+  const w = img.width, h = img.height;
+  const cells = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const sx = Math.floor((c * w) / cols), sx1 = Math.ceil(((c + 1) * w) / cols);
+      const sy = Math.floor((r * h) / rows), sy1 = Math.ceil(((r + 1) * h) / rows);
+      const cell = makeCanvas(Math.max(1, sx1 - sx), Math.max(1, sy1 - sy));
+      cell.getContext("2d").drawImage(img, sx, sy, sx1 - sx, sy1 - sy, 0, 0, sx1 - sx, sy1 - sy);
+      cells.push(cell);
+    }
+  }
+  return cells;
+}
+
+/* content auto-detect: flood-fill blobs (no fixed count), each blob -> one
+ * trimmed piece. Sorted in reading order (top-to-bottom bands, left-to-right)
+ * so numbering is predictable. */
+function detectPieces(img, bg) {
+  const w = img.width, h = img.height;
+  const data = img.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+  const isContent = contentTest(data, w, h, bg);
+  const visited = new Uint8Array(w * h);
+  const comps = [];
+  const stack = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      if (visited[idx] || !isContent(x, y)) continue;
+      let x0 = x, x1 = x, y0 = y, y1 = y, area = 0, sx = 0, sy = 0;
+      stack.push(idx); visited[idx] = 1;
+      while (stack.length) {
+        const cur = stack.pop();
+        const cx = cur % w, cy = (cur / w) | 0;
+        area++; sx += cx; sy += cy;
+        if (cx < x0) x0 = cx; if (cx > x1) x1 = cx;
+        if (cy < y0) y0 = cy; if (cy > y1) y1 = cy;
+        if (cx > 0)     { const n = cur - 1; if (!visited[n] && isContent(cx - 1, cy)) { visited[n] = 1; stack.push(n); } }
+        if (cx < w - 1) { const n = cur + 1; if (!visited[n] && isContent(cx + 1, cy)) { visited[n] = 1; stack.push(n); } }
+        if (cy > 0)     { const n = cur - w; if (!visited[n] && isContent(cx, cy - 1)) { visited[n] = 1; stack.push(n); } }
+        if (cy < h - 1) { const n = cur + w; if (!visited[n] && isContent(cx, cy + 1)) { visited[n] = 1; stack.push(n); } }
+      }
+      comps.push({ x0, x1, y0, y1, area, cx: sx / area, cy: sy / area });
+    }
+  }
+  let total = 0;
+  for (const c of comps) total += c.area;
+  if (total === 0) return [];
+  const kept = comps.filter(c => c.area >= Math.max(60, total * 0.0015));
+  // reading order: group into horizontal bands, sort bands top-down, items left-right
+  const bands = [];
+  for (const c of kept) {
+    const bandH = Math.max(8, (c.y1 - c.y0) / 2);
+    let band = bands.find(bd => Math.abs(bd.cy - c.cy) < bandH);
+    if (!band) { band = { cy: c.cy, items: [] }; bands.push(band); }
+    band.items.push(c);
+    band.cy = band.items.reduce((s, i) => s + i.cy, 0) / band.items.length;
+  }
+  bands.sort((a, b) => a.cy - b.cy);
+  const ordered = [];
+  for (const b of bands) {
+    b.items.sort((a, b2) => a.cx - b2.cx);
+    ordered.push(...b.items);
+  }
+  const pad = 2;
+  return ordered.map(c => {
+    const x0 = Math.max(0, c.x0 - pad), y0 = Math.max(0, c.y0 - pad);
+    const x1 = Math.min(w - 1, c.x1 + pad), y1 = Math.min(h - 1, c.y1 + pad);
+    const cell = makeCanvas(x1 - x0 + 1, y1 - y0 + 1);
+    cell.getContext("2d").drawImage(img, x0, y0, x1 - x0 + 1, y1 - y0 + 1, 0, 0, x1 - x0 + 1, y1 - y0 + 1);
+    return cell;
+  });
+}
+
+/* normalize a piece into a shared cell, bottom-centered (stable feet for walk cycles) */
+function placeBottomCenter(piece, cw, ch) {
+  const cell = makeCanvas(cw, ch);
+  const dx = Math.round((cw - piece.width) / 2);
+  const dy = Math.max(0, Math.round(ch - piece.height - ch * 0.03));
+  cell.getContext("2d").drawImage(piece, dx, dy);
+  return cell;
+}
+
+/* pack ONLY the picked frames into a one-row animation sheet + manifest */
+function buildSplitAtlas() {
+  const sp = state.split;
+  const sel = sp.selection.map(i => sp.pieces[i].canvas);
+  if (!sel.length) fail("pick at least one frame first — click pieces in order.");
+  let cw = 0, ch = 0;
+  for (const f of sel) { cw = Math.max(cw, f.width); ch = Math.max(ch, f.height); }
+  const norm = sel.map(f => placeBottomCenter(f, cw, ch));
+  const pad = 2;
+  const sheet = makeCanvas(cw * norm.length + pad * 2, ch + pad * 2);
+  const sctx = sheet.getContext("2d");
+  const rects = [];
+  norm.forEach((f, i) => {
+    const x = pad + i * cw;
+    sctx.drawImage(f, x, pad);
+    rects.push({ x, y: pad, w: cw, h: ch });
+  });
+  const fps = +$("#previewFps").value || 8;
+  const manifest = {
+    tool: "m4ster-sprite-gen",
+    version: "2.1.0",
+    engine: "splitter",
+    runRevision: state.revision,
+    atlas: "m4ster-split-animation.png",
+    sheetWidth: sheet.width,
+    sheetHeight: sheet.height,
+    splitSource: { mode: sp.mode, bg: sp.bg, grid: [sp.rows, sp.cols], sheetW: sp.imgW, sheetH: sp.imgH },
+    frameLayout: { padding: pad, rows: { anim: { row: 0, cellWidth: cw, cellHeight: ch, rects } } },
+    animations: {
+      anim: {
+        row: 0, frames: norm.length, fps, loop: true,
+        durationsMs: norm.map(() => Math.round(1000 / fps)),
+        frameOrder: sp.selection.slice(),
+      },
+    },
+  };
+  return { canvas: sheet, manifest, pngName: "m4ster-split-animation.png", jsonName: "m4ster-split-animation.json" };
+}
+
+async function runSplitter() {
+  if (state.busy) return;
+  setBusy(true);
+  resetSteps();
+  hideRetry();
+  $("#promptPeek").hidden = true;
+  state.rows = []; state.originals = []; state.atlas = null;
+  state.split = null;
+  state.revision = Date.now().toString(36);
+  renderFramesUI();
+  showSplitUI(false);
+  $("#previewMeta").textContent = "";
+  enableExport(false);
+
+  try {
+    if (!uploadImg) fail("upload source selected but no image chosen — pick a file first.");
+    const sp = splitState();
+
+    setStep("prompt", "done", `upload ${uploadImg.width}×${uploadImg.height} ready`);
+    setStep("row", "active", sp.mode === "grid"
+      ? `splitting ${sp.rows}×${sp.cols} grid…`
+      : "auto-detecting pieces…");
+
+    // normalize: chroma -> keyed copy; black/white -> knockout copy (optional);
+    // trim + detect then work on plain transparency
+    let work = copyCanvas(uploadImg);
+    let effBg = sp.bg;
+    if (sp.bg === "chroma") { work = chromaKey(work, state.key); effBg = "transparent"; }
+    else if (sp.knockout && sp.bg !== "transparent") { knockoutBg(work, sp.bg); effBg = "transparent"; }
+
+    let raw;
+    if (sp.mode === "grid") {
+      raw = splitGridCells(work, sp.rows, sp.cols).map(c => {
+        const t = trimToContent(c, effBg);
+        return { canvas: t, empty: !t };
+      });
+    } else {
+      raw = detectPieces(work, effBg).map(c => ({ canvas: c, empty: false }));
+    }
+    if (!raw.length || !raw.some(p => !p.empty)) {
+      clearStage();
+      fail("splitter found no usable pieces — try a different background mode, or grid mode with fewer rows/cols.");
+    }
+
+    state.split = {
+      pieces: raw, selection: [],
+      rows: sp.rows, cols: sp.cols, mode: sp.mode, bg: sp.bg,
+      imgW: uploadImg.width, imgH: uploadImg.height,
+    };
+
+    const usable = raw.filter(p => !p.empty).length;
+    setStep("row", "done", `split into ${raw.length} piece(s), ${usable} usable`);
+    setStep("alpha", "done", sp.bg === "transparent" ? "alpha background" :
+      sp.knockout ? `${sp.bg} background knocked out` : `${sp.bg} treated as empty`);
+    setStep("extract", "done", "pieces numbered — click in order");
+    setStep("atlas", "active", "waiting for frame picks…");
+
+    showStage(uploadImg, `source sheet ${uploadImg.width}×${uploadImg.height} — pick frames below, preview plays them`);
+    renderSplitUI();
+    startSplitPreview();
+    updateSplitExport();
+  } catch (e) {
+    const active = document.querySelector("#stepper li.active");
+    if (active) { active.classList.remove("active"); active.classList.add("error"); }
+    stageMsg("FAILED: " + e.message, true);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function showSplitUI(on) {
+  $("#splitGrid").hidden = !on;
+  $("#splitHead").hidden = !on;
+  $("#framesRow").hidden = on;
+  $("#framesHead").hidden = on;
+  // "Download animation" only makes sense for the splitter's picked frames
+  $("#dlAnim").style.display = on ? "" : "none";
+}
+
+function renderSplitUI() {
+  const sp = state.split;
+  showSplitUI(!!sp);
+  if (!sp) return;
+  const grid = $("#splitGrid");
+  grid.innerHTML = "";
+  $("#splitMeta").textContent = `· ${sp.pieces.length} pieces, ${sp.selection.length} picked`;
+  sp.pieces.forEach((p, i) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "piece-card" + (p.empty ? " empty" : "");
+    card.disabled = !!p.empty;
+    card.setAttribute("aria-label", `piece ${i + 1}${p.empty ? " (empty)" : ""}`);
+    const orderIdx = sp.selection.indexOf(i);
+    if (orderIdx >= 0) card.classList.add("picked");
+    const badges = document.createElement("span");
+    badges.innerHTML = `<span class="pnum">${i + 1}</span>` +
+      (orderIdx >= 0 ? `<span class="porder">${orderIdx + 1}</span>` : "");
+    card.appendChild(badges);
+    if (p.canvas) {
+      const cv = document.createElement("canvas");
+      const s = Math.min(56 / p.canvas.width, 56 / p.canvas.height, 1);
+      cv.width = Math.max(1, Math.round(p.canvas.width * s));
+      cv.height = Math.max(1, Math.round(p.canvas.height * s));
+      cv.getContext("2d").drawImage(p.canvas, 0, 0, cv.width, cv.height);
+      card.appendChild(cv);
+    } else {
+      const em = document.createElement("span");
+      em.className = "pempty";
+      em.textContent = "—";
+      card.appendChild(em);
+    }
+    card.addEventListener("click", () => togglePiece(i));
+    grid.appendChild(card);
+  });
+}
+
+function togglePiece(i) {
+  const sp = state.split;
+  if (!sp || sp.pieces[i].empty) return;
+  const at = sp.selection.indexOf(i);
+  if (at >= 0) sp.selection.splice(at, 1);
+  else sp.selection.push(i);
+  renderSplitUI();
+  startSplitPreview();
+  updateSplitExport();
+}
+
+let splitRAF = 0, splitT = 0;
+function startSplitPreview() {
+  cancelAnimationFrame(splitRAF);
+  cancelAnimationFrame(previewRAF);
+  const sp = state.split;
+  const pc = $("#preview");
+  const pctx = pc.getContext("2d");
+  pctx.imageSmoothingEnabled = false;
+  const sel = $("#previewState");
+  sel.innerHTML = "";
+  if (!sp) return;
+  const o = document.createElement("option");
+  o.value = 0; o.textContent = "split animation";
+  sel.appendChild(o);
+  sel.disabled = true;
+  splitT = 0;
+  pctx.clearRect(0, 0, pc.width, pc.height);
+  if (!sp.selection.length) {
+    $("#previewMeta").textContent = "· pick frames above";
+    return;
+  }
+  let last = performance.now();
+  function tick(now) {
+    splitRAF = requestAnimationFrame(tick);
+    const fr = sp.selection.map(j => sp.pieces[j].canvas);
+    if (!fr.length) return;
+    const fps = +$("#previewFps").value || 8;
+    if (now - last < 1000 / fps) return;
+    last = now;
+    splitT = (splitT + 1) % fr.length;
+    let cw = 0, ch = 0;
+    for (const f of fr) { cw = Math.max(cw, f.width); ch = Math.max(ch, f.height); }
+    const s = Math.min(pc.width / cw, pc.height / ch, 8);
+    const dw = Math.max(1, Math.round(cw * s)), dh = Math.max(1, Math.round(ch * s));
+    const ox = (pc.width - dw) / 2, oy = (pc.height - dh) / 2;
+    pctx.clearRect(0, 0, pc.width, pc.height);
+    const f = fr[splitT];
+    const fw = Math.max(1, Math.round(f.width * s)), fh = Math.max(1, Math.round(f.height * s));
+    pctx.drawImage(f, ox + Math.round((dw - fw) / 2), oy + dh - fh, fw, fh);
+    $("#previewMeta").textContent = `· split · frame ${splitT + 1}/${fr.length}`;
+  }
+  tick(last);
+}
+
+function updateSplitExport() {
+  const n = state.split ? state.split.selection.length : 0;
+  const on = n > 0;
+  ["#dlSheet", "#dlJson", "#dlFrames", "#dlAnim"].forEach(s => { $(s).disabled = !on; });
+  if (on) {
+    state.atlas = buildSplitAtlas();
+    setStep("atlas", "done", `animation packed — ${n} frame(s)`);
+    setStep("done", "done", `done — ${n} picked frame(s), rev ${state.revision}`);
+    showStage(state.atlas.canvas, `animation sheet ${state.atlas.canvas.width}×${state.atlas.canvas.height} — ${n} picked frame(s)`);
+  } else {
+    state.atlas = null;
+    setStep("atlas", "active", "waiting for frame picks…");
+    const ds = document.querySelector('#stepper li[data-step="done"]');
+    if (ds) ds.classList.remove("done");
+  }
+}
+
+/* upload source: provider-agnostic — any image in, pieces out (v5 splitter) */
+let uploadImg = null;
 
 /* ================= wiring ================= */
 
@@ -1734,6 +2131,7 @@ function init() {
       document.querySelectorAll("#sourceSeg .seg-btn").forEach(x => x.classList.remove("active"));
       b.classList.add("active");
       state.source = b.dataset.src;
+      $("#splitterPanel").hidden = state.source !== "upload";
       if (state.source === "upload") $("#uploadInput").click();
     };
   });
@@ -1744,8 +2142,40 @@ function init() {
     const bmp = await createImageBitmap(f);
     uploadImg = makeCanvas(bmp.width, bmp.height);
     uploadImg.getContext("2d").drawImage(bmp, 0, 0);
-    stageMsg(`uploaded ${bmp.width}×${bmp.height} — will key + extract on generate`);
+    stageMsg(`uploaded ${bmp.width}×${bmp.height} — splitting…`);
     showStage(uploadImg, "upload ready");
+    runSplitter();
+  };
+
+  // v5 splitter controls
+  document.querySelectorAll("#splitModeSeg .seg-btn").forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll("#splitModeSeg .seg-btn").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      $("#splitGridRow").hidden = b.dataset.mode !== "grid";
+    };
+  });
+  document.querySelectorAll("#splitBgSeg .seg-btn").forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll("#splitBgSeg .seg-btn").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+    };
+  });
+  $("#splitSelectAll").onclick = () => {
+    const sp = state.split;
+    if (!sp) return;
+    sp.selection = sp.pieces.map((p, i) => i).filter(i => !sp.pieces[i].empty);
+    renderSplitUI();
+    startSplitPreview();
+    updateSplitExport();
+  };
+  $("#splitClear").onclick = () => {
+    const sp = state.split;
+    if (!sp) return;
+    sp.selection = [];
+    renderSplitUI();
+    startSplitPreview();
+    updateSplitExport();
   };
 
   document.querySelectorAll("#keyRow .key").forEach(k => {

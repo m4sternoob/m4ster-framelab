@@ -519,3 +519,51 @@ input, .stepper li, .canvas-wrap, .preview-box #preview, .generate,
     transition-duration: .01ms;
   }
 }
+
+/* ---------- v5: sheet splitter ---------- */
+#splitterPanel { margin-top: 4px; }
+.seg.cols4 { grid-template-columns: repeat(4, 1fr); }
+#splitGridRow { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+#splitterPanel .num {
+  width: 68px; background: var(--ink); color: var(--text); border: 1px solid var(--line);
+  border-radius: 10px; padding: 9px 11px; font-size: 13px; font-family: var(--sans); min-height: 38px;
+}
+#splitterPanel .num:focus { outline: none; border-color: var(--violet); }
+.knock-row {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px;
+  font-size: 13px; color: var(--mute); cursor: pointer; user-select: none;
+}
+.knock-row input { accent-color: var(--violet); width: 16px; height: 16px; }
+.split-actions { display: flex; gap: 8px; margin-top: 10px; }
+.split-actions .btn-ghost { margin-bottom: 0; flex: 1; text-align: center; }
+
+.split-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px; padding: 10px 2px; max-height: 340px; overflow-y: auto; scrollbar-width: thin;
+}
+.piece-card {
+  position: relative; background: var(--ink); border: 2px solid var(--line);
+  border-radius: 10px; padding: 6px; cursor: pointer; min-height: 72px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit; color: inherit;
+}
+.piece-card:hover:not(:disabled) { border-color: var(--dim); transform: translateY(-1px); }
+.piece-card canvas { image-rendering: pixelated; max-width: 100%; display: block; }
+.piece-card .pnum {
+  position: absolute; top: 4px; left: 7px; font-family: var(--mono); font-size: 10px; color: var(--dim);
+}
+.piece-card .porder {
+  position: absolute; top: -9px; right: -9px; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--violet); color: var(--on-accent); font-family: var(--mono); font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 10px var(--glow);
+}
+.piece-card.picked { border-color: var(--violet); box-shadow: 0 0 0 2px var(--glow); }
+.piece-card.empty { opacity: .32; }
+.piece-card:disabled { cursor: not-allowed; }
+.piece-card .pempty { color: var(--dim); font-size: 18px; }
+@media (max-width: 767px) {
+  .split-grid { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); max-height: 300px; }
+  .piece-card { min-height: 64px; }
+  .split-actions { flex-direction: row; }
+}
