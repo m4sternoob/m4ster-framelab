@@ -799,12 +799,12 @@ textarea:focus:not(:focus-visible) { outline: none; }
  * of orange (Ember) buttons — orange-on-orange was invisible. */
 .cursor-orb.is-cta {
   width: 60px; height: 60px; margin: -30px 0 0 -30px; opacity: 1;
-  background: radial-gradient(circle, #ffffff 0%, #ff6b6b 26%, #ff3d2e 48%, rgba(255, 122, 26, .55) 64%, transparent 78%);
-  box-shadow: 0 0 22px 4px rgba(255, 61, 46, .55), 0 0 60px 10px rgba(255, 122, 26, .30);
+  background: radial-gradient(circle, #fff 0%, #ff5252 30%, #f9320c 55%, transparent 75%);
+  box-shadow: 0 0 24px 6px rgba(249, 50, 12, .5);
 }
 .cursor-orb.is-cta::after {
   content: ""; position: absolute; inset: -10px; border-radius: 50%;
-  border: 2px solid #ff3d2e;
+  border: 2px solid #f9320c;
   animation: orbRing 1.15s ease-out infinite;
 }
 @keyframes orbRing {
