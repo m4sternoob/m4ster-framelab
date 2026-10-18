@@ -3025,6 +3025,14 @@ function initV6() {
   renderPresets();
   showcaseStart();
 
+  /* logo = home: clicking the brand mark returns to the top (hero, first screen) */
+  const brandHome = document.getElementById("brandHome");
+  if (brandHome) {
+    brandHome.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
+    });
+  }
+
   /* prompt-first hero: type, hit MAKE IT, land in the lab generating */
   const heroGo = () => {
     const hp = $("#heroPrompt");
