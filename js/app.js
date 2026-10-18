@@ -2170,7 +2170,7 @@ function syncSlicerMode() {
 /* draw the sheet + live grid overlay on the stage canvas */
 function slicerOverlay() {
   const S = slState();
-  const st = $("stage");
+  const st = $("#stage");
   if (!st) return;
   if (!S.sheet) { clearStage(); return; }
   st.width = S.imgW; st.height = S.imgH;
@@ -2228,7 +2228,7 @@ function runSlicer() {
   slicerPreview();
   updateSlicerExport();
   if (!usable.length) {
-    stageMsg("slicer found no usable pieces — try a different background, or fewer rows/cols.", true);
+    stageMsg(`slicer found no usable pieces (sheet ${S.imgW}\u00d7${S.imgH}, grid ${S.rows}\u00d7${S.cols}) — try a different background, or fewer rows/cols.`, true);
     return;
   }
   const empty = pieces.length - usable.length;
