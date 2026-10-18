@@ -8,6 +8,26 @@ browser. No API keys, no signup, no credit card, no payments — ever.
 Pick a category, describe the sprite, hit **Generate**. You get a packed
 sprite sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v4 — reliability + procedural variety
+
+- **AI retry with backoff** — Pollinations rate-limits anonymous bursts
+  (HTTP 402/429). The app now retries 3× (immediate, +3s, +9s) with the
+  attempt shown in the pipeline stepper ("Row gen — retry 2/3…"). If all
+  retries fail you get an honest amber message (not a dead red error), the
+  stale strip is cleared, and the retry bar offers **Retry with stricter
+  prompt** plus one-click **Use Procedural instead**.
+- **Procedural character archetypes** — biped, quadruped, flyer/bird (real
+  wing-flap frames), slime (squash & stretch hops), robot (rigid servo
+  angles, blinking visor) — each with 4 palettes (classic, ember, frost,
+  toxic) and a ↻ re-roll shuffle button.
+- **More tiles** — grass, sand, stone, brick, wood planks, metal plates,
+  dungeon, plus animated 2-frame water. All wrap seamlessly (brick's
+  edge-clipping bug fixed).
+- **More UI elements** — button, icon, panel, plus spinning coin, gem,
+  beating heart, twinkling star, and a draining health bar.
+- **More effects** — explosion, fire, smoke, sparkle, magic ring, slash
+  arc, particles, power-up, magic.
+
 ## v3 — "alive" edition
 
 - **Theme switcher** — 6 themes in the tracker's Customize spirit (Violet
@@ -49,10 +69,10 @@ sprite sheet PNG plus an atlas manifest JSON your game can read directly.
 
 | Category | Output |
 |---|---|
-| **Character** | idle / walk / run / jump / attack states, N frames each |
-| **Tile** | seamless tileable textures, with a 3×3 wrap preview |
-| **UI** | buttons, icons, panels with normal / hover / pressed variants |
-| **Effect** | explosions, particles, power-ups, magic — frame sequences |
+| **Character** | idle / walk / run / jump / attack states, N frames each — 5 archetypes (biped, quadruped, flyer, slime, robot) × 4 palettes |
+| **Tile** | seamless tileable textures (grass, sand, stone, brick, wood, metal, water, dungeon), with a 3×3 wrap preview |
+| **UI** | buttons, icons, panels, coins, gems, hearts, stars, health bars |
+| **Effect** | explosions, fire, smoke, sparkles, magic rings, slash arcs, particles, power-ups, magic — frame sequences |
 
 ## How it generates (the pipeline)
 

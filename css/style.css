@@ -215,6 +215,13 @@ body {
 #params select:focus, #params input[type="number"]:focus { outline: none; border-color: var(--violet); }
 #params .num { width: 68px; }
 #params .grow { flex: 1; min-width: 90px; }
+.mini-btn {
+  background: var(--ink); color: var(--mute); border: 1px solid var(--line);
+  border-radius: 10px; min-width: 44px; min-height: 38px; font-size: 17px;
+  cursor: pointer; flex: none;
+  transition: background-color .35s ease, border-color .35s ease, color .35s ease, transform .18s ease;
+}
+.mini-btn:hover { color: var(--violet); border-color: var(--violet); transform: translateY(-1px); }
 
 textarea#prompt {
   width: 100%; background: var(--ink); color: var(--text);
@@ -323,6 +330,11 @@ textarea#prompt:focus { outline: none; border-color: var(--violet); }
   border: 1px solid var(--amber); border-radius: 10px;
 }
 .retry-msg { font-family: var(--mono); font-size: 12px; color: var(--amber); line-height: 1.5; }
+.retry-actions { display: flex; gap: 8px; flex: none; }
+.retry-actions .btn-ghost { margin-bottom: 0; white-space: nowrap; text-align: center; }
+@media (max-width: 767px) {
+  .retry-actions { flex-direction: column; width: 100%; }
+}
 
 /* ---------- frames strip ---------- */
 .frames-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 16px; flex-wrap: wrap; }

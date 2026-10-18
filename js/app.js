@@ -86,10 +86,19 @@ function showStage(canvas, msg) {
   if (msg) stageMsg(msg);
 }
 
+/* drop the stage canvas so a fresh failure never sits under stale pixels
+ * from a previous run (confusing: old strip + new error on top of it) */
+function clearStage() {
+  const st = $("#stage");
+  st.width = 2; st.height = 2;
+  st.getContext("2d").clearRect(0, 0, 2, 2);
+  stageMsg("");
+}
+
 /* ---------------- per-category params UI ---------------- */
 
 const CATEGORY_DEFAULTS = {
-  character: { states: ["idle", "walk"], frames: 4, style: "clean 2d", view: "side" },
+  character: { states: ["idle", "walk"], frames: 4, style: "clean 2d", view: "side", archetype: "biped", palette: "classic" },
   tile:      { size: 128, pattern: "grass" },
   ui:        { kind: "button", states: 3 },
   effect:    { type: "explosion", frames: 8 },
@@ -123,6 +132,18 @@ function renderParams() {
       <div class="row">
         <span class="dim">view</span>
         <select id="pView"><option value="side">side</option><option value="front">front</option></select>
+      </div>
+      <div class="row">
+        <span class="dim">archetype</span>
+        <select id="pArch" class="grow">
+          ${[["biped", "biped"], ["quadruped", "quadruped"], ["flyer", "flyer / bird"], ["slime", "slime"], ["robot", "robot"]]
+            .map(([v, lbl]) => `<option value="${v}" ${v === d.archetype ? "selected" : ""}>${lbl}</option>`).join("")}
+        </select>
+        <span class="dim">palette</span>
+        <select id="pPal">
+          ${["classic", "ember", "frost", "toxic"].map(pl => `<option ${pl === d.palette ? "selected" : ""}>${pl}</option>`).join("")}
+        </select>
+        <button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button>
       </div>`;
   } else if (cat === "tile") {
     box.innerHTML = `
@@ -134,8 +155,9 @@ function renderParams() {
         </select>
         <span class="dim">procedural pattern</span>
         <select id="pPattern" class="grow">
-          ${["grass", "brick", "stone", "dungeon"].map(p => `<option ${p === d.pattern ? "selected" : ""}>${p}</option>`).join("")}
+          ${TILE_PATTERNS.map(pat => `<option ${pat === d.pattern ? "selected" : ""}>${pat}</option>`).join("")}
         </select>
+        <button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button>
       </div>
       <div class="dim" style="margin-bottom:4px">Tiles export edge-to-edge (no keying) and preview in a 3&times;3 wrap.</div>`;
   } else if (cat === "ui") {
@@ -143,10 +165,12 @@ function renderParams() {
       <div class="field-label">UI element</div>
       <div class="row">
         <select id="pKind" class="grow">
-          ${["button", "icon", "panel"].map(k => `<option ${k === d.kind ? "selected" : ""}>${k}</option>`).join("")}
+          ${[["button", "button"], ["icon", "icon"], ["panel", "panel"], ["coin", "coin"], ["gem", "gem"], ["heart", "heart"], ["star", "star"], ["health", "health bar"]]
+            .map(([v, lbl]) => `<option value="${v}" ${v === d.kind ? "selected" : ""}>${lbl}</option>`).join("")}
         </select>
         <span class="dim">variants</span>
         <input type="number" class="num" id="pStates" min="1" max="4" value="${d.states}">
+        <button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button>
       </div>
       <div class="dim">Variants = normal / hover / pressed style states, extracted left to right.</div>`;
   } else {
@@ -154,10 +178,12 @@ function renderParams() {
       <div class="field-label">Effect</div>
       <div class="row">
         <select id="pType" class="grow">
-          ${["explosion", "particles", "power-up", "magic"].map(t => `<option ${t === d.type ? "selected" : ""}>${t}</option>`).join("")}
+          ${["explosion", "fire", "smoke", "sparkle", "ring", "slash", "particles", "power-up", "magic"]
+            .map(t => `<option ${t === d.type ? "selected" : ""}>${t}</option>`).join("")}
         </select>
         <span class="dim">frames</span>
         <input type="number" class="num" id="pFrames" min="4" max="16" value="${d.frames}">
+        <button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button>
       </div>`;
   }
 
@@ -168,6 +194,10 @@ function renderParams() {
     effect: "fiery explosion with smoke",
   };
   $("#prompt").placeholder = "e.g. " + prompts[cat];
+
+  // shuffle button: re-roll the procedural variant with a fresh random seed
+  const sh = $("#pShuffle");
+  if (sh) sh.onclick = () => runPipeline();
 }
 
 function readParams() {
@@ -177,6 +207,7 @@ function readParams() {
     return {
       states, frames: clampInt($("#pFrames").value, 2, 12, 4),
       style: $("#pStyle").value, view: $("#pView").value,
+      archetype: $("#pArch").value, palette: $("#pPal").value,
     };
   }
   if (cat === "tile") return { size: +$("#pSize").value, pattern: $("#pPattern").value };
@@ -252,7 +283,7 @@ function buildPrompt(cat, p, sub, strict) {
       `and keep the background perfectly flat with zero gradient or shading.`
     : "";
   if (cat === "character") {
-    return `2D game character sprite, ${describe("brave knight")}, ${p.style} style, ${sub} animation: ` +
+    return `2D game character sprite, ${describe("brave knight")}, ${p.style} style, ${(p.archetype || "biped")} body plan, ${sub} animation: ` +
       `${p.frames} SEPARATE non-overlapping poses in ONE horizontal row, ` +
       `large clear gaps of flat ${key} between every pose, ` +
       `poses never touching or blending into each other, each pose centered in its own slot, ` +
@@ -282,9 +313,42 @@ function buildPrompt(cat, p, sub, strict) {
 
 /* ---------------- AI row generation (Pollinations, no auth) ---------------- */
 
-async function fetchImageBitmap(url) {
-  const res = await fetch(url, { mode: "cors" });
-  if (!res.ok) fail(`image request failed (HTTP ${res.status}) — Pollinations may be down; try Procedural mode`);
+/* ---------------- AI fetch with retry ----------------
+ * Pollinations rate-limits anonymous bursts (HTTP 402/429). Retry with
+ * exponential backoff: immediate, +3s, +9s. 402/429/5xx and network
+ * errors are retryable; other 4xx fail fast. onAttempt(n, total) drives
+ * the stepper so the user sees "Row gen — retry 2/3…" instead of silence. */
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function retryableStatus(s) { return s === 402 || s === 429 || s >= 500; }
+
+async function fetchWithRetry(url, onAttempt) {
+  const delays = [0, 3000, 9000];
+  let lastStatus = 0;
+  for (let i = 0; i < delays.length; i++) {
+    if (delays[i]) await sleep(delays[i]);
+    if (onAttempt) { try { onAttempt(i + 1, delays.length); } catch (e) {} }
+    let res;
+    try {
+      res = await fetch(url, { mode: "cors" });
+    } catch (e) {
+      continue; // network blip — transient, retry
+    }
+    if (res.ok) return res;
+    lastStatus = res.status;
+    if (!retryableStatus(res.status)) {
+      fail(`image request failed (HTTP ${res.status}) — not retryable; try Procedural mode`);
+    }
+    // else: loop for another attempt
+  }
+  fail(`AI_RATE_LIMITED: Pollinations is rate-limiting free requests right now` +
+    (lastStatus ? ` (HTTP ${lastStatus} after 3 tries)` : ` (network unreachable after 3 tries)`) +
+    `. Wait a minute and retry, or use Procedural mode.`);
+}
+
+async function fetchImageBitmap(url, onAttempt) {
+  const res = await fetchWithRetry(url, onAttempt);
   const blob = await res.blob();
   return createImageBitmap(blob);
 }
@@ -294,14 +358,16 @@ function pollinationsURL(prompt, w, h, seed) {
     `?width=${w}&height=${h}&seed=${seed}&nologo=true&model=flux`;
 }
 
-async function genRowAI(prompt, frames, cellH) {
+async function genRowAI(prompt, frames, cellH, label) {
   // Wide strip: one cell per frame. Keep the strip >=1024px wide so frames
   // carry usable detail (the model returns blurry mush at small sizes).
   const h = cellH || 384;
   const w = Math.min(2048, Math.max(1024, h * frames));
   const seed = (Math.random() * 1e9) | 0;
   const url = pollinationsURL(prompt, w, h, seed);
-  const bmp = await fetchImageBitmap(url);
+  const bmp = await fetchImageBitmap(url, (n, total) => {
+    if (n > 1) setStep("row", "active", `row gen [${label}] — retry ${n}/${total}…`);
+  });
   const c = makeCanvas(bmp.width, bmp.height);
   c.getContext("2d").drawImage(bmp, 0, 0);
   return c;
@@ -795,16 +861,45 @@ function limb(ctx, x0, y0, len, angDeg, w, color) {
   return [x0 + dx * len, y0 + dy * len];
 }
 
-const SKIN = ["#f2c69b", "#e0a878", "#c98a5b", "#a96f45"];
+/* procedural palettes: 4 named sets shared by every offline generator.
+ * jitter keeps repeats from looking stamped; same seed -> same pixels. */
+const PROC_PALETTES = {
+  classic: { skin: ["#f2c69b", "#e0a878", "#c98a5b", "#a96f45"], hue: 210, accent: 45 },
+  ember:   { skin: ["#f0b489", "#d99668", "#b57a4e", "#8f5c38"], hue: 12,  accent: 48 },
+  frost:   { skin: ["#f6d7b8", "#e8b98f", "#cfa06f", "#a87f52"], hue: 200, accent: 185 },
+  toxic:   { skin: ["#cfe8a8", "#a8d47e", "#7fb85a", "#5c9440"], hue: 95,  accent: 300 },
+};
+
+function procPalette(name, rng) {
+  const P = PROC_PALETTES[name] || PROC_PALETTES.classic;
+  const hue = (((P.hue + (((rng() * 24) | 0) - 12)) % 360) + 360) % 360;
+  return {
+    skin: P.skin[(rng() * P.skin.length) | 0],
+    cloth: `hsl(${hue},55%,52%)`,
+    clothD: `hsl(${hue},55%,36%)`,
+    pants: `hsl(${(hue + 40) % 360},25%,30%)`,
+    accent: `hsl(${P.accent},75%,58%)`,
+    dark: "#141414",
+  };
+}
+
+const SKIN = ["#f2c69b", "#e0a878", "#c98a5b", "#a96f45"]; // legacy alias, kept for compat
 
 function procCharacter(p, stateName, seedNum) {
+  const arch = p.archetype || "biped";
+  if (arch === "quadruped") return procQuadruped(p, stateName, seedNum);
+  if (arch === "flyer")     return procFlyer(p, stateName, seedNum);
+  if (arch === "slime")     return procSlime(p, stateName, seedNum);
+  if (arch === "robot")     return procRobot(p, stateName, seedNum);
+  return procBiped(p, stateName, seedNum);
+}
+
+function procBiped(p, stateName, seedNum) {
   const rng = mulberry32(seedNum + stateName.length * 7919);
   const count = p.frames;
   const W = 32, H = 44, S = 4;
-  const skin = SKIN[(rng() * SKIN.length) | 0];
-  const hue = (rng() * 360) | 0;
-  const shirt = `hsl(${hue},55%,52%)`, shirtD = `hsl(${hue},55%,36%)`;
-  const pants = `hsl(${(hue + 40) % 360},25%,30%)`;
+  const pal = procPalette(p.palette, rng);
+  const skin = pal.skin, shirt = pal.cloth, shirtD = pal.clothD, pants = pal.pants;
   const hairC = ["#2b2b2b", "#5a3a22", "#8a5a2b", "#d8d8d8"][(rng() * 4) | 0];
 
   const strip = makeCanvas(W * count * S, H * S);
@@ -817,7 +912,13 @@ function procCharacter(p, stateName, seedNum) {
 
     if (stateName === "walk")      { legL = Math.sin(ph) * 32; legR = -Math.sin(ph) * 32; armL = -Math.sin(ph) * 26; armR = Math.sin(ph) * 26; bob = Math.abs(Math.sin(ph)); }
     else if (stateName === "run")  { legL = Math.sin(ph) * 52; legR = -Math.sin(ph) * 52; armL = -Math.sin(ph) * 45; armR = Math.sin(ph) * 45; bob = Math.abs(Math.sin(ph)) * 2; lean = 3; }
-    else if (stateName === "jump") { legL = -55; legR = 30; armL = -140; armR = -160; bob = 3; }
+    else if (stateName === "jump") {
+      const k = f / Math.max(1, count - 1), air = Math.sin(k * Math.PI); // crouch -> apex -> land
+      bob = Math.round(air * 4) - ((k < 0.25 || k > 0.75) ? 1 : 0);
+      legL = Math.round(-15 - air * 40); legR = Math.round(10 + air * 20);
+      armL = Math.round(-40 - air * 100); armR = Math.round(-60 - air * 100);
+      lean = Math.round(air * 2);
+    }
     else if (stateName === "attack") {
       const k = f / Math.max(1, count - 1);           // windup -> strike
       armR = -60 + k * 130; legL = 25; legR = -20; lean = k * 4; bob = 1;
@@ -855,6 +956,181 @@ function procCharacter(p, stateName, seedNum) {
   return strip;
 }
 
+/* quadruped: horizontal body, diagonal leg pairs, tail wag. faces right. */
+function procQuadruped(p, stateName, seedNum) {
+  const rng = mulberry32(seedNum + stateName.length * 7919 + 101);
+  const pal = procPalette(p.palette, rng);
+  const count = p.frames, W = 44, H = 32, S = 4;
+  const fur = pal.cloth, furD = pal.clothD, belly = pal.skin;
+  const strip = makeCanvas(W * count * S, H * S);
+  for (let f = 0; f < count; f++) {
+    const cell = makeCanvas(W, H);
+    const ctx = cell.getContext("2d");
+    const ph = (f / count) * Math.PI * 2;
+    let bob = 0, lunge = 0, headDy = 0;
+    let sw = [0, 0, 0, 0]; // [frontL, frontR, backL, backR]
+    if (stateName === "walk")      { const a = Math.sin(ph) * 28; sw = [a, -a, -a, a]; bob = Math.abs(Math.sin(ph)); }
+    else if (stateName === "run")  { const a = Math.sin(ph) * 46; sw = [a, -a, -a, a]; bob = Math.abs(Math.sin(ph)) * 2; lunge = 1; }
+    else if (stateName === "jump") {
+      const k = f / Math.max(1, count - 1), air = Math.sin(k * Math.PI);
+      const tuck = Math.round(air * 40);
+      sw = [-tuck, -tuck, tuck, tuck];
+      bob = Math.round(air * 4);
+      headDy = Math.round(-air * 2);
+    }
+    else if (stateName === "attack") { const k = f / Math.max(1, count - 1); lunge = Math.round(k * 5); headDy = Math.round(k * 4); sw = [20, 20, -15, -15]; }
+    else { bob = (f % 2); headDy = Math.round(Math.sin(ph)); }
+    const Y = (y) => y - Math.round(bob);
+    const legX = [15, 21, 27, 33];
+    limb(ctx, legX[1], Y(22), 8, sw[1] * 0.9, 3, furD);   // far legs first
+    limb(ctx, legX[3], Y(22), 8, sw[3] * 0.9, 3, furD);
+    limb(ctx, 10, Y(14), 8, -35 + Math.sin(ph * 2) * 12, 3, furD); // tail wag
+    px(ctx, 12 + lunge, Y(11), 22, 10, fur);               // body
+    px(ctx, 12 + lunge, Y(18), 22, 3, belly);              // belly
+    px(ctx, 12 + lunge, Y(11), 22, 2, furD);               // back ridge
+    px(ctx, 32 + lunge, Y(5) + headDy, 9, 9, fur);         // head
+    px(ctx, 33 + lunge, Y(3) + headDy, 4, 3, furD);        // ear
+    px(ctx, 37 + lunge, Y(8) + headDy, 2, 2, "#1a1a1a");   // eye
+    px(ctx, 40 + lunge, Y(10) + headDy, 2, 2, "#1a1a1a");  // nose
+    limb(ctx, legX[0], Y(22), 8, sw[0], 3, fur);          // near legs
+    const [hx, hy] = limb(ctx, legX[2], Y(22), 8, sw[2], 3, fur);
+    px(ctx, Math.round(hx) - 2, Math.round(hy), 5, 2, "#222");
+    selectiveOutline(cell, "#141414");
+    const sctx = strip.getContext("2d");
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(cell, 0, 0, W, H, f * W * S, 0, W * S, H * S);
+  }
+  return strip;
+}
+
+/* flyer/bird: side view, one big flapping wing. faces right. */
+function procFlyer(p, stateName, seedNum) {
+  const rng = mulberry32(seedNum + stateName.length * 7919 + 202);
+  const pal = procPalette(p.palette, rng);
+  const count = p.frames, W = 36, H = 36, S = 4;
+  const body = pal.cloth, bodyD = pal.clothD;
+  const strip = makeCanvas(W * count * S, H * S);
+  for (let f = 0; f < count; f++) {
+    const cell = makeCanvas(W, H);
+    const ctx = cell.getContext("2d");
+    const ph = (f / count) * Math.PI * 2;
+    let flapSpeed = 1, flapAmp = 30, bobA = 1, lean = 0, dive = 0;
+    if (stateName === "walk")        { flapSpeed = 3; flapAmp = 55; bobA = 2; }
+    else if (stateName === "run")   { flapSpeed = 3; flapAmp = 65; bobA = 2; lean = 2; }
+    else if (stateName === "jump")  { flapAmp = 70; bobA = 3; }
+    else if (stateName === "attack") { dive = 1; flapAmp = 75; lean = 4; }
+    const flap = Math.sin(ph * flapSpeed) * flapAmp;
+    const bob = Math.abs(Math.sin(ph * flapSpeed)) * bobA;
+    const Y = (y) => y - Math.round(bob) + (dive ? 4 : 0);
+    limb(ctx, 16, Y(16), 10, -40 - flap * 0.7, 3, bodyD);  // far wing
+    limb(ctx, 10, Y(20), 8, 55, 3, bodyD);                 // tail feathers
+    limb(ctx, 10, Y(20), 8, 75, 3, bodyD);
+    px(ctx, 12 + lean, Y(14), 13, 11, body);              // body
+    px(ctx, 12 + lean, Y(22), 13, 3, bodyD);
+    px(ctx, 23 + lean, Y(10), 8, 8, body);                // head
+    px(ctx, 30 + lean, Y(12), 4, 3, "#f5a623");           // beak
+    px(ctx, 26 + lean, Y(12), 2, 2, "#1a1a1a");           // eye
+    px(ctx, 24 + lean, Y(7), 2, 3, pal.accent);            // crest
+    const [wx, wy] = limb(ctx, 17 + lean, Y(15), 13, -55 - flap, 4, body); // near wing
+    px(ctx, Math.round(wx) - 2, Math.round(wy) - 1, 5, 3, bodyD);
+    px(ctx, 16 + lean, Y(26), 3, 2, "#d98a2b");            // tucked feet
+    px(ctx, 21 + lean, Y(26), 3, 2, "#d98a2b");
+    selectiveOutline(cell, "#141414");
+    const sctx = strip.getContext("2d");
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(cell, 0, 0, W, H, f * W * S, 0, W * S, H * S);
+  }
+  return strip;
+}
+
+/* slime/blob: squash & stretch. the hop IS the walk cycle. */
+function procSlime(p, stateName, seedNum) {
+  const rng = mulberry32(seedNum + stateName.length * 7919 + 303);
+  const pal = procPalette(p.palette, rng);
+  const count = p.frames, W = 36, H = 32, S = 4;
+  const goo = pal.cloth, gooL = pal.accent;
+  const strip = makeCanvas(W * count * S, H * S);
+  for (let f = 0; f < count; f++) {
+    const cell = makeCanvas(W, H);
+    const ctx = cell.getContext("2d");
+    const ph = (f / count) * Math.PI * 2;
+    let bw = 24, bh = 18, yOff = 0, xOff = 0;
+    if (stateName === "idle")      { const s = Math.sin(ph); bh += Math.round(s); bw -= Math.round(s); }
+    else if (stateName === "walk") { const a = Math.abs(Math.sin(ph)); yOff = -Math.round(a * 6); bh += Math.round(a * 4); bw -= Math.round(a * 3); }
+    else if (stateName === "run")  { const a = Math.abs(Math.sin(ph)); yOff = -Math.round(a * 8); bh += Math.round(a * 5); bw -= Math.round(a * 4); }
+    else if (stateName === "jump") { const k = f / Math.max(1, count - 1), air = Math.sin(k * Math.PI); yOff = -Math.round(air * 8); bh += Math.round(air * 5); bw -= Math.round(air * 3); }
+    else if (stateName === "attack") { const k = f / Math.max(1, count - 1); bw += Math.round(k * 8); xOff = Math.round(k * 5); bh -= Math.round(k * 2); }
+    const cx = 18 + xOff, baseY = 28 + yOff - bh;
+    px(ctx, cx - bw / 2 + 2, baseY + 3, bw - 4, bh - 3, goo);
+    px(ctx, cx - bw / 2, baseY + 6, bw, bh - 6, goo);
+    px(ctx, cx - bw / 2 + 2, baseY, bw - 4, 6, gooL);
+    px(ctx, cx - bw / 2 + 1, baseY + 2, 3, 3, "#ffffff");
+    const ey = baseY + 8;
+    px(ctx, cx - 7, ey, 4, 5, "#ffffff"); px(ctx, cx + 3, ey, 4, 5, "#ffffff");
+    px(ctx, cx - 6, ey + 2, 2, 2, "#1a1a1a"); px(ctx, cx + 4, ey + 2, 2, 2, "#1a1a1a");
+    if (stateName === "attack") px(ctx, cx - 4, ey + 7, 8, 2, "#1a1a1a");
+    selectiveOutline(cell, "#141414");
+    const sctx = strip.getContext("2d");
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(cell, 0, 0, W, H, f * W * S, 0, W * S, H * S);
+  }
+  return strip;
+}
+
+/* robot: blocky, rigid servo angles (quantized to 15°), blinking visor. */
+function procRobot(p, stateName, seedNum) {
+  const rng = mulberry32(seedNum + stateName.length * 7919 + 404);
+  const pal = procPalette(p.palette, rng);
+  const count = p.frames, W = 32, H = 44, S = 4;
+  const metal = "#9aa3ad", metalD = "#6b7280", joint = "#3f4750";
+  const strip = makeCanvas(W * count * S, H * S);
+  const quant = (a) => Math.round(a / 15) * 15;
+  for (let f = 0; f < count; f++) {
+    const cell = makeCanvas(W, H);
+    const ctx = cell.getContext("2d");
+    const ph = (f / count) * Math.PI * 2;
+    let legL = 0, legR = 0, armL = 10, armR = 10, bob = 0, cannon = false;
+    if (stateName === "walk")      { legL = quant(Math.sin(ph) * 30); legR = -legL; armL = quant(-legL * 0.8); armR = quant(-legR * 0.8); bob = Math.abs(Math.sin(ph)) > 0.5 ? 1 : 0; }
+    else if (stateName === "run")  { legL = quant(Math.sin(ph) * 45); legR = -legL; armL = -legL; armR = -legR; bob = 1; }
+    else if (stateName === "jump") {
+      const k = f / Math.max(1, count - 1), air = Math.sin(k * Math.PI);
+      legL = Math.round(-15 - air * 35); legR = Math.round(10 + air * 25);
+      armL = Math.round(-40 - air * 80); armR = Math.round(-60 - air * 80);
+      bob = Math.round(air * 4);
+    }
+    else if (stateName === "attack") { cannon = true; armR = 90; legL = 15; legR = -15; }
+    else { armL = 8 + Math.sin(ph) * 3; armR = 8 - Math.sin(ph) * 3; }
+    const Y = (y) => y - bob;
+    for (const [hx, ang, col] of [[13, legL, metalD], [19, legR, metal]]) {
+      const [kx, ky] = limb(ctx, hx, Y(26), 7, quant(ang), 4, joint);
+      const [fx, fy] = limb(ctx, kx, ky, 7, quant(ang * 0.4), 4, col);
+      px(ctx, Math.round(fx) - 2, Math.round(fy), 5, 2, "#222");
+    }
+    px(ctx, 10, Y(14), 12, 11, metal);
+    px(ctx, 10, Y(14), 12, 2, metalD);
+    px(ctx, 14, Y(18), 4, 4, pal.accent);
+    px(ctx, 11, Y(4), 10, 8, metal);
+    const visorOn = !(stateName === "idle" && f % 4 === 3);
+    px(ctx, 12, Y(6), 8, 3, visorOn ? pal.accent : joint);
+    px(ctx, 15, Y(2), 2, 2, joint);
+    px(ctx, 15, Y(0), 2, 2, (f % 2) ? pal.accent : joint);
+    for (const [sx, ang] of [[9, armL], [23, armR]]) {
+      const [ex, ey] = limb(ctx, sx, Y(15), 7, quant(ang), 4, joint);
+      limb(ctx, ex, ey, 6, quant(ang * 0.6), 4, metal);
+    }
+    if (cannon) {
+      limb(ctx, 23, Y(15), 12, 90, 5, metalD);
+      px(ctx, 30, Y(13), 4, 5, pal.accent);
+      if (f % 2 === 0) px(ctx, 34, Y(12), 3, 7, "#fff8c9");
+    }
+    selectiveOutline(cell, "#141414");
+    const sctx = strip.getContext("2d");
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(cell, 0, 0, W, H, f * W * S, 0, W * S, H * S);
+  }
+  return strip;
+}
+
 /* wrapped drawing helper: features drawn at 9 offsets tile seamlessly */
 function wrapped(ctx, s, fn) {
   for (const ox of [-s, 0, s]) for (const oy of [-s, 0, s]) {
@@ -862,55 +1138,114 @@ function wrapped(ctx, s, fn) {
   }
 }
 
+const TILE_PATTERNS = ["grass", "sand", "stone", "brick", "wood", "metal", "water", "dungeon"];
+
+/* returns an ARRAY of canvases (water shimmers: 2 frames, everything else 1) */
 function procTile(pattern, size, seedNum) {
-  const rng = mulberry32(seedNum);
-  const S = 32;
-  const base = makeCanvas(S, S);
-  const ctx = base.getContext("2d");
-  const R = (a, b) => a + rng() * (b - a);
+  const frames = pattern === "water" ? 2 : 1;
+  const out = [];
+  for (let fr = 0; fr < frames; fr++) {
+    const rng = mulberry32(seedNum + fr * 131);
+    const S = 32;
+    const base = makeCanvas(S, S);
+    const ctx = base.getContext("2d");
+    const R = (a, b) => a + rng() * (b - a);
 
-  if (pattern === "grass") {
-    px(ctx, 0, 0, S, S, "#4d9247");
-    wrapped(ctx, S, () => {
-      for (let i = 0; i < 26; i++) px(ctx, R(0, S), R(0, S), 1, 1, rng() < 0.5 ? "#3d7a3a" : "#5fa855");
-      for (let i = 0; i < 6; i++) { const x = R(2, S - 2), y = R(2, S - 2); px(ctx, x, y - 2, 1, 3, "#35702f"); px(ctx, x + 1, y - 1, 1, 2, "#35702f"); }
-    });
-  } else if (pattern === "brick") {
-    px(ctx, 0, 0, S, S, "#5c6068");
-    const bh = 8, bw = 16;
-    for (let row = 0; row < S / bh; row++) {
-      const off = row % 2 ? bw / 2 : 0;
-      for (let cx = -1; cx < S / bw + 1; cx++) {
-        const shade = 150 + ((rng() * 30) | 0);
-        ctx.fillStyle = `rgb(${shade},${shade - 25},${shade - 30})`;
-        const x = ((cx * bw + off) % S + S) % S;
-        ctx.fillRect(x, row * bh + 1, bw - 2, bh - 2);
+    if (pattern === "grass") {
+      px(ctx, 0, 0, S, S, "#4d9247");
+      wrapped(ctx, S, () => {
+        for (let i = 0; i < 26; i++) px(ctx, R(0, S), R(0, S), 1, 1, rng() < 0.5 ? "#3d7a3a" : "#5fa855");
+        for (let i = 0; i < 6; i++) { const x = R(2, S - 2), y = R(2, S - 2); px(ctx, x, y - 2, 1, 3, "#35702f"); px(ctx, x + 1, y - 1, 1, 2, "#35702f"); }
+      });
+    } else if (pattern === "sand") {
+      px(ctx, 0, 0, S, S, "#d9b77c");
+      wrapped(ctx, S, () => {
+        for (let i = 0; i < 30; i++) px(ctx, R(0, S), R(0, S), 1, 1, rng() < 0.5 ? "#c4a05e" : "#e8cb8f");
+        for (let i = 0; i < 5; i++) { const x = R(2, S - 3), y = R(2, S - 3); px(ctx, x, y, 2, 2, "#b8935a"); px(ctx, x, y, 1, 1, "#e8cb8f"); }
+      });
+    } else if (pattern === "brick") {
+      px(ctx, 0, 0, S, S, "#5c6068"); // mortar bed
+      const bh = 8, bw = 16;
+      for (let row = 0; row < S / bh; row++) {
+        const off = row % 2 ? bw / 2 : 0;
+        for (let cx = 0; cx < S / bw; cx++) {
+          const shade = 150 + ((rng() * 30) | 0);
+          ctx.fillStyle = `rgb(${shade},${shade - 25},${shade - 30})`;
+          // wrapped(): bricks crossing the tile edge continue on the other
+          // side — without this the right edge shows cut bricks (no wrap)
+          wrapped(ctx, S, () => {
+            ctx.fillRect(cx * bw + off, row * bh + 1, bw - 2, bh - 2);
+          });
+        }
       }
+    } else if (pattern === "stone") {
+      px(ctx, 0, 0, S, S, "#7d8590");
+      wrapped(ctx, S, () => {
+        for (let i = 0; i < 9; i++) {
+          const x = R(2, S - 2), y = R(2, S - 2), n = 3 + ((rng() * 5) | 0);
+          for (let k = 0; k < n; k++) px(ctx, x + R(-3, 3), y + R(-3, 3), 2, 2, "#666e78");
+        }
+        for (let i = 0; i < 20; i++) px(ctx, R(0, S), R(0, S), 1, 1, "#98a1ab");
+      });
+    } else if (pattern === "wood") {
+      px(ctx, 0, 0, S, S, "#8a5a2e");
+      for (let row = 0; row < S / 8; row++) {
+        const y = row * 8, shade = 128 + ((rng() * 22) | 0);
+        ctx.fillStyle = `rgb(${shade},${shade - 58 | 0},${shade - 96 | 0})`;
+        ctx.fillRect(0, y + 1, S, 7);
+        ctx.fillStyle = "#5e3c1e";
+        ctx.fillRect(0, y, S, 1);                                   // plank gap (tiles: 8 | 32)
+        const jx = (row * 13 + 4) % S;                             // staggered joint
+        ctx.fillRect(jx, y + 1, 1, 7);
+        wrapped(ctx, S, () => {
+          for (let i = 0; i < 5; i++) px(ctx, R(0, S), y + 2 + R(0, 5), 3, 1, "#6e4522"); // grain
+        });
+      }
+    } else if (pattern === "metal") {
+      px(ctx, 0, 0, S, S, "#6b7280");
+      for (let py = 0; py < S; py += 16) {
+        for (let pxx = 0; pxx < S; pxx += 16) {
+          ctx.fillStyle = "#4b5563";
+          ctx.fillRect(pxx, py, 16, 1); ctx.fillRect(pxx, py, 1, 16);
+          ctx.fillStyle = "#9aa3ad";
+          ctx.fillRect(pxx + 1, py + 1, 14, 1);                     // top highlight
+          wrapped(ctx, S, () => {
+            for (const [rx, ry] of [[3, 3], [12, 3], [3, 12], [12, 12]]) {
+              px(ctx, pxx + rx, py + ry, 2, 2, "#3f4750");
+              px(ctx, pxx + rx, py + ry, 1, 1, "#9aa3ad");
+            }
+          });
+        }
+      }
+    } else if (pattern === "water") {
+      px(ctx, 0, 0, S, S, "#2b6cb0");
+      wrapped(ctx, S, () => {
+        for (let i = 0; i < 7; i++) {                              // deep bands
+          const y = R(0, S);
+          for (let x = 0; x < S; x += 2) px(ctx, x, y + Math.sin(x / 4) * 1.5, 2, 2, "#1e4e8a");
+        }
+        for (let i = 0; i < 10; i++) {                             // shimmer dashes drift per frame
+          const x = (R(0, S) + fr * 8) % S, y = R(0, S);
+          px(ctx, x, y, 3, 1, "#7dd3fc"); px(ctx, x + 1, y - 1, 1, 1, "#e0f2fe");
+        }
+      });
+    } else { // dungeon
+      px(ctx, 0, 0, S, S, "#3b404d");
+      wrapped(ctx, S, () => {
+        for (let i = 0; i < 4; i++) {
+          let x = R(0, S), y = R(0, S);
+          for (let k = 0; k < 8; k++) { px(ctx, x, y, 1, 1, "#22262f"); x += R(-3, 3); y += R(-3, 3); }
+        }
+        for (let i = 0; i < 14; i++) px(ctx, R(0, S), R(0, S), 1, 1, "#4c5364");
+      });
     }
-  } else if (pattern === "stone") {
-    px(ctx, 0, 0, S, S, "#7d8590");
-    wrapped(ctx, S, () => {
-      for (let i = 0; i < 9; i++) {
-        const x = R(2, S - 2), y = R(2, S - 2), n = 3 + ((rng() * 5) | 0);
-        for (let k = 0; k < n; k++) px(ctx, x + R(-3, 3), y + R(-3, 3), 2, 2, "#666e78");
-      }
-      for (let i = 0; i < 20; i++) px(ctx, R(0, S), R(0, S), 1, 1, "#98a1ab");
-    });
-  } else { // dungeon
-    px(ctx, 0, 0, S, S, "#3b404d");
-    wrapped(ctx, S, () => {
-      for (let i = 0; i < 4; i++) {
-        let x = R(0, S), y = R(0, S);
-        for (let k = 0; k < 8; k++) { px(ctx, x, y, 1, 1, "#22262f"); x += R(-3, 3); y += R(-3, 3); }
-      }
-      for (let i = 0; i < 14; i++) px(ctx, R(0, S), R(0, S), 1, 1, "#4c5364");
-    });
-  }
 
-  const out = makeCanvas(size, size);
-  const octx = out.getContext("2d");
-  octx.imageSmoothingEnabled = false;
-  octx.drawImage(base, 0, 0, size, size);
+    const up = makeCanvas(size, size);
+    const uctx = up.getContext("2d");
+    uctx.imageSmoothingEnabled = false;
+    uctx.drawImage(base, 0, 0, size, size);
+    out.push(up);
+  }
   return out;
 }
 
@@ -927,8 +1262,9 @@ function rr(ctx, x, y, w, h, r) {
 function procUI(kind, count, seedNum) {
   const rng = mulberry32(seedNum);
   const hue = (rng() * 360) | 0;
-  const W = kind === "panel" ? 176 : kind === "icon" ? 64 : 132;
-  const H = kind === "panel" ? 128 : kind === "icon" ? 64 : 48;
+  const small = ["icon", "coin", "gem", "heart", "star"].includes(kind);
+  const W = kind === "panel" ? 176 : kind === "health" ? 160 : small ? 64 : 132;
+  const H = kind === "panel" ? 128 : kind === "health" ? 48 : small ? 64 : 48;
   const strip = makeCanvas(W * count, H);
 
   for (let v = 0; v < count; v++) {
@@ -977,6 +1313,62 @@ function procUI(kind, count, seedNum) {
         ctx.fillRect(c - 4, c - 16, 8, 8);
         ctx.beginPath(); ctx.moveTo(c - 11, c + 14); ctx.lineTo(c - 6, c - 8); ctx.lineTo(c + 6, c - 8); ctx.lineTo(c + 11, c + 14); ctx.closePath(); ctx.fill();
       }
+    } else if (kind === "coin") {
+      // spin illusion: horizontal squash oscillates 1 -> 0 -> 1
+      const t = count === 1 ? 0 : v / (count - 1);
+      const squash = Math.abs(Math.cos(t * Math.PI));
+      const rx = 4 + 20 * squash, ry = 24, c = W / 2;
+      ctx.beginPath(); ctx.ellipse(c, H / 2, rx, ry, 0, 0, 7);
+      ctx.fillStyle = "#f5c542"; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(c, H / 2, rx * 0.66, ry * 0.66, 0, 0, 7);
+      ctx.fillStyle = "#d99a26"; ctx.fill();
+      if (squash > 0.4) { ctx.fillStyle = "#ffe9a8"; ctx.fillRect(c - rx * 0.4, H / 2 - 14, 5, 10); }
+    } else if (kind === "gem") {
+      const c = W / 2, cy = H / 2;
+      ctx.beginPath();
+      ctx.moveTo(c - 18, cy - 6); ctx.lineTo(c - 8, cy - 16); ctx.lineTo(c + 8, cy - 16);
+      ctx.lineTo(c + 18, cy - 6); ctx.lineTo(c, cy + 16); ctx.closePath();
+      ctx.fillStyle = `hsl(${hue},80%,${55 + lift}%)`; ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.strokeStyle = "rgba(255,255,255,.4)";
+      ctx.beginPath(); ctx.moveTo(c - 18, cy - 6); ctx.lineTo(c + 18, cy - 6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(c, cy - 16); ctx.lineTo(c, cy + 16); ctx.stroke();
+      if (v % 2 === 0) { ctx.fillStyle = "#ffffff"; ctx.fillRect(c + 8, cy - 14, 6, 2); ctx.fillRect(c + 10, cy - 16, 2, 6); }
+    } else if (kind === "heart") {
+      const beat = 1 + (v % 2) * 0.14;
+      const c = W / 2, cy = H / 2 + 2, r = 11 * beat;
+      ctx.fillStyle = v === 2 ? "#b91c1c" : "#e53e3e";
+      ctx.beginPath(); ctx.arc(c - r * 0.72, cy - r * 0.35, r * 0.78, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(c + r * 0.72, cy - r * 0.35, r * 0.78, 0, 7); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(c - r * 1.35, cy); ctx.lineTo(c + r * 1.35, cy); ctx.lineTo(c, cy + r * 1.5);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.55)";
+      ctx.beginPath(); ctx.arc(c - r * 0.72, cy - r * 0.5, r * 0.22, 0, 7); ctx.fill();
+    } else if (kind === "star") {
+      const c = W / 2, cy = H / 2, lit = v % 2 === 0;
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5, rad = i % 2 ? 8 : 19;
+        ctx[i ? "lineTo" : "moveTo"](c + Math.cos(a) * rad, cy + Math.sin(a) * rad);
+      }
+      ctx.closePath();
+      ctx.fillStyle = lit ? "#ffd23f" : "#d9a821"; ctx.fill();
+      ctx.strokeStyle = "#8a5a00"; ctx.lineWidth = 2; ctx.stroke();
+      if (lit) { ctx.fillStyle = "#ffffff"; ctx.fillRect(c + 8, cy - 14, 5, 2); ctx.fillRect(c + 10, cy - 16, 2, 5); }
+    } else if (kind === "health") {
+      // variants drain the bar: full -> low, green -> red
+      const frac = count === 1 ? 1 : 1 - (v / (count - 1)) * 0.9;
+      const bx = 6, by = 12, bw = W - 12, bh = H - 24;
+      rr(ctx, bx, by, bw, bh, 8);
+      ctx.fillStyle = "#1a1a1a"; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = "#444"; ctx.stroke();
+      const fw = Math.max(6, (bw - 8) * frac);
+      rr(ctx, bx + 4, by + 4, fw, bh - 8, 5);
+      ctx.fillStyle = frac > 0.55 ? "#4ade80" : frac > 0.28 ? "#facc15" : "#ef4444";
+      ctx.fill();
+      ctx.fillStyle = "rgba(0,0,0,.35)";
+      for (let sxi = 1; sxi < 5; sxi++) ctx.fillRect(bx + (bw * sxi) / 5, by + 4, 2, bh - 8);
     } else { // panel
       ctx.translate(0, dy);
       rr(ctx, 2, 2, W - 4, H - 4, 16);
@@ -1029,17 +1421,79 @@ function procEffect(type, frames, seedNum) {
       ctx.globalAlpha = 1;
     } else if (type === "power-up") {
       for (let k = 0; k < 3; k++) {
-        const r = t * 26 - k * 8;
+        const r = 4 + t * 22 - k * 8;
         if (r <= 0) continue;
-        ctx.strokeStyle = "#b8f53d"; ctx.globalAlpha = (1 - t) * (1 - k / 3); ctx.lineWidth = 2;
+        ctx.strokeStyle = "#b8f53d";
+        ctx.globalAlpha = (0.25 + 0.75 * (1 - t)) * (1 - k / 3);
+        ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.stroke();
       }
-      ctx.globalAlpha = Math.sin(t * Math.PI);
+      ctx.globalAlpha = 0.25 + 0.75 * Math.sin(t * Math.PI);
       ctx.fillStyle = "#ffffff";
       for (let i = 0; i < 5; i++) {
         const x = cx + (rng() - 0.5) * 36, y = cy + (rng() - 0.5) * 36;
         ctx.fillRect(x - 3, y - 1, 7, 2); ctx.fillRect(x - 1, y - 3, 2, 7);
       }
+      ctx.globalAlpha = 1;
+    } else if (type === "smoke") {
+      for (let i = 0; i < 16; i++) {
+        const life = (t + i / 16) % 1;                       // staggered puffs
+        const y = cy + 18 - life * 40;
+        const x = cx + Math.sin(life * 5 + i) * 8 + (rng() - 0.5) * 10;
+        const sz = 4 + life * 12;
+        ctx.fillStyle = "#9aa0a8";
+        ctx.globalAlpha = 0.5 * (1 - life);
+        ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+      }
+      ctx.globalAlpha = 1;
+    } else if (type === "sparkle") {
+      for (let i = 0; i < 14; i++) {
+        const phz = (t * 2 + i * 0.37) % 1;
+        const sz = Math.max(0, Math.sin(phz * Math.PI)) * 7;
+        if (sz < 0.8) continue;
+        const x = cx + (rng() - 0.5) * 44, y = cy + (rng() - 0.5) * 44;
+        ctx.fillStyle = ["#ffffff", "#fef08a", "#bae6fd"][(rng() * 3) | 0];
+        ctx.globalAlpha = 0.95;
+        ctx.fillRect(x - sz / 2, y - 1, sz, 2);
+        ctx.fillRect(x - 1, y - sz / 2, 2, sz);
+      }
+      ctx.globalAlpha = 1;
+    } else if (type === "fire") {
+      for (let i = 0; i < 26; i++) {
+        const fx = cx + (rng() - 0.5) * 30;
+        const maxH = 30 * (1 - Math.abs(fx - cx) / 22);
+        const flick = 0.75 + 0.25 * Math.sin(t * 9 + i * 2.3);
+        const hgt = Math.max(2, maxH * flick);
+        const yTop = cy + 20 - hgt;
+        const heat = hgt / 32;
+        ctx.fillStyle = heat < 0.35 ? "#fff7cc" : heat < 0.6 ? "#ffd23f" : heat < 0.85 ? "#ff7b1c" : "#d63c1e";
+        ctx.fillRect(fx - 2, yTop, 4, hgt);
+      }
+      for (let i = 0; i < 6; i++) {                          // rising embers
+        const ey = cy + 18 - (((t * 1.4 + i / 6) % 1) * 44);
+        ctx.fillStyle = "#ffb020";
+        ctx.fillRect(cx + (rng() - 0.5) * 26, ey, 2, 2);
+      }
+    } else if (type === "ring") {
+      for (let k = 0; k < 2; k++) {
+        const rt = (t + k * 0.5) % 1;
+        ctx.strokeStyle = k ? "#c084fc" : "#7df9ff";
+        ctx.globalAlpha = 0.9 * (1 - rt);
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cx, cy, 4 + rt * 24, 0, 7); ctx.stroke();
+      }
+      ctx.globalAlpha = Math.max(0, 1 - t * 3);              // core flash
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(cx - 3, cy - 3, 6, 6);
+      ctx.globalAlpha = 1;
+    } else if (type === "slash") {
+      const ang = -70 + t * 140;                             // sweep across
+      ctx.strokeStyle = "#e0f2fe"; ctx.lineWidth = 7; ctx.lineCap = "round";
+      ctx.globalAlpha = 0.95;
+      ctx.beginPath(); ctx.arc(cx, cy, 20, (ang - 28) * Math.PI / 180, (ang + 28) * Math.PI / 180); ctx.stroke();
+      ctx.strokeStyle = "#7dd3fc"; ctx.lineWidth = 3;         // motion trail
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath(); ctx.arc(cx, cy, 20, (ang - 60) * Math.PI / 180, (ang - 10) * Math.PI / 180); ctx.stroke();
       ctx.globalAlpha = 1;
     } else { // magic
       for (let i = 0; i < 30; i++) {
@@ -1061,7 +1515,9 @@ function procEffect(type, frames, seedNum) {
 
 async function genTileAI(prompt, size) {
   const seed = (Math.random() * 1e9) | 0;
-  const bmp = await fetchImageBitmap(pollinationsURL(prompt, 512, 512, seed));
+  const bmp = await fetchImageBitmap(pollinationsURL(prompt, 512, 512, seed), (n, total) => {
+    if (n > 1) setStep("row", "active", `tile gen — retry ${n}/${total}…`);
+  });
   const full = makeCanvas(bmp.width, bmp.height);
   full.getContext("2d").drawImage(bmp, 0, 0);
   const out = makeCanvas(size, size);
@@ -1108,7 +1564,7 @@ async function runPipeline() {
         setStep("prompt", "done");
         setStep("row", "active", `row gen [${sname}] — one AI call, ${p.frames} poses on flat ${keyName()}…`);
         let strip;
-        if (state.source === "ai") strip = await genRowAI(prompt, p.frames, 384);
+        if (state.source === "ai") strip = await genRowAI(prompt, p.frames, 384, sname);
         else if (state.source === "procedural") strip = procCharacter(p, sname, seed);
         else strip = await uploadStrip(p.frames);
         showStage(strip, `row [${sname}]: raw ${strip.width}×${strip.height}`);
@@ -1130,13 +1586,13 @@ async function runPipeline() {
       stageMsg("prompt: " + prompt);
       setStep("prompt", "done");
       setStep("row", "active", "generating tile…");
-      let tile;
-      if (state.source === "ai") tile = await genTileAI(prompt, p.size);
-      else if (state.source === "procedural") tile = procTile(p.pattern, p.size, seed);
-      else tile = await uploadTile(p.size);
-      showStage(tile, `tile: ${tile.width}×${tile.height}, edge-to-edge (no keying)`);
+      let tileFrames;
+      if (state.source === "ai") tileFrames = [await genTileAI(prompt, p.size)];
+      else if (state.source === "procedural") tileFrames = procTile(p.pattern, p.size, seed);
+      else tileFrames = [await uploadTile(p.size)];
+      showStage(tileFrames[0], `tile: ${p.size}×${p.size}${tileFrames.length > 1 ? ` × ${tileFrames.length} frames (animated)` : ""}, edge-to-edge (no keying)`);
       setStep("row", "done"); setStep("alpha", "done"); setStep("extract", "done");
-      pushRow("tile", [tile], { fps: 0, loop: false, tileable: true });
+      pushRow("tile", tileFrames, { fps: tileFrames.length > 1 ? 4 : 0, loop: tileFrames.length > 1, tileable: true });
     } else if (cat === "ui") {
       const prompt = buildPrompt(cat, p, undefined, state.strict);
       showPromptPeek(prompt);
@@ -1144,7 +1600,7 @@ async function runPipeline() {
       setStep("prompt", "done");
       setStep("row", "active", `generating ${p.states} UI variant(s)…`);
       let strip;
-      if (state.source === "ai") strip = await genRowAI(prompt, p.states, 256);
+      if (state.source === "ai") strip = await genRowAI(prompt, p.states, 256, p.kind);
       else if (state.source === "procedural") strip = procUI(p.kind, p.states, seed);
       else strip = await uploadStrip(p.states);
       showStage(strip, `UI row: raw ${strip.width}×${strip.height}`);
@@ -1165,7 +1621,7 @@ async function runPipeline() {
       setStep("prompt", "done");
       setStep("row", "active", `generating ${p.frames}-frame ${p.type}…`);
       let strip;
-      if (state.source === "ai") strip = await genRowAI(prompt, p.frames, 384);
+      if (state.source === "ai") strip = await genRowAI(prompt, p.frames, 384, p.type);
       else if (state.source === "procedural") strip = procEffect(p.type, p.frames, seed);
       else strip = await uploadStrip(p.frames);
       showStage(strip, `effect row: raw ${strip.width}×${strip.height}`);
@@ -1193,8 +1649,18 @@ async function runPipeline() {
   } catch (e) {
     const active = document.querySelector("#stepper li.active");
     if (active) { active.classList.remove("active"); active.classList.add("error"); }
-    stageMsg("FAILED: " + e.message, true);
-    showRetry("Extraction found nothing usable. Retry with a stricter prompt, lower the frame count, or pick a different background key.");
+    if (/AI_RATE_LIMITED/.test(e.message)) {
+      // honest, actionable, no stale pixels: clear the stage, amber message,
+      // keep both recovery buttons (strict retry + one-click procedural)
+      clearStage();
+      const msg = e.message.replace(/^AI_RATE_LIMITED:\s*/, "");
+      setStep("row", "warn");
+      stageMsg(msg, "warn");
+      showRetry(msg);
+    } else {
+      stageMsg("FAILED: " + e.message, true);
+      showRetry("Extraction found nothing usable. Retry with a stricter prompt, lower the frame count, or pick a different background key.");
+    }
   } finally {
     setBusy(false);
   }
@@ -1262,6 +1728,14 @@ function init() {
   $("#generate").onclick = startFresh;
   $("#generateMobile").onclick = startFresh;
   $("#retryBtn").onclick = () => { state.strict = true; hideRetry(); runPipeline(); };
+  $("#procBtn").onclick = () => {
+    // one-click escape hatch: drop to the offline generator and re-run
+    state.source = "procedural";
+    document.querySelectorAll("#sourceSeg .seg-btn").forEach(x => x.classList.toggle("active", x.dataset.src === "procedural"));
+    state.strict = false;
+    hideRetry();
+    runPipeline();
+  };
 }
 
 document.addEventListener("DOMContentLoaded", init);
