@@ -1265,3 +1265,122 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
+/* ============ v3 "alive": themes + aura (Customize, tracker's spirit) ============
+ * Isolated IIFE: theme switcher (6 swatches, data-theme + CSS vars, live, no
+ * reload, localStorage) + animated background aura (toggle + intensity).
+ * Doesn't touch the generation pipeline. */
+(function () {
+  "use strict";
+  var THEMES = [
+    { id: "violet",    name: "Violet dusk", swatch: "#8b5cf6" },
+    { id: "midnight",  name: "Midnight",    swatch: "#0c66e4" },
+    { id: "ocean",     name: "Ocean",       swatch: "#0ea5e9" },
+    { id: "ember",     name: "Ember",       swatch: "#f97316" },
+    { id: "forest",    name: "Forest",      swatch: "#22c55e" },
+    { id: "porcelain", name: "Porcelain",   swatch: "#e2e8f0" },
+  ];
+  var LS_THEME = "msg_theme_v1", LS_AURA = "msg_aura_v1";
+
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function themeById(id) {
+    for (var i = 0; i < THEMES.length; i++) if (THEMES[i].id === id) return THEMES[i];
+    return THEMES[0];
+  }
+
+  function applyTheme(id, save) {
+    var t = themeById(id);
+    document.documentElement.setAttribute("data-theme", t.id);
+    if (save !== false) lsSet(LS_THEME, t.id);
+    document.querySelectorAll("#swatches .swatch").forEach(function (b) {
+      var on = b.dataset.theme === t.id;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    var nm = document.getElementById("swatchName");
+    if (nm) nm.textContent = t.name;
+  }
+
+  function readAura() {
+    var d = { enabled: true, intensity: 70 };
+    try {
+      var raw = lsGet(LS_AURA);
+      if (raw) {
+        var p = JSON.parse(raw);
+        if (typeof p.enabled === "boolean") d.enabled = p.enabled;
+        if (isFinite(p.intensity)) d.intensity = Math.min(100, Math.max(10, +p.intensity));
+      }
+    } catch (e) {}
+    return d;
+  }
+  function applyAura() {
+    var a = readAura();
+    var el = document.getElementById("aura");
+    if (el) el.classList.toggle("off", !a.enabled);
+    document.documentElement.style.setProperty("--aura-intensity", (a.intensity / 100).toFixed(2));
+    var tg = document.getElementById("auraToggle");
+    if (tg) tg.setAttribute("aria-checked", a.enabled ? "true" : "false");
+    var rg = document.getElementById("auraIntensity");
+    if (rg) rg.value = String(a.intensity);
+  }
+  function saveAura(patch) {
+    var a = readAura();
+    for (var k in patch) a[k] = patch[k];
+    lsSet(LS_AURA, JSON.stringify(a));
+    applyAura();
+  }
+
+  function initCustomize() {
+    var btn = document.getElementById("customizeBtn");
+    var pop = document.getElementById("customizePop");
+    if (!btn || !pop) return;
+
+    var wrap = document.getElementById("swatches");
+    THEMES.forEach(function (t) {
+      var b = document.createElement("button");
+      b.className = "swatch";
+      b.type = "button";
+      b.dataset.theme = t.id;
+      b.title = t.name;
+      b.setAttribute("aria-label", "Theme: " + t.name);
+      b.style.setProperty("--sw", t.swatch);
+      b.onclick = function () { applyTheme(t.id); };
+      wrap.appendChild(b);
+    });
+    var nm = document.createElement("div");
+    nm.className = "swatch-name";
+    nm.id = "swatchName";
+    wrap.appendChild(nm);
+
+    var open = false;
+    var setOpen = function (v) {
+      open = v;
+      pop.hidden = !v;
+      btn.setAttribute("aria-expanded", v ? "true" : "false");
+    };
+    btn.addEventListener("click", function (e) { e.stopPropagation(); setOpen(!open); });
+    document.addEventListener("click", function (e) {
+      if (open && !pop.contains(e.target)) setOpen(false);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (open && e.key === "Escape") setOpen(false);
+    });
+
+    document.getElementById("auraToggle").addEventListener("click", function () {
+      saveAura({ enabled: !readAura().enabled });
+    });
+    document.getElementById("auraIntensity").addEventListener("input", function (e) {
+      saveAura({ intensity: +e.target.value });
+    });
+
+    applyTheme(lsGet(LS_THEME) || "violet", false);
+    applyAura();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initCustomize);
+  } else {
+    initCustomize();
+  }
+})();

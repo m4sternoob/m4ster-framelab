@@ -8,6 +8,19 @@ browser. No API keys, no signup, no credit card, no payments — ever.
 Pick a category, describe the sprite, hit **Generate**. You get a packed
 sprite sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v3 — "alive" edition
+
+- **Theme switcher** — 6 themes in the tracker's Customize spirit (Violet
+  dusk, Midnight, Ocean, Ember, Forest, Porcelain). Swaps CSS variables
+  live, no reload, choice persists in `localStorage`.
+- **Animated background aura** — three slow-drifting, theme-aware glow
+  orbs behind the app (transform/opacity only, never janks the canvas
+  pipeline), plus a subtle vignette. Toggle + intensity slider in the
+  Customize popover; `prefers-reduced-motion` disables the drift.
+- **Alive micro-interactions** — glowing primary button with hover lift,
+  satisfying tick-pop on completed pipeline steps, hover lifts on
+  cards/tabs, smooth theme transitions. Tasteful, not a rave.
+
 ## v2
 
 - **M4-styled UI** — same design language as the portfolio and tracker

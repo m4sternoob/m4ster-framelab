@@ -1,20 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="violet">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>m4ster-sprite-gen — free 2D game sprite generator</title>
 <meta name="description" content="m4ster-sprite-gen: generate clean 2D game sprites and animation atlases in your browser. Free forever, open source, unlimited use. No keys, no signup, no payments. For the gamers, by the gamers.">
 <link rel="stylesheet" href="css/style.css">
+<script>try{var _t=localStorage.getItem("msg_theme_v1");if(_t)document.documentElement.setAttribute("data-theme",_t);}catch(e){}</script>
 </head>
 <body>
+
+<div class="aura" id="aura" aria-hidden="true">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
 
 <header class="topbar">
   <div class="brand">
     <svg class="monogram" viewBox="0 0 48 48" aria-hidden="true">
-      <rect x="2" y="2" width="44" height="44" rx="9" fill="none" stroke="#a78bfa" stroke-width="3"/>
+      <rect x="2" y="2" width="44" height="44" rx="9" fill="none" stroke="currentColor" stroke-width="3"/>
       <text x="24" y="31" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"
-            font-size="19" font-weight="700" fill="#a78bfa">MT</text>
+            font-size="19" font-weight="700" fill="currentColor">MT</text>
     </svg>
     <div class="brand-text">
       <div class="brand-name">M4STER <span class="brand-sub">SPRITE GEN</span></div>
@@ -22,6 +29,13 @@
     </div>
   </div>
   <div class="topbar-right">
+    <button class="icon-btn" id="customizeBtn" aria-label="Customize theme and aura" aria-haspopup="dialog" aria-expanded="false" title="Customize">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4" fill="var(--panel)"/>
+        <line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.4" fill="var(--panel)"/>
+        <line x1="4" y1="17" x2="20" y2="17"/><circle cx="7" cy="17" r="2.4" fill="var(--panel)"/>
+      </svg>
+    </button>
     <span class="pill">free · unlimited · no keys · no signup</span>
     <a class="gh-link" href="https://github.com/m4sternoob/m4ster-sprite-gen" target="_blank" rel="noopener">GitHub</a>
   </div>
@@ -123,6 +137,22 @@
 <!-- phone-only sticky generate bar: thumb-reachable, always visible -->
 <div class="mobile-bar">
   <button id="generateMobile" class="generate">GENERATE SPRITE</button>
+</div>
+
+<!-- customize popover: theme switcher + aura controls (tracker's Customize spirit) -->
+<div class="customize" id="customizePop" role="dialog" aria-label="Customize theme and aura" hidden>
+  <div class="cust-head">Customize</div>
+  <div class="cust-label">Theme</div>
+  <div class="swatches" id="swatches"></div>
+  <div class="cust-label">Background aura</div>
+  <div class="cust-row">
+    <span>Aurora background</span>
+    <button class="switch" id="auraToggle" role="switch" aria-checked="true" aria-label="Toggle aurora background"><span class="knob"></span></button>
+  </div>
+  <div class="cust-row">
+    <span>Intensity</span>
+    <input type="range" id="auraIntensity" min="10" max="100" value="70" aria-label="Aura intensity">
+  </div>
 </div>
 
 <footer class="foot">
