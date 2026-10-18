@@ -2233,10 +2233,10 @@ document.addEventListener("DOMContentLoaded", init);
 (function () {
   "use strict";
   var THEMES = [
+    { id: "ember",     name: "Ember",       swatch: "#f97316" },
     { id: "violet",    name: "Violet dusk", swatch: "#8b5cf6" },
     { id: "midnight",  name: "Midnight",    swatch: "#0c66e4" },
     { id: "ocean",     name: "Ocean",       swatch: "#0ea5e9" },
-    { id: "ember",     name: "Ember",       swatch: "#f97316" },
     { id: "forest",    name: "Forest",      swatch: "#22c55e" },
     { id: "porcelain", name: "Porcelain",   swatch: "#e2e8f0" },
   ];
@@ -2334,7 +2334,7 @@ document.addEventListener("DOMContentLoaded", init);
       saveAura({ intensity: +e.target.value });
     });
 
-    applyTheme(lsGet(LS_THEME) || "violet", false);
+    applyTheme(lsGet(LS_THEME) || "ember", false);
     applyAura();
   }
 
