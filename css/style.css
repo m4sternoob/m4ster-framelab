@@ -703,7 +703,7 @@ section.page-section { scroll-margin-top: 78px; }
 }
 /* pop variant: hero + category cards snap in on load (<600ms) */
 .js .reveal-pop { opacity: 0; }
-.js .reveal-pop.in { animation: popIn .55s cubic-bezier(.22, 1, .36, 1) var(--d, 0s) backwards; }
+.js .reveal-pop.in { opacity: 1; animation: popIn .55s cubic-bezier(.22, 1, .36, 1) var(--d, 0s) backwards; }
 @keyframes popIn {
   from { opacity: 0; transform: translateY(16px) scale(.94); }
   60%  { opacity: 1; transform: translateY(-2px) scale(1.012); }
