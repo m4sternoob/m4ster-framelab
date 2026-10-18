@@ -29,6 +29,11 @@
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
 }
 
+/* v6.3: default 115% zoom — the site is designed to be viewed slightly
+ * enlarged (his call: "looks good zoomed in, make it default").
+ * zoom re-lays-out like browser zoom, so media queries still respond. */
+html { zoom: 1.15; }
+
 /* ---------- themes: one data-theme per tracker swatch, full token sets ---------- */
 html[data-theme="violet"] {
   --bg: #0c0916; --ink: #12101f; --panel: #151223; --line: #2a2440;
