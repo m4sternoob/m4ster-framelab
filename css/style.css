@@ -407,8 +407,8 @@ textarea#prompt:focus { outline: none; border-color: var(--violet); }
   .pill { display: none; }
   .gh-link { padding: 7px 12px; font-size: 12px; }
 
-  .layout { padding: 12px; gap: 12px; display: flex; flex-direction: column; }
-  .panel, .card { padding: 16px; }
+  .layout { padding: 20px; gap: 16px; display: flex; flex-direction: column; }
+  .panel, .card { padding: 20px; }
 
   .tabs { gap: 6px; margin-bottom: 12px; }
   .tab { font-size: 11px; padding: 11px 4px; min-height: 44px; }
@@ -423,9 +423,9 @@ textarea#prompt:focus { outline: none; border-color: var(--violet); }
     position: sticky;
     bottom: 0;
     z-index: 60;
-    padding: 8px 14px calc(12px + env(safe-area-inset-bottom));
+    padding: 8px 20px calc(12px + env(safe-area-inset-bottom));
     background: linear-gradient(to top, color-mix(in srgb, var(--bg) 97%, transparent) 55%, transparent);
-    margin: 0 -12px;
+    margin: 0 -20px;
   }
   .mobile-bar .generate {
     margin-top: 0;
