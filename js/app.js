@@ -901,6 +901,7 @@ function procBiped(p, stateName, seedNum) {
   const pal = procPalette(p.palette, rng);
   const skin = pal.skin, shirt = pal.cloth, shirtD = pal.clothD, pants = pal.pants;
   const hairC = ["#2b2b2b", "#5a3a22", "#8a5a2b", "#d8d8d8"][(rng() * 4) | 0];
+  const hairStyle = (rng() * 3) | 0; // 0 flat top, 1 sideburns, 2 mohawk
 
   const strip = makeCanvas(W * count * S, H * S);
 
@@ -932,7 +933,9 @@ function procBiped(p, stateName, seedNum) {
     limb(ctx, 9, Y(15), 9, armL, 3, shirtD);
     // head + hair
     px(ctx, 11, Y(4), 10, 9, skin);
-    px(ctx, 10, Y(2), 12, 4, hairC); px(ctx, 10, Y(5), 2, 6, hairC); px(ctx, 20, Y(5), 2, 6, hairC);
+    px(ctx, 10, Y(2), 12, 4, hairC);
+    if (hairStyle === 1) { px(ctx, 10, Y(5), 2, 6, hairC); px(ctx, 20, Y(5), 2, 6, hairC); }
+    else if (hairStyle === 2) { px(ctx, 15, Y(0), 2, 3, hairC); }
     px(ctx, 14, Y(8), 1, 2, "#1a1a1a"); px(ctx, 17, Y(8), 1, 2, "#1a1a1a");
     // torso + belt
     px(ctx, 10 + lean * 0.2, Y(14), 12, 9, shirt);
@@ -962,6 +965,10 @@ function procQuadruped(p, stateName, seedNum) {
   const pal = procPalette(p.palette, rng);
   const count = p.frames, W = 44, H = 32, S = 4;
   const fur = pal.cloth, furD = pal.clothD, belly = pal.skin;
+  // visible per-seed variant (drawn once per generation — same across all frames)
+  const earH = 3 + ((rng() * 3) | 0);
+  const tailLen = 8 + ((rng() * 5) | 0);
+  const spots = rng() < 0.5;
   const strip = makeCanvas(W * count * S, H * S);
   for (let f = 0; f < count; f++) {
     const cell = makeCanvas(W, H);
@@ -984,12 +991,13 @@ function procQuadruped(p, stateName, seedNum) {
     const legX = [15, 21, 27, 33];
     limb(ctx, legX[1], Y(22), 8, sw[1] * 0.9, 3, furD);   // far legs first
     limb(ctx, legX[3], Y(22), 8, sw[3] * 0.9, 3, furD);
-    limb(ctx, 10, Y(14), 8, -35 + Math.sin(ph * 2) * 12, 3, furD); // tail wag
+    limb(ctx, 10, Y(14), tailLen, -35 + Math.sin(ph * 2) * 12, 3, furD); // tail wag
     px(ctx, 12 + lunge, Y(11), 22, 10, fur);               // body
     px(ctx, 12 + lunge, Y(18), 22, 3, belly);              // belly
     px(ctx, 12 + lunge, Y(11), 22, 2, furD);               // back ridge
+    if (spots) { px(ctx, 16 + lunge, Y(12), 5, 3, furD); px(ctx, 25 + lunge, Y(15), 4, 3, furD); } // spots
     px(ctx, 32 + lunge, Y(5) + headDy, 9, 9, fur);         // head
-    px(ctx, 33 + lunge, Y(3) + headDy, 4, 3, furD);        // ear
+    px(ctx, 33 + lunge, Y(3) + headDy - (earH - 3), 4, earH, furD); // ear
     px(ctx, 37 + lunge, Y(8) + headDy, 2, 2, "#1a1a1a");   // eye
     px(ctx, 40 + lunge, Y(10) + headDy, 2, 2, "#1a1a1a");  // nose
     limb(ctx, legX[0], Y(22), 8, sw[0], 3, fur);          // near legs
@@ -1009,6 +1017,12 @@ function procFlyer(p, stateName, seedNum) {
   const pal = procPalette(p.palette, rng);
   const count = p.frames, W = 36, H = 36, S = 4;
   const body = pal.cloth, bodyD = pal.clothD;
+  // visible per-seed variant (drawn once per generation — same across all frames)
+  const beakC = ["#f5a623", "#e2574c", "#4dd07c", "#7c9aff"][(rng() * 4) | 0];
+  const crestOn = rng() < 0.65;
+  const wingLen = 12 + ((rng() * 4) | 0);
+  const tailN = 2 + ((rng() * 2) | 0);
+  const footC = ["#d98a2b", "#8a5a2b", "#6b7280"][(rng() * 3) | 0];
   const strip = makeCanvas(W * count * S, H * S);
   for (let f = 0; f < count; f++) {
     const cell = makeCanvas(W, H);
@@ -1023,18 +1037,17 @@ function procFlyer(p, stateName, seedNum) {
     const bob = Math.abs(Math.sin(ph * flapSpeed)) * bobA;
     const Y = (y) => y - Math.round(bob) + (dive ? 4 : 0);
     limb(ctx, 16, Y(16), 10, -40 - flap * 0.7, 3, bodyD);  // far wing
-    limb(ctx, 10, Y(20), 8, 55, 3, bodyD);                 // tail feathers
-    limb(ctx, 10, Y(20), 8, 75, 3, bodyD);
+    for (let t = 0; t < tailN; t++) limb(ctx, 10, Y(20), 8, 50 + t * 18, 3, bodyD); // tail feathers
     px(ctx, 12 + lean, Y(14), 13, 11, body);              // body
     px(ctx, 12 + lean, Y(22), 13, 3, bodyD);
     px(ctx, 23 + lean, Y(10), 8, 8, body);                // head
-    px(ctx, 30 + lean, Y(12), 4, 3, "#f5a623");           // beak
+    px(ctx, 30 + lean, Y(12), 4, 3, beakC);               // beak
     px(ctx, 26 + lean, Y(12), 2, 2, "#1a1a1a");           // eye
-    px(ctx, 24 + lean, Y(7), 2, 3, pal.accent);            // crest
-    const [wx, wy] = limb(ctx, 17 + lean, Y(15), 13, -55 - flap, 4, body); // near wing
+    if (crestOn) px(ctx, 24 + lean, Y(7), 2, 3, pal.accent); // crest
+    const [wx, wy] = limb(ctx, 17 + lean, Y(15), wingLen, -55 - flap, 4, body); // near wing
     px(ctx, Math.round(wx) - 2, Math.round(wy) - 1, 5, 3, bodyD);
-    px(ctx, 16 + lean, Y(26), 3, 2, "#d98a2b");            // tucked feet
-    px(ctx, 21 + lean, Y(26), 3, 2, "#d98a2b");
+    px(ctx, 16 + lean, Y(26), 3, 2, footC);               // tucked feet
+    px(ctx, 21 + lean, Y(26), 3, 2, footC);
     selectiveOutline(cell, "#141414");
     const sctx = strip.getContext("2d");
     sctx.imageSmoothingEnabled = false;
@@ -1049,6 +1062,10 @@ function procSlime(p, stateName, seedNum) {
   const pal = procPalette(p.palette, rng);
   const count = p.frames, W = 36, H = 32, S = 4;
   const goo = pal.cloth, gooL = pal.accent;
+  // visible per-seed variant (drawn once per generation — same across all frames)
+  const eyeStyle = (rng() * 3) | 0;   // 0 round, 1 angry, 2 happy
+  const drips = (rng() * 3) | 0;      // 0..2 side drips
+  const shineDX = -2 + ((rng() * 5) | 0);
   const strip = makeCanvas(W * count * S, H * S);
   for (let f = 0; f < count; f++) {
     const cell = makeCanvas(W, H);
@@ -1064,10 +1081,19 @@ function procSlime(p, stateName, seedNum) {
     px(ctx, cx - bw / 2 + 2, baseY + 3, bw - 4, bh - 3, goo);
     px(ctx, cx - bw / 2, baseY + 6, bw, bh - 6, goo);
     px(ctx, cx - bw / 2 + 2, baseY, bw - 4, 6, gooL);
-    px(ctx, cx - bw / 2 + 1, baseY + 2, 3, 3, "#ffffff");
+    px(ctx, cx + shineDX, baseY + 2, 3, 3, "#ffffff");
+    for (let d = 0; d < drips; d++) px(ctx, cx - bw / 2 - 2 - d * 3, baseY + 8 + d * 4, 2, 4, goo); // side drips
     const ey = baseY + 8;
-    px(ctx, cx - 7, ey, 4, 5, "#ffffff"); px(ctx, cx + 3, ey, 4, 5, "#ffffff");
-    px(ctx, cx - 6, ey + 2, 2, 2, "#1a1a1a"); px(ctx, cx + 4, ey + 2, 2, 2, "#1a1a1a");
+    if (eyeStyle === 2) { // happy ^ ^
+      px(ctx, cx - 7, ey + 1, 4, 2, "#1a1a1a"); px(ctx, cx + 3, ey + 1, 4, 2, "#1a1a1a");
+    } else if (eyeStyle === 1) { // angry
+      px(ctx, cx - 8, ey - 2, 6, 2, "#1a1a1a"); px(ctx, cx + 2, ey - 2, 6, 2, "#1a1a1a");
+      px(ctx, cx - 7, ey + 1, 4, 4, "#ffffff"); px(ctx, cx + 3, ey + 1, 4, 4, "#ffffff");
+      px(ctx, cx - 6, ey + 2, 2, 2, "#1a1a1a"); px(ctx, cx + 4, ey + 2, 2, 2, "#1a1a1a");
+    } else { // round
+      px(ctx, cx - 7, ey, 4, 5, "#ffffff"); px(ctx, cx + 3, ey, 4, 5, "#ffffff");
+      px(ctx, cx - 6, ey + 2, 2, 2, "#1a1a1a"); px(ctx, cx + 4, ey + 2, 2, 2, "#1a1a1a");
+    }
     if (stateName === "attack") px(ctx, cx - 4, ey + 7, 8, 2, "#1a1a1a");
     selectiveOutline(cell, "#141414");
     const sctx = strip.getContext("2d");
@@ -1082,7 +1108,12 @@ function procRobot(p, stateName, seedNum) {
   const rng = mulberry32(seedNum + stateName.length * 7919 + 404);
   const pal = procPalette(p.palette, rng);
   const count = p.frames, W = 32, H = 44, S = 4;
-  const metal = "#9aa3ad", metalD = "#6b7280", joint = "#3f4750";
+  const metalHue = (rng() * 360) | 0;
+  const metal = `hsl(${metalHue},12%,62%)`, metalD = `hsl(${metalHue},12%,45%)`, joint = `hsl(${metalHue},10%,28%)`;
+  // visible per-seed variant (drawn once per generation — same across all frames)
+  const visorC = ["#ff3b30", "#34e07c", "#4da6ff", "#ffd60a"][(rng() * 4) | 0];
+  const antennaOn = rng() < 0.7;
+  const chestC = rng() < 0.5 ? pal.accent : visorC;
   const strip = makeCanvas(W * count * S, H * S);
   const quant = (a) => Math.round(a / 15) * 15;
   for (let f = 0; f < count; f++) {
@@ -1108,19 +1139,21 @@ function procRobot(p, stateName, seedNum) {
     }
     px(ctx, 10, Y(14), 12, 11, metal);
     px(ctx, 10, Y(14), 12, 2, metalD);
-    px(ctx, 14, Y(18), 4, 4, pal.accent);
+    px(ctx, 14, Y(18), 4, 4, chestC);
     px(ctx, 11, Y(4), 10, 8, metal);
     const visorOn = !(stateName === "idle" && f % 4 === 3);
-    px(ctx, 12, Y(6), 8, 3, visorOn ? pal.accent : joint);
-    px(ctx, 15, Y(2), 2, 2, joint);
-    px(ctx, 15, Y(0), 2, 2, (f % 2) ? pal.accent : joint);
+    px(ctx, 12, Y(6), 8, 3, visorOn ? visorC : joint);
+    if (antennaOn) {
+      px(ctx, 15, Y(2), 2, 2, joint);
+      px(ctx, 15, Y(0), 2, 2, (f % 2) ? visorC : joint);
+    }
     for (const [sx, ang] of [[9, armL], [23, armR]]) {
       const [ex, ey] = limb(ctx, sx, Y(15), 7, quant(ang), 4, joint);
       limb(ctx, ex, ey, 6, quant(ang * 0.6), 4, metal);
     }
     if (cannon) {
       limb(ctx, 23, Y(15), 12, 90, 5, metalD);
-      px(ctx, 30, Y(13), 4, 5, pal.accent);
+      px(ctx, 30, Y(13), 4, 5, visorC);
       if (f % 2 === 0) px(ctx, 34, Y(12), 3, 7, "#fff8c9");
     }
     selectiveOutline(cell, "#141414");
