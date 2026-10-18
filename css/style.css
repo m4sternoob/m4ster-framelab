@@ -500,6 +500,8 @@ textarea#prompt:focus { outline: none; border-color: var(--violet); }
 .cust-row input[type="range"] { accent-color: var(--violet); width: 120px; }
 @media (max-width: 767px) {
   .customize { left: 12px; right: 12px; width: auto; top: 60px; }
+  /* swatches stay thumb-sized on phone — full-width panel was blowing them up */
+  .swatches { grid-template-columns: repeat(6, minmax(0, 48px)); justify-content: start; }
 }
 
 /* ---------- v3: alive micro-interactions (tasteful, not a rave) ---------- */
