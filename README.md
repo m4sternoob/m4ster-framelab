@@ -1,12 +1,42 @@
-# m4ster-sprite-gen
+# m4ster FrameLab
 
 **For the gamers, by the gamers.**
 
-Free, open-source, unlimited 2D game sprite generator that runs 100% in your
+Free, open-source, unlimited 2D game sprite studio that runs 100% in your
 browser. No API keys, no signup, no credit card, no payments — ever.
+(The repo and URL stay `m4ster-sprite-gen`; the product brand is FrameLab.)
 
-Pick a category, describe the sprite, hit **Generate**. You get a packed
-sprite sheet PNG plus an atlas manifest JSON your game can read directly.
+Type what you want in the big prompt box and hit **MAKE IT** — or pick a
+category card, a motion preset, or a gallery piece. You get a packed sprite
+sheet PNG plus an atlas manifest JSON your game can read directly.
+
+## v6 — "THE MIXTURE"
+
+The best of every competitor, integrated into one app — no login, no
+paywall, everything below free forever:
+
+- **Prompt-first hero** — one big "What will you make today?" prompt box
+  (Seele's pattern, minus their login wall). Type → MAKE IT → the lab
+  generates.
+- **Category cards** — Character / Tile / Effect / UI / Splitter as visual
+  cards under the hero. One tap picks a lane and drops you in the lab.
+- **Animated gallery** — "Fresh from the lab": moving animated preview
+  cards (Ludo's card anatomy: moving preview, STYLE · FRAME COUNT, prompt
+  underneath). Every card is a live procedural render — click one to open
+  that exact setup in the lab.
+- **Motion presets** — idle / walk / run / jump / attack with tiny live
+  animated previews. One click drives procedural characters (sets the state
+  and regenerates) or split animations (sets fps + playback mode:
+  loop / once / ping-pong).
+- **Export bundle** — one button downloads **sprite-sheet PNG + animated
+  GIF preview + manifest JSON** (v2.2.0). Individual PNG/JSON/frames
+  buttons remain.
+- **Facing flip** — character direction toggle (→ right / ← left), applied
+  to preview, atlas, frames, and GIF — non-destructive, like curation.
+- **Living UI** — scroll-reveal entrances, scroll parallax on the
+  background aura, responsive display type, focus-visible polish.
+- **Fully responsive** — phone (stacked, horizontal snap gallery, sticky
+  generate bar), tablet, desktop — genuinely different layouts.
 
 ## v5 — Sheet Splitter
 
@@ -122,9 +152,10 @@ same output pixels, every time.
 
 - `m4ster-sprite-sheet.png` — the packed atlas
 - `m4ster-sprite-atlas.json` — manifest (frame rects, fps, durations, loop flags, run revision)
+- **Bundle** — one button: sheet PNG + animated GIF preview + manifest JSON (v2.2.0)
 - individual frame PNGs (click any frame thumbnail, or bulk download)
 - **Splitter:** `m4ster-split-animation.png` + `m4ster-split-animation.json`
-  (manifest v2.1.0, `engine: "splitter"`) — one button downloads both
+  (manifest v2.2.0, `engine: "splitter"`) — one button downloads both
 
 ## Using exports in engines
 

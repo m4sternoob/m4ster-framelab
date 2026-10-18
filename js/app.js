@@ -133,6 +133,11 @@ function renderParams() {
       <div class="row">
         <span class="dim">view</span>
         <select id="pView"><option value="side">side</option><option value="front">front</option></select>
+        <span class="dim">facing</span>
+        <div class="seg" id="pFlipSeg" style="grid-template-columns:repeat(2,minmax(0,1fr));flex:1">
+          <button type="button" class="seg-btn${state.flipX ? "" : " active"}" data-flip="0" title="face right">&#8594; right</button>
+          <button type="button" class="seg-btn${state.flipX ? " active" : ""}" data-flip="1" title="face left">&#8592; left</button>
+        </div>
       </div>
       <div class="row">
         <span class="dim">archetype</span>
@@ -640,7 +645,7 @@ function buildAtlas(rows, pad = 2) {
     r.order.forEach((fi, i) => {
       const f = r.frames[fi];
       const x = pad + i * cw;
-      sctx.drawImage(f, x, y);
+      drawFrameAt(sctx, f, x, y);
       rects.push({ x, y, w: cw, h: ch });
     });
     frameLayout.rows[r.name] = { row: ri, cellWidth: cw, cellHeight: ch, rects };
@@ -650,6 +655,7 @@ function buildAtlas(rows, pad = 2) {
       frames: r.order.length,
       fps,
       loop: r.loop !== false,
+      facing: state.flipX ? "left" : "right",
       durationsMs: r.order.map(() => Math.round(1000 / fps)),
       frameOrder: r.order.slice(),
       slotSliced: !!r.slotSliced, // true when blob recovery failed and even slots were cut
@@ -658,8 +664,8 @@ function buildAtlas(rows, pad = 2) {
   });
 
   const manifest = {
-    tool: "m4ster-sprite-gen",
-    version: "2.0.0",
+    tool: BRAND.tool,
+    version: "2.2.0",
     engine: "component-row",
     runRevision: state.revision,
     atlas: "m4ster-sprite-sheet.png",
@@ -687,7 +693,9 @@ function renderFramesUI() {
       card.className = "frame-card";
       const cv = document.createElement("canvas");
       cv.width = r.frames[fi].width; cv.height = r.frames[fi].height;
-      cv.getContext("2d").drawImage(r.frames[fi], 0, 0);
+      const fc = cv.getContext("2d");
+      if (state.flipX) { fc.translate(cv.width, 0); fc.scale(-1, 1); }
+      fc.drawImage(r.frames[fi], 0, 0);
       cv.title = "click to download this frame";
       cv.style.cursor = "pointer";
       cv.onclick = () => downloadCanvas(cv, `m4ster-${r.name}-frame${oi}.png`);
@@ -773,7 +781,10 @@ function startPreview() {
     } else {
       const s = Math.min(pc.width / f.width, pc.height / f.height, 8);
       const dw = Math.max(1, Math.round(f.width * s)), dh = Math.max(1, Math.round(f.height * s));
+      pctx.save();
+      if (state.flipX) { pctx.translate(pc.width, 0); pctx.scale(-1, 1); }
       pctx.drawImage(f, (pc.width - dw) / 2, (pc.height - dh) / 2, dw, dh);
+      pctx.restore();
       $("#previewMeta").textContent = `· ${r.name} · frame ${previewT + 1}/${r.order.length}`;
     }
   }
@@ -833,7 +844,7 @@ function wireExport() {
 }
 
 function enableExport(on) {
-  ["#dlSheet", "#dlJson", "#dlFrames", "#dlAnim"].forEach(s => { $(s).disabled = !on; });
+  ["#dlSheet", "#dlJson", "#dlFrames", "#dlAnim", "#dlBundle"].forEach(s => { const el = $(s); if (el) el.disabled = !on; });
 }
 /* ================= procedural (offline) generators =================
  * Seeded pixel-art mode: palette-locked, selective outline, binary alpha.
@@ -1895,13 +1906,13 @@ function buildSplitAtlas() {
   const rects = [];
   norm.forEach((f, i) => {
     const x = pad + i * cw;
-    sctx.drawImage(f, x, pad);
+    drawFrameAt(sctx, f, x, pad);
     rects.push({ x, y: pad, w: cw, h: ch });
   });
   const fps = +$("#previewFps").value || 8;
   const manifest = {
-    tool: "m4ster-sprite-gen",
-    version: "2.1.0",
+    tool: BRAND.tool,
+    version: "2.2.0",
     engine: "splitter",
     runRevision: state.revision,
     atlas: "m4ster-split-animation.png",
@@ -1912,6 +1923,7 @@ function buildSplitAtlas() {
     animations: {
       anim: {
         row: 0, frames: norm.length, fps, loop: true,
+        facing: state.flipX ? "left" : "right",
         durationsMs: norm.map(() => Math.round(1000 / fps)),
         frameOrder: sp.selection.slice(),
       },
@@ -2073,10 +2085,17 @@ function startSplitPreview() {
     splitRAF = requestAnimationFrame(tick);
     const fr = sp.selection.map(j => sp.pieces[j].canvas);
     if (!fr.length) return;
-    const fps = +$("#previewFps").value || 8;
+    const pb = state.splitPlayback || { fps: 0, mode: "loop", name: "" };
+    const fps = pb.fps || (+$("#previewFps").value || 8);
     if (now - last < 1000 / fps) return;
     last = now;
-    splitT = (splitT + 1) % fr.length;
+    if (pb.mode === "once") { if (splitT < fr.length - 1) splitT++; }
+    else if (pb.mode === "pingpong") {
+      splitT += splitDir;
+      if (splitT >= fr.length - 1) { splitT = fr.length - 1; splitDir = -1; }
+      if (splitT <= 0) { splitT = 0; splitDir = 1; }
+    }
+    else splitT = (splitT + 1) % fr.length;
     let cw = 0, ch = 0;
     for (const f of fr) { cw = Math.max(cw, f.width); ch = Math.max(ch, f.height); }
     const s = Math.min(pc.width / cw, pc.height / ch, 8);
@@ -2085,8 +2104,12 @@ function startSplitPreview() {
     pctx.clearRect(0, 0, pc.width, pc.height);
     const f = fr[splitT];
     const fw = Math.max(1, Math.round(f.width * s)), fh = Math.max(1, Math.round(f.height * s));
+    pctx.save();
+    if (state.flipX) { pctx.translate(pc.width, 0); pctx.scale(-1, 1); }
     pctx.drawImage(f, ox + Math.round((dw - fw) / 2), oy + dh - fh, fw, fh);
-    $("#previewMeta").textContent = `· split · frame ${splitT + 1}/${fr.length}`;
+    pctx.restore();
+    const tag = pb.name ? ` · ${pb.name}` : "";
+    $("#previewMeta").textContent = `· split${tag} · frame ${splitT + 1}/${fr.length}`;
   }
   tick(last);
 }
@@ -2094,7 +2117,7 @@ function startSplitPreview() {
 function updateSplitExport() {
   const n = state.split ? state.split.selection.length : 0;
   const on = n > 0;
-  ["#dlSheet", "#dlJson", "#dlFrames", "#dlAnim"].forEach(s => { $(s).disabled = !on; });
+  ["#dlSheet", "#dlJson", "#dlFrames", "#dlAnim", "#dlBundle"].forEach(s => { const el = $(s); if (el) el.disabled = !on; });
   if (on) {
     state.atlas = buildSplitAtlas();
     setStep("atlas", "done", `animation packed — ${n} frame(s)`);
@@ -2321,3 +2344,475 @@ document.addEventListener("DOMContentLoaded", init);
     initCustomize();
   }
 })();
+
+/* ================= v6 "THE MIXTURE" =================
+ * Seele: prompt-first hero + category cards. Ludo: animated gallery cards,
+ * motion presets, export bundle (PNG + GIF + JSON). PixelLab: pixel-art
+ * polish (facing flip). Design refs: scroll-reveal entrances, living
+ * background parallax, responsive type scale, focus-visible polish.
+ * Everything below is additive — v1-v5 behavior is untouched. */
+
+const BRAND = {
+  name: "m4ster FrameLab",
+  tool: "m4ster-framelab",
+  tagline: "For the gamers, by the gamers",
+};
+
+state.flipX = false;         // character facing: false = right, true = left (non-destructive view)
+state.splitPlayback = null;  // { fps, mode: loop|once|pingpong, name } — set by motion presets
+let splitDir = 1;
+
+/* ---------- facing flip: non-destructive view transform, like curation ---------- */
+function drawFrameAt(ctx, frame, x, y) {
+  if (!state.flipX) { ctx.drawImage(frame, x, y); return; }
+  ctx.save();
+  ctx.translate(x + frame.width, y);
+  ctx.scale(-1, 1);
+  ctx.drawImage(frame, 0, 0);
+  ctx.restore();
+}
+
+function flippedCopy(c) {
+  const o = makeCanvas(c.width, c.height);
+  const x = o.getContext("2d");
+  x.translate(c.width, 0); x.scale(-1, 1);
+  x.drawImage(c, 0, 0);
+  return o;
+}
+
+/* ---------- GIF encoder (export bundle) ----------
+ * Minimal GIF89a writer: global 256-color table (index 0 = transparent),
+ * per-frame GCE + LZW image data, NETSCAPE infinite loop. Pixel art
+ * compresses well; frames are normalized bottom-center before encoding. */
+function downloadBytes(u8, filename, mime) {
+  const blob = new Blob([u8], { type: mime });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+}
+
+function lzwEncode(indices, minCodeSize) {
+  const clear = 1 << minCodeSize, eoi = clear + 1;
+  let codeSize = minCodeSize + 1, nextCode = eoi + 1;
+  const dict = new Map();
+  const out = [];
+  let buf = 0, bits = 0;
+  const emit = (code) => {
+    buf |= code << bits; bits += codeSize;
+    while (bits >= 8) { out.push(buf & 255); buf >>= 8; bits -= 8; }
+  };
+  emit(clear);
+  let prefix = indices[0];
+  for (let i = 1; i < indices.length; i++) {
+    const k = indices[i], key = prefix * 256 + k;
+    if (dict.has(key)) { prefix = dict.get(key); continue; }
+    emit(prefix);
+    if (nextCode < 4096) {
+      dict.set(key, nextCode++);
+      if (nextCode > (1 << codeSize) && codeSize < 12) codeSize++;
+    } else {
+      emit(clear); dict.clear(); nextCode = eoi + 1; codeSize = minCodeSize + 1;
+    }
+    prefix = k;
+  }
+  emit(prefix); emit(eoi);
+  if (bits > 0) out.push(buf & 255);
+  const blocks = [];
+  for (let i = 0; i < out.length; i += 255) blocks.push(out.slice(i, Math.min(i + 255, out.length)));
+  return blocks;
+}
+
+function encodeGIF(frames, fps) {
+  if (!frames.length) fail("no frames to encode");
+  const src = frames.map(f => state.flipX ? flippedCopy(f) : f);
+  let W = 0, H = 0;
+  for (const f of src) { W = Math.max(W, f.width); H = Math.max(H, f.height); }
+  W = Math.min(512, W); H = Math.min(512, H);
+  const norm = src.map(f => {
+    const c = makeCanvas(W, H);
+    const x = c.getContext("2d");
+    const s = Math.min(W / f.width, H / f.height, 1);
+    const dw = Math.max(1, Math.round(f.width * s)), dh = Math.max(1, Math.round(f.height * s));
+    x.imageSmoothingEnabled = false;
+    x.drawImage(f, Math.round((W - dw) / 2), H - dh, dw, dh); // bottom-center: stable feet
+    return x.getImageData(0, 0, W, H).data;
+  });
+  // palette: index 0 = transparent, then the 255 most-frequent colors
+  const freq = new Map();
+  for (const px of norm) {
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] <= 12) continue;
+      const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
+      freq.set(key, (freq.get(key) || 0) + 1);
+    }
+  }
+  const colors = [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 255).map(e => e[0]);
+  const table = new Uint8Array(256 * 3);
+  const lut = new Map();
+  colors.forEach((c, i) => {
+    lut.set(c, i + 1);
+    table[(i + 1) * 3] = (c >> 16) & 255;
+    table[(i + 1) * 3 + 1] = (c >> 8) & 255;
+    table[(i + 1) * 3 + 2] = c & 255;
+  });
+  const nearest = (r, g, b) => {
+    let best = 1, bd = Infinity;
+    for (let i = 0; i < colors.length; i++) {
+      const c = colors[i];
+      const dr = r - ((c >> 16) & 255), dg = g - ((c >> 8) & 255), db = b - (c & 255);
+      const d = dr * dr + dg * dg + db * db;
+      if (d < bd) { bd = d; best = i + 1; }
+    }
+    return best;
+  };
+  const bytes = [];
+  const pushStr = s => { for (const ch of s) bytes.push(ch.charCodeAt(0)); };
+  const w16 = n => bytes.push(n & 255, (n >> 8) & 255);
+  pushStr("GIF89a");
+  w16(W); w16(H);
+  bytes.push(0xF7, 0, 0); // GCT flag + 8-bit resolution + 256-entry table
+  for (const b of table) bytes.push(b);
+  bytes.push(0x21, 0xFF, 0x0B); // NETSCAPE infinite loop
+  pushStr("NETSCAPE2.0");
+  bytes.push(0x03, 0x01, 0x00, 0x00, 0x00);
+  const delay = Math.max(2, Math.round(100 / (fps || 8)));
+  for (const px of norm) {
+    const idx = new Array(W * H);
+    for (let p = 0, i = 0; p < px.length; p += 4, i++) {
+      if (px[p + 3] <= 12) { idx[i] = 0; continue; }
+      const key = (px[p] << 16) | (px[p + 1] << 8) | px[p + 2];
+      idx[i] = lut.has(key) ? lut.get(key) : nearest(px[p], px[p + 1], px[p + 2]);
+    }
+    bytes.push(0x21, 0xF9, 0x04, 0x09, delay & 255, (delay >> 8) & 255, 0x00, 0x00); // GCE: disposal 2, transparent idx 0
+    bytes.push(0x2C, 0x00, 0x00, 0x00, 0x00);
+    w16(W); w16(H);
+    bytes.push(0x00, 0x08); // no local table, LZW min code size 8
+    for (const blk of lzwEncode(idx, 8)) { bytes.push(blk.length); for (const b of blk) bytes.push(b); }
+    bytes.push(0x00);
+  }
+  bytes.push(0x3B);
+  return new Uint8Array(bytes);
+}
+
+/* ---------- animated gallery (Ludo card anatomy: moving preview,
+ * STYLE · FRAME COUNT label, prompt underneath, click opens it in the lab) ---------- */
+function sliceStrip(strip, count) {
+  const fw = Math.max(1, Math.round(strip.width / count));
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const c = makeCanvas(fw, strip.height);
+    c.getContext("2d").drawImage(strip, i * fw, 0, fw, strip.height, 0, 0, fw, strip.height);
+    out.push(c);
+  }
+  return out;
+}
+
+const GALLERY = [
+  { style: "PIXEL HERO", n: 4, prompt: "pixel hero walk cycle, side view",
+    build: () => sliceStrip(procCharacter({ archetype: "biped", palette: "classic", frames: 4 }, "walk", 4242), 4),
+    gen: { cat: "character", src: "procedural", states: ["walk"], frames: 4, archetype: "biped" } },
+  { style: "ROBOT", n: 4, prompt: "idle robot, blinking visor",
+    build: () => sliceStrip(procCharacter({ archetype: "robot", palette: "classic", frames: 4 }, "idle", 777), 4),
+    gen: { cat: "character", src: "procedural", states: ["idle"], frames: 4, archetype: "robot" } },
+  { style: "SLIME", n: 4, prompt: "slime hop, squash and stretch",
+    build: () => sliceStrip(procCharacter({ archetype: "slime", palette: "toxic", frames: 4 }, "jump", 31337), 4),
+    gen: { cat: "character", src: "procedural", states: ["jump"], frames: 4, archetype: "slime" } },
+  { style: "FLYER", n: 4, prompt: "bird flapping, side view",
+    build: () => sliceStrip(procCharacter({ archetype: "flyer", palette: "classic", frames: 4 }, "walk", 9001), 4),
+    gen: { cat: "character", src: "procedural", states: ["walk"], frames: 4, archetype: "flyer" } },
+  { style: "EFFECT", n: 8, prompt: "fiery explosion, ignition to smoke",
+    build: () => sliceStrip(procEffect("explosion", 8, 555), 8),
+    gen: { cat: "effect", src: "procedural", type: "explosion", frames: 8 } },
+  { style: "EFFECT", n: 8, prompt: "campfire flames, seamless loop",
+    build: () => sliceStrip(procEffect("fire", 8, 888), 8),
+    gen: { cat: "effect", src: "procedural", type: "fire", frames: 8 } },
+  { style: "UI", n: 4, prompt: "spinning gold coin",
+    build: () => sliceStrip(procUI("coin", 4, 1212), 4),
+    gen: { cat: "ui", src: "procedural", kind: "coin", states: 4 } },
+  { style: "TILE", n: 2, prompt: "animated water tile",
+    build: () => procTile("water", 64, 3434),
+    gen: { cat: "tile", src: "procedural", pattern: "water", size: 64 } },
+];
+
+/* one shared rAF drives every showcase canvas (gallery + presets) — cheaper
+ * than a loop per card, paused when the tab hides or reduced-motion is on. */
+const showcaseAnims = [];
+let showcaseRAF = 0;
+const reduceMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+function drawShowcaseFrame(a) {
+  const ctx = a.cv.getContext("2d");
+  const f = a.frames[a.idx % a.frames.length];
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, a.cv.width, a.cv.height);
+  const s = Math.min(a.cv.width / f.width, a.cv.height / f.height);
+  const dw = Math.max(1, Math.floor(f.width * s)), dh = Math.max(1, Math.floor(f.height * s));
+  ctx.drawImage(f, Math.floor((a.cv.width - dw) / 2), Math.floor((a.cv.height - dh) / 2), dw, dh);
+}
+
+function showcaseAdd(cv, frames, fps) {
+  const a = { cv, frames, fps: fps || 8, idx: 0, last: 0 };
+  drawShowcaseFrame(a);
+  showcaseAnims.push(a);
+}
+
+function showcaseLoop(now) {
+  showcaseRAF = requestAnimationFrame(showcaseLoop);
+  for (const a of showcaseAnims) {
+    if (now - a.last < 1000 / a.fps) continue;
+    a.last = now;
+    a.idx = (a.idx + 1) % a.frames.length;
+    drawShowcaseFrame(a);
+  }
+}
+
+function showcaseStart() {
+  if (reduceMotion() || showcaseRAF) return;
+  showcaseRAF = requestAnimationFrame(showcaseLoop);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { cancelAnimationFrame(showcaseRAF); showcaseRAF = 0; }
+  else showcaseStart();
+});
+
+function renderGallery() {
+  const grid = $("#galleryGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  GALLERY.forEach((g, gi) => {
+    const card = document.createElement("article");
+    card.className = "gcard reveal";
+    card.style.setProperty("--d", ((gi % 4) * 0.07).toFixed(2) + "s");
+    const cv = document.createElement("canvas");
+    cv.width = 160; cv.height = 160;
+    cv.className = "gcanvas";
+    cv.setAttribute("role", "img");
+    cv.setAttribute("aria-label", g.style + " animation preview");
+    const lab = document.createElement("div");
+    lab.className = "glabel";
+    const b = document.createElement("b"); b.textContent = g.style;
+    const sp = document.createElement("span"); sp.textContent = ` · ${g.n} FRAMES`;
+    lab.append(b, sp);
+    const pr = document.createElement("p");
+    pr.className = "gprompt";
+    pr.textContent = "\u201C" + g.prompt + "\u201D";
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.className = "gopen";
+    btn.textContent = "Open in lab \u2192";
+    btn.setAttribute("aria-label", `Open ${g.prompt} in the lab`);
+    btn.onclick = () => applyGalleryConfig(g);
+    card.append(cv, lab, pr, btn);
+    grid.appendChild(card);
+    try {
+      const frames = g.build();
+      if (frames.length) showcaseAdd(cv, frames, g.n > 4 ? 10 : 8);
+    } catch (e) { /* one broken card never breaks the page */ }
+  });
+}
+
+function applyGalleryConfig(item) {
+  const g = item.gen || {};
+  const tab = document.querySelector(`.tab[data-cat="${g.cat}"]`);
+  if (tab) tab.click(); // re-renders params to defaults
+  if (g.src && g.src !== "upload") {
+    const srcBtn = document.querySelector(`#sourceSeg .seg-btn[data-src="${g.src}"]`);
+    if (srcBtn) srcBtn.click();
+  }
+  if (g.cat === "character") {
+    document.querySelectorAll("#stateRow input").forEach(i => { i.checked = (g.states || []).includes(i.dataset.state); });
+    if (g.frames) $("#pFrames").value = g.frames;
+    if (g.archetype) $("#pArch").value = g.archetype;
+  } else if (g.cat === "effect") {
+    if (g.type) $("#pType").value = g.type;
+    if (g.frames) $("#pFrames").value = g.frames;
+  } else if (g.cat === "tile") {
+    if (g.pattern) $("#pPattern").value = g.pattern;
+    if (g.size) $("#pSize").value = String(g.size);
+  } else if (g.cat === "ui") {
+    if (g.kind) $("#pKind").value = g.kind;
+    if (g.states) $("#pStates").value = g.states;
+  }
+  if (item.prompt) $("#prompt").value = item.prompt;
+  document.getElementById("tool").scrollIntoView({ behavior: "smooth", block: "start" });
+  setTimeout(() => { if (!state.busy) runPipeline(); }, 450);
+}
+
+/* ---------- motion presets (Ludo pattern): named motions with live previews.
+ * Clicking one drives procedural characters (sets the state + regenerates)
+ * or split animations (sets fps + playback mode). ---------- */
+const MOTION_PRESETS = [
+  { id: "idle",   label: "Idle",   fps: 6,  playback: "pingpong" },
+  { id: "walk",   label: "Walk",   fps: 8,  playback: "loop" },
+  { id: "run",    label: "Run",    fps: 10, playback: "loop" },
+  { id: "jump",   label: "Jump",   fps: 8,  playback: "once" },
+  { id: "attack", label: "Attack", fps: 10, playback: "once" },
+];
+
+function renderPresets() {
+  const row = $("#presetRow");
+  if (!row) return;
+  row.innerHTML = "";
+  MOTION_PRESETS.forEach((p, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "preset-chip reveal";
+    btn.dataset.preset = p.id;
+    btn.style.setProperty("--d", (i * 0.05).toFixed(2) + "s");
+    btn.setAttribute("aria-label", `Apply ${p.label} motion, ${p.fps} frames per second`);
+    const cv = document.createElement("canvas");
+    cv.width = 64; cv.height = 64; cv.className = "pcanvas";
+    cv.setAttribute("aria-hidden", "true");
+    const lb = document.createElement("span");
+    lb.className = "plabel";
+    lb.innerHTML = `${p.label}<small>${p.fps}fps</small>`;
+    btn.append(cv, lb);
+    btn.onclick = () => applyPreset(p);
+    row.appendChild(btn);
+    try {
+      const frames = sliceStrip(procCharacter({ archetype: "biped", palette: "classic", frames: 4 }, p.id, 20240 + i), 4);
+      showcaseAdd(cv, frames, p.fps);
+    } catch (e) { /* never break the page */ }
+  });
+}
+
+function applyPreset(p) {
+  document.querySelectorAll(".preset-chip").forEach(c => c.classList.toggle("active", c.dataset.preset === p.id));
+  if (state.split) {
+    state.splitPlayback = { fps: p.fps, mode: p.playback, name: p.label };
+    splitT = 0; splitDir = 1;
+    startSplitPreview();
+    stageMsg(`preset "${p.label}" → split playback: ${p.fps}fps, ${p.playback}`);
+    return;
+  }
+  if (state.category === "character") {
+    const boxes = document.querySelectorAll("#stateRow input");
+    if (!boxes.length) return;
+    boxes.forEach(i => { i.checked = i.dataset.state === p.id; });
+    const fsel = $("#previewFps");
+    if (fsel) fsel.value = String(p.fps);
+    document.getElementById("tool").scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => { if (!state.busy) runPipeline(); }, 450);
+  } else {
+    stageMsg(`preset "${p.label}" drives characters + split animations — switch to the Character tab or upload a sheet.`, "warn");
+  }
+}
+
+/* ---------- export bundle: PNG + GIF + JSON in one click ---------- */
+function currentExportFrames() {
+  if (state.split) return state.split.selection.map(i => state.split.pieces[i].canvas);
+  const r = state.rows[previewRow];
+  return r ? r.order.map(fi => r.frames[fi]) : [];
+}
+
+function currentExportFps() {
+  if (state.splitPlayback && state.splitPlayback.fps) return state.splitPlayback.fps;
+  const sel = +((($("#previewFps") || {}).value) || 8);
+  const r = state.rows[previewRow];
+  return (r && r.fps) || sel;
+}
+
+function initV6() {
+  renderGallery();
+  renderPresets();
+  showcaseStart();
+
+  /* prompt-first hero: type, hit MAKE IT, land in the lab generating */
+  const heroGo = () => {
+    const hp = $("#heroPrompt");
+    const t = hp ? hp.value.trim() : "";
+    if (t) $("#prompt").value = t;
+    const tool = document.getElementById("tool");
+    if (tool) tool.scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => { if (!state.busy) runPipeline(); }, 450);
+  };
+  const heroBtn = $("#heroGenerate"), heroPrompt = $("#heroPrompt");
+  if (heroBtn) heroBtn.onclick = heroGo;
+  if (heroPrompt) heroPrompt.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) heroGo();
+  });
+
+  /* category cards: pick a lane, land in the lab */
+  document.querySelectorAll(".cat-card").forEach(c => {
+    c.onclick = () => {
+      const cat = c.dataset.cat;
+      if (cat === "splitter") {
+        const up = document.querySelector('#sourceSeg .seg-btn[data-src="upload"]');
+        if (up) up.click(); // opens the file picker
+      } else {
+        const tab = document.querySelector(`.tab[data-cat="${cat}"]`);
+        if (tab) tab.click();
+      }
+      document.getElementById("tool").scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+  });
+
+  /* facing flip (delegated: renderParams re-renders #params on tab switch) */
+  const paramsBox = $("#params");
+  if (paramsBox) paramsBox.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-flip]");
+    if (!b) return;
+    document.querySelectorAll("#pFlipSeg .seg-btn").forEach(x => x.classList.toggle("active", x === b));
+    state.flipX = b.dataset.flip === "1";
+    if (state.rows.length && state.atlas) {
+      state.atlas = buildAtlas(state.rows);
+      renderFramesUI();
+      startPreview();
+      showStage(state.atlas.canvas, "atlas rebuilt — facing " + (state.flipX ? "left" : "right"));
+    } else if (state.split) {
+      startSplitPreview();
+      updateSplitExport();
+    }
+  });
+
+  /* one-click bundle: sheet PNG + animated GIF preview + manifest JSON */
+  const dlBundle = $("#dlBundle");
+  if (dlBundle) dlBundle.onclick = () => {
+    if (!state.atlas) return;
+    const frames = currentExportFrames();
+    const fps = currentExportFps();
+    downloadCanvas(state.atlas.canvas, state.atlas.pngName);
+    setTimeout(() => downloadJSON(state.atlas.manifest, state.atlas.jsonName), 450);
+    if (frames.length) {
+      setTimeout(() => {
+        try {
+          const gif = encodeGIF(frames, fps);
+          downloadBytes(gif, state.atlas.pngName.replace(/\.png$/, "") + "-preview.gif", "image/gif");
+        } catch (e) { stageMsg("GIF encode failed: " + e.message, true); }
+      }, 900);
+    }
+  };
+
+  /* scroll-reveal entrances (design-ref: GSAP-style, hand-rolled, cheap) */
+  const io = new IntersectionObserver((ents) => {
+    for (const en of ents) {
+      if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+    }
+  }, { threshold: 0.1 });
+  document.querySelectorAll(".hero-inner, .section-title, .cat-card, #tool .panel, .foot > span").forEach((el, i) => {
+    el.classList.add("reveal");
+    el.style.setProperty("--d", Math.min(0.45, (i % 7) * 0.06).toFixed(2) + "s");
+    io.observe(el);
+  });
+
+  /* living background: scroll parallax on the aura (transform-only, cheap) */
+  const aura = $("#aura");
+  let ticking = false;
+  window.addEventListener("scroll", () => {
+    if (ticking || reduceMotion() || !aura) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      aura.style.transform = `translate3d(0, ${Math.round(window.scrollY * 0.06)}px, 0)`;
+      ticking = false;
+    });
+  }, { passive: true });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initV6);
+} else {
+  initV6();
+}

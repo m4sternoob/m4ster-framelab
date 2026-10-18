@@ -567,3 +567,191 @@ input, .stepper li, .canvas-wrap, .preview-box #preview, .generate,
   .piece-card { min-height: 64px; }
   .split-actions { flex-direction: row; }
 }
+
+/* ================= v6 "THE MIXTURE" =================
+ * Prompt-first hero (Seele), category cards, animated gallery + motion
+ * presets (Ludo), export bundle, facing flip polish (PixelLab).
+ * Design refs folded in: responsive type scale via :root vars (desert),
+ * hand-rolled GSAP-style scroll reveals, component modifier system +
+ * focus-visible polish (Lisbon), section eyebrow rhythm (omnifood). */
+
+:root { --hero-size: clamp(2.4rem, 5.4vw + 1rem, 4.2rem); }
+
+.page-section {
+  position: relative; z-index: 1;
+  max-width: 1440px; margin: 0 auto; padding: 0 20px;
+}
+section.page-section { scroll-margin-top: 78px; }
+
+.section-title {
+  font-size: clamp(1.25rem, 2.4vw + .8rem, 1.8rem);
+  letter-spacing: -.5px; margin: 0 0 18px;
+}
+.section-title .dim { font-size: 13px; letter-spacing: 0; }
+
+/* ---------- hero ---------- */
+.hero { padding: 60px 20px 30px; text-align: center; }
+.hero-inner { max-width: 780px; margin: 0 auto; }
+.hero-eyebrow {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 3px;
+  color: var(--violet); margin-bottom: 16px; font-weight: 700;
+}
+.hero-title {
+  font-size: var(--hero-size); line-height: 1.04;
+  letter-spacing: -1.5px; margin: 0 0 14px; font-weight: 800;
+}
+.hero-title em { font-style: normal; color: var(--violet); }
+.hero-sub { color: var(--mute); font-size: 16px; max-width: 580px; margin: 0 auto 24px; line-height: 1.6; }
+.hero-prompt-row { display: flex; gap: 10px; max-width: 660px; margin: 0 auto; align-items: stretch; }
+#heroPrompt {
+  flex: 1; background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--r);
+  padding: 14px 16px; font-size: 15px; font-family: var(--sans);
+  resize: none; min-height: 58px;
+  box-shadow: 0 12px 40px -12px var(--glow);
+}
+#heroPrompt:focus { outline: none; border-color: var(--violet); }
+#heroPrompt::placeholder { color: var(--dim); }
+.hero-go.generate { width: auto; margin-top: 0; padding: 14px 34px; flex: none; }
+.hero-hints {
+  display: flex; gap: 18px; justify-content: center; flex-wrap: wrap;
+  margin-top: 18px; font-family: var(--mono); font-size: 11px; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.hero-hints span::before { content: "✓ "; color: var(--violet); }
+
+/* ---------- category cards ---------- */
+#catCards { padding-top: 26px; }
+.cat-grid {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px;
+}
+.cat-card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 20px 14px; cursor: pointer; color: var(--text); font-family: var(--sans);
+  display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+  transition: background-color .35s ease, border-color .35s ease, transform .18s ease, box-shadow .25s ease;
+}
+.cat-card svg { width: 40px; height: 40px; color: var(--violet); }
+.cat-card b { font-size: 15px; }
+.cat-card span { font-size: 12px; color: var(--mute); line-height: 1.45; }
+.cat-card:hover { border-color: var(--violet); transform: translateY(-3px); box-shadow: 0 14px 34px -12px var(--glow); }
+.cat-card:hover svg { color: var(--violet-soft); }
+
+/* ---------- gallery (Ludo card anatomy) ---------- */
+#gallery { padding-top: 44px; }
+.gallery-grid {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px;
+}
+.gcard {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 14px; display: flex; flex-direction: column; gap: 8px;
+  transition: border-color .35s ease, transform .18s ease, box-shadow .25s ease;
+}
+.gcard:hover { border-color: var(--violet); transform: translateY(-3px); box-shadow: 0 16px 38px -14px var(--glow); }
+.gcanvas {
+  width: 100%; aspect-ratio: 1 / 1; border-radius: 10px; display: block;
+  image-rendering: pixelated;
+  background: repeating-conic-gradient(var(--ink) 0% 25%, var(--panel) 0% 50%) 0 0 / 20px 20px;
+  border: 1px solid var(--line);
+}
+.glabel { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; }
+.glabel b { color: var(--text); }
+.glabel span { color: var(--dim); }
+.gprompt { font-size: 12.5px; color: var(--mute); font-style: italic; line-height: 1.5; margin: 0; flex: 1; }
+.gopen {
+  background: transparent; border: 1px solid var(--line); color: var(--violet);
+  border-radius: 10px; padding: 10px; font-family: var(--mono); font-size: 12px;
+  cursor: pointer; min-height: 44px;
+  transition: border-color .25s ease, transform .18s ease;
+}
+.gopen:hover { border-color: var(--violet); transform: translateY(-1px); }
+
+/* ---------- motion presets ---------- */
+#presets { padding-top: 40px; }
+.preset-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.preset-chip {
+  background: var(--panel); border: 2px solid var(--line); border-radius: var(--r);
+  padding: 10px 14px 10px 10px; cursor: pointer; color: var(--text);
+  display: flex; align-items: center; gap: 10px; font-family: var(--sans);
+  transition: border-color .3s ease, transform .18s ease, box-shadow .25s ease;
+}
+.preset-chip:hover { transform: translateY(-2px); border-color: var(--dim); }
+.preset-chip.active { border-color: var(--violet); box-shadow: 0 0 0 2px var(--glow); }
+.pcanvas {
+  width: 52px; height: 52px; border-radius: 8px; image-rendering: pixelated; display: block;
+  background: repeating-conic-gradient(var(--ink) 0% 25%, var(--panel) 0% 50%) 0 0 / 14px 14px;
+  border: 1px solid var(--line); flex: none;
+}
+.plabel { font-size: 14px; font-weight: 600; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.plabel small { font-family: var(--mono); font-size: 10px; color: var(--dim); font-weight: 400; }
+
+/* ---------- export bundle button ---------- */
+.export-box .btn.bundle {
+  border-color: var(--violet); color: var(--text); font-weight: 700;
+  background: color-mix(in srgb, var(--violet) 14%, transparent);
+}
+.export-box .btn.bundle:hover:not(:disabled) { background: var(--violet); color: var(--on-accent); }
+.export-box .btn.bundle .dim { color: inherit; opacity: .75; font-size: 11px; }
+
+/* ---------- scroll reveal (design-ref: GSAP-style entrances, hand-rolled) ---------- */
+.reveal { opacity: 0; transform: translateY(26px); }
+.reveal.in {
+  opacity: 1; transform: none;
+  transition: opacity .7s ease var(--d, 0s), transform .7s cubic-bezier(.22, 1, .36, 1) var(--d, 0s);
+}
+
+/* ---------- focus-visible polish (Lisbon a11y spirit) ---------- */
+:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+button:focus:not(:focus-visible), a:focus:not(:focus-visible),
+input:focus:not(:focus-visible), select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) { outline: none; }
+
+/* ---------- the lab sits below the landing sections ---------- */
+#tool { padding-top: 44px; }
+#tool.layout { margin-top: 0; }
+
+/* ---------- tablet ---------- */
+@media (max-width: 1023px) {
+  .cat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hero { padding: 48px 16px 24px; }
+}
+
+/* ---------- phone: genuinely different, thumb-first ---------- */
+@media (max-width: 767px) {
+  .page-section { padding-left: 12px; padding-right: 12px; }
+  .hero { padding: 40px 12px 20px; }
+  .hero-prompt-row { flex-direction: column; }
+  .hero-go.generate { width: 100%; padding: 16px; }
+  #heroPrompt { min-height: 72px; font-size: 16px; } /* 16px stops iOS zoom */
+  .hero-hints { gap: 12px; }
+
+  .cat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .cat-card { padding: 16px 10px; }
+  .cat-card:last-child { grid-column: 1 / -1; flex-direction: row; justify-content: center; gap: 12px; }
+  .cat-card:last-child svg { width: 32px; height: 32px; }
+
+  .gallery-grid {
+    display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+    gap: 12px; padding: 4px 12px 14px; margin: 0 -12px; scrollbar-width: thin;
+  }
+  .gcard { flex: 0 0 240px; scroll-snap-align: start; }
+
+  .preset-row {
+    flex-wrap: nowrap; overflow-x: auto; padding: 4px 12px 12px; margin: 0 -12px;
+    scrollbar-width: thin;
+  }
+  .preset-chip { flex: none; }
+
+  #tool { padding-top: 32px; }
+}
+
+/* ---------- reduced motion: reveals show instantly, no parallax ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; }
+  .reveal.in { transition: none; }
+}

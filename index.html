@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>m4ster-sprite-gen — free 2D game sprite generator</title>
-<meta name="description" content="m4ster-sprite-gen: generate clean 2D game sprites and animation atlases in your browser. Free forever, open source, unlimited use. No keys, no signup, no payments. For the gamers, by the gamers.">
+<title>m4ster FrameLab — free 2D game sprite generator</title>
+<meta name="description" content="m4ster FrameLab: prompt-first 2D game sprite + animation atlas studio in your browser. Free forever, open source, unlimited use. No keys, no signup, no payments. For the gamers, by the gamers.">
+<link rel="icon" type="image/svg+xml" href="logo-m4.svg">
 <link rel="stylesheet" href="css/style.css">
 <script>try{var _t=localStorage.getItem("msg_theme_v1");if(_t)document.documentElement.setAttribute("data-theme",_t);}catch(e){}</script>
 </head>
@@ -18,13 +19,24 @@
 
 <header class="topbar">
   <div class="brand">
-    <svg class="monogram" viewBox="0 0 48 48" aria-hidden="true">
-      <rect x="2" y="2" width="44" height="44" rx="9" fill="none" stroke="currentColor" stroke-width="3"/>
-      <text x="24" y="31" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"
-            font-size="19" font-weight="700" fill="currentColor">MT</text>
+    <svg class="monogram" viewBox="0 0 64 64" aria-hidden="true">
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="#1a1428"/>
+      <rect x="2" y="2" width="60" height="60" rx="12" fill="none" stroke="currentColor" stroke-width="3"/>
+      <g fill="currentColor">
+        <rect x="12" y="18" width="5" height="28"/>
+        <rect x="17" y="18" width="5" height="7"/>
+        <rect x="22" y="25" width="5" height="7"/>
+        <rect x="27" y="18" width="5" height="7"/>
+        <rect x="32" y="18" width="5" height="28"/>
+      </g>
+      <g fill="#ffffff">
+        <rect x="42" y="18" width="5" height="14"/>
+        <rect x="47" y="18" width="5" height="28"/>
+        <rect x="37" y="27" width="15" height="5"/>
+      </g>
     </svg>
     <div class="brand-text">
-      <div class="brand-name">M4STER <span class="brand-sub">SPRITE GEN</span></div>
+      <div class="brand-name">M4STER <span class="brand-sub">FRAMELAB</span></div>
       <div class="tagline">For the gamers, by the gamers</div>
     </div>
   </div>
@@ -41,7 +53,63 @@
   </div>
 </header>
 
-<main class="layout">
+<!-- ============ v6 HERO: prompt-first (Seele pattern, zero login) ============ -->
+<section class="hero page-section" id="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">FREE · UNLIMITED · NO SIGNUP · ACTUALLY</div>
+    <h1 class="hero-title">What will you <em>make</em> today?</h1>
+    <p class="hero-sub">Describe a sprite — characters, tiles, effects, UI. Or drop in a whole sprite sheet and split it into frames.</p>
+    <div class="hero-prompt-row">
+      <textarea id="heroPrompt" rows="2" placeholder="e.g. zombie pirate with a rusty hook hand…"></textarea>
+      <button id="heroGenerate" class="generate hero-go" type="button">MAKE IT</button>
+    </div>
+    <div class="hero-hints">
+      <span>no login</span><span>no paywall</span><span>no watermark</span><span>works offline</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ v6 CATEGORY CARDS (Seele bottom-cards pattern) ============ -->
+<section class="page-section" id="catCards" aria-label="What do you want to make?">
+  <h2 class="section-title">What do you want to make?</h2>
+  <div class="cat-grid">
+    <button class="cat-card" data-cat="character" type="button">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="14" r="7" fill="currentColor"/><rect x="17" y="23" width="14" height="16" rx="4" fill="currentColor"/><rect x="12" y="24" width="5" height="12" rx="2" fill="currentColor" opacity=".6"/><rect x="31" y="24" width="5" height="12" rx="2" fill="currentColor" opacity=".6"/></svg>
+      <b>Character</b><span>heroes, zombies, robots — animated</span>
+    </button>
+    <button class="cat-card" data-cat="tile" type="button">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="6" width="16" height="16" rx="3" fill="currentColor"/><rect x="26" y="6" width="16" height="16" rx="3" fill="currentColor" opacity=".6"/><rect x="6" y="26" width="16" height="16" rx="3" fill="currentColor" opacity=".6"/><rect x="26" y="26" width="16" height="16" rx="3" fill="currentColor"/></svg>
+      <b>Tile</b><span>seamless ground, walls, water</span>
+    </button>
+    <button class="cat-card" data-cat="effect" type="button">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4c3 8 10 12 10 22a10 10 0 0 1-20 0c0-10 7-14 10-22z" fill="currentColor"/><circle cx="24" cy="30" r="5" fill="var(--panel)"/></svg>
+      <b>Effect</b><span>explosions, fire, magic, smoke</span>
+    </button>
+    <button class="cat-card" data-cat="ui" type="button">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="14" width="32" height="20" rx="10" fill="currentColor"/><circle cx="24" cy="24" r="5" fill="var(--panel)"/></svg>
+      <b>UI</b><span>buttons, icons, coins, hearts</span>
+    </button>
+    <button class="cat-card" data-cat="splitter" type="button">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="6" width="36" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><line x1="24" y1="6" x2="24" y2="42" stroke="currentColor" stroke-width="3"/><line x1="6" y1="24" x2="42" y2="24" stroke="currentColor" stroke-width="3"/></svg>
+      <b>Splitter</b><span>cut a sheet into frames, animate</span>
+    </button>
+  </div>
+</section>
+
+<!-- ============ v6 GALLERY: moving preview cards (Ludo pattern) ============ -->
+<section class="page-section" id="gallery" aria-label="Fresh from the lab">
+  <h2 class="section-title">Fresh from the lab <span class="dim">— live renders, click any card to open it</span></h2>
+  <div class="gallery-grid" id="galleryGrid"></div>
+</section>
+
+<!-- ============ v6 MOTION PRESETS (Ludo pattern) ============ -->
+<section class="page-section" id="presets" aria-label="Motion presets">
+  <h2 class="section-title">Motion presets <span class="dim">— pick a motion, it drives procedural + split animations</span></h2>
+  <div class="preset-row" id="presetRow"></div>
+</section>
+
+<!-- ============ THE LAB (tool — stepper kept for the build view) ============ -->
+<main class="layout page-section" id="tool">
 
   <!-- ============ LEFT: CONTROLS ============ -->
   <aside class="panel controls">
@@ -161,11 +229,12 @@
       </div>
       <div class="export-box">
         <div class="field-label">Export</div>
+        <button class="btn bundle" id="dlBundle" disabled>⬇ Download bundle <span class="dim">PNG + GIF + JSON</span></button>
         <button class="btn" id="dlSheet" disabled>sprite sheet PNG</button>
         <button class="btn" id="dlJson" disabled>atlas manifest JSON</button>
         <button class="btn ghost" id="dlFrames" disabled>frames (individual PNGs)</button>
         <button class="btn" id="dlAnim" disabled>Download animation</button>
-        <div class="export-note">Manifest = absolute frame rects + per-state fps/durations + loop flags. Your game reads the rects — never recompute.</div>
+        <div class="export-note">Bundle = sheet PNG + animated GIF preview + manifest (absolute frame rects, fps, loop). Your game reads the rects — never recompute.</div>
       </div>
     </div>
   </section>
@@ -193,7 +262,7 @@
 </div>
 
 <footer class="foot">
-  <span>m4ster-sprite-gen · MIT open source · runs 100% in your browser · your pixels never leave your machine except the AI prompt</span>
+  <span>m4ster FrameLab · MIT open source · runs 100% in your browser · free forever, no login, no paywall · your pixels never leave your machine except the AI prompt</span>
 </footer>
 
 <script src="js/app.js"></script>
