@@ -2768,35 +2768,57 @@ function initV6() {
     }
   });
 
-  /* one-click bundle: sheet PNG + animated GIF preview + manifest JSON */
+  /* one-click bundle: sheet PNG + animated GIF preview + manifest JSON.
+   * v6.1: staggered ~400ms apart so no download gets swallowed by the browser. */
   const dlBundle = $("#dlBundle");
   if (dlBundle) dlBundle.onclick = () => {
     if (!state.atlas) return;
     const frames = currentExportFrames();
     const fps = currentExportFps();
-    downloadCanvas(state.atlas.canvas, state.atlas.pngName);
-    setTimeout(() => downloadJSON(state.atlas.manifest, state.atlas.jsonName), 450);
+    downloadCanvas(state.atlas.canvas, state.atlas.pngName); // t+0: PNG sheet
     if (frames.length) {
       setTimeout(() => {
         try {
           const gif = encodeGIF(frames, fps);
           downloadBytes(gif, state.atlas.pngName.replace(/\.png$/, "") + "-preview.gif", "image/gif");
         } catch (e) { stageMsg("GIF encode failed: " + e.message, true); }
-      }, 900);
+      }, 400); // t+400: animated GIF
     }
+    setTimeout(() => downloadJSON(state.atlas.manifest, state.atlas.jsonName), 800); // t+800: manifest JSON
   };
 
-  /* scroll-reveal entrances (design-ref: GSAP-style, hand-rolled, cheap) */
+/* ---------- v6.1: scroll-reveal entrances, progressive-enhanced.
+ * Default state is VISIBLE — .reveal only hides when JS adds .js to <html>,
+ * and the observer flips .in. If the observer never fires, content still shows.
+ * Observes EVERY .reveal/.reveal-pop (gallery cards + preset chips included —
+ * v6 left them unobserved and they never painted). */
+const REVEAL_SELECTOR = ".reveal, .reveal-pop";
+function initReveals(doc) {
   const io = new IntersectionObserver((ents) => {
     for (const en of ents) {
       if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
     }
   }, { threshold: 0.1 });
-  document.querySelectorAll(".hero-inner, .section-title, .cat-card, #tool .panel, .foot > span").forEach((el, i) => {
-    el.classList.add("reveal");
-    el.style.setProperty("--d", Math.min(0.45, (i % 7) * 0.06).toFixed(2) + "s");
+  doc.querySelectorAll(REVEAL_SELECTOR).forEach((el, i) => {
+    if (!el.style.getPropertyValue("--d")) {
+      el.style.setProperty("--d", Math.min(0.45, (i % 7) * 0.06).toFixed(2) + "s");
+    }
     io.observe(el);
   });
+  return io;
+}
+
+/* entrance choreography: hero + category cards pop, everything else rises */
+function initEntrances(doc) {
+  doc.querySelectorAll(".hero-inner, .cat-card").forEach(el => el.classList.add("reveal-pop"));
+  doc.querySelectorAll(".section-title, #tool .panel, .foot > span").forEach(el => {
+    if (!el.classList.contains("reveal") && !el.classList.contains("reveal-pop")) el.classList.add("reveal");
+  });
+  return initReveals(doc);
+}
+
+  /* entrance choreography: hero + category cards pop, everything else rises */
+  initEntrances(document);
 
   /* living background: scroll parallax on the aura (transform-only, cheap) */
   const aura = $("#aura");

@@ -7,7 +7,7 @@
 <meta name="description" content="m4ster FrameLab: prompt-first 2D game sprite + animation atlas studio in your browser. Free forever, open source, unlimited use. No keys, no signup, no payments. For the gamers, by the gamers.">
 <link rel="icon" type="image/svg+xml" href="logo-m4.svg">
 <link rel="stylesheet" href="css/style.css">
-<script>try{var _t=localStorage.getItem("msg_theme_v1");if(_t)document.documentElement.setAttribute("data-theme",_t);}catch(e){}</script>
+<script>try{var _t=localStorage.getItem("msg_theme_v1");if(_t)document.documentElement.setAttribute("data-theme",_t);}catch(e){}document.documentElement.classList.add("js");</script>
 </head>
 <body>
 
@@ -19,6 +19,7 @@
 
 <header class="topbar">
   <div class="brand">
+    <span class="monogram-wrap" aria-hidden="true">
     <svg class="monogram" viewBox="0 0 64 64" aria-hidden="true">
       <rect x="2" y="2" width="60" height="60" rx="12" fill="#1a1428"/>
       <rect x="2" y="2" width="60" height="60" rx="12" fill="none" stroke="currentColor" stroke-width="3"/>
@@ -35,6 +36,7 @@
         <rect x="37" y="27" width="15" height="5"/>
       </g>
     </svg>
+    </span>
     <div class="brand-text">
       <div class="brand-name">M4STER <span class="brand-sub">FRAMELAB</span></div>
       <div class="tagline">For the gamers, by the gamers</div>

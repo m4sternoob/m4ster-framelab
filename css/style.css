@@ -693,12 +693,34 @@ section.page-section { scroll-margin-top: 78px; }
 .export-box .btn.bundle:hover:not(:disabled) { background: var(--violet); color: var(--on-accent); }
 .export-box .btn.bundle .dim { color: inherit; opacity: .75; font-size: 11px; }
 
-/* ---------- scroll reveal (design-ref: GSAP-style entrances, hand-rolled) ---------- */
-.reveal { opacity: 0; transform: translateY(26px); }
-.reveal.in {
+/* ---------- scroll reveal (design-ref: GSAP-style entrances, hand-rolled) ----------
+ * v6.1: progressive enhancement — .reveal only hides when JS is running
+ * (.js on <html>). If the observer never fires, content stays visible. */
+.js .reveal { opacity: 0; transform: translateY(26px); }
+.js .reveal.in {
   opacity: 1; transform: none;
-  transition: opacity .7s ease var(--d, 0s), transform .7s cubic-bezier(.22, 1, .36, 1) var(--d, 0s);
+  transition: opacity .55s ease var(--d, 0s), transform .55s cubic-bezier(.22, 1, .36, 1) var(--d, 0s);
 }
+/* pop variant: hero + category cards snap in on load (<600ms) */
+.js .reveal-pop { opacity: 0; }
+.js .reveal-pop.in { animation: popIn .55s cubic-bezier(.22, 1, .36, 1) var(--d, 0s) backwards; }
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(16px) scale(.94); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.012); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------- v6.1: living logo — glow pulse + gentle float, transform/opacity only ---------- */
+.monogram-wrap { position: relative; display: inline-flex; flex: none; }
+.monogram-wrap::after {
+  content: ""; position: absolute; inset: -9px; border-radius: 22px;
+  background: radial-gradient(circle, var(--violet) 0%, transparent 68%);
+  opacity: .22; pointer-events: none;
+  animation: logoGlow 4.2s ease-in-out infinite;
+}
+.monogram { display: block; animation: logoFloat 5.2s ease-in-out infinite; }
+@keyframes logoGlow { 0%, 100% { opacity: .16; } 50% { opacity: .44; } }
+@keyframes logoFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 
 /* ---------- focus-visible polish (Lisbon a11y spirit) ---------- */
 :focus-visible {
@@ -750,8 +772,10 @@ textarea:focus:not(:focus-visible) { outline: none; }
   #tool { padding-top: 32px; }
 }
 
-/* ---------- reduced motion: reveals show instantly, no parallax ---------- */
+/* ---------- reduced motion: reveals show instantly, no parallax, logo rests ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .reveal { opacity: 1; transform: none; }
-  .reveal.in { transition: none; }
+  .reveal, .reveal-pop { opacity: 1 !important; transform: none !important; animation: none !important; }
+  .js .reveal.in, .js .reveal-pop.in { transition: none; }
+  .monogram, .monogram-wrap::after { animation: none; }
+  .monogram-wrap::after { opacity: 0; }
 }

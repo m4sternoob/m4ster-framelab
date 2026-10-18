@@ -10,6 +10,22 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.1 — "ALIVE" + reveal fix
+
+- **Fixed: gallery + preset chips now paint.** The v6 scroll-reveal never
+  observed the gallery cards or motion preset chips, leaving them stuck at
+  `opacity: 0` (blank void under "Fresh from the lab"). The reveal system is
+  now progressive-enhanced: default state is visible, reveal only *adds*
+  animation — if the observer never fires, content still shows.
+- **Living logo** — the pixel M4 mark breathes: glow pulse + gentle float,
+  CSS-only (transform/opacity), synced to the aura's calm rhythm. Rests
+  under `prefers-reduced-motion`.
+- **Entrance choreography** — hero pops in, category cards stagger-pop,
+  gallery cards cascade. All under 600ms, skipped under
+  `prefers-reduced-motion`.
+- **Export bundle stagger** — PNG → GIF → JSON now fire ~400ms apart so
+  the browser can't swallow any of the three downloads.
+
 ## v6 — "THE MIXTURE"
 
 The best of every competitor, integrated into one app — no login, no
