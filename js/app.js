@@ -3179,6 +3179,18 @@ if (document.readyState === "loading") {
   document.documentElement.classList.add("has-orb");
 
   var tx = -100, ty = -100, x = -100, y = -100; /* target / lerped orb pos */
+  /* page runs at 115% CSS zoom: mouse client coords are viewport space but the
+   * orb lives inside the zoomed document, so divide by the effective zoom to
+   * land the orb exactly on the pointer (else it drifts down-right). */
+  var Z = 1;
+  function measureZoom() {
+    try {
+      var z = document.documentElement.getBoundingClientRect().width / window.innerWidth;
+      if (z > 0.5 && z < 4) Z = z;
+    } catch (e) {}
+  }
+  measureZoom();
+  window.addEventListener("resize", measureZoom);
   var ax = 0, ay = 0;                            /* lerped aura parallax -1..1 */
   var HOVER = "a, button, input, select, textarea, .gcard, .cat-card, .preset-chip, " +
               ".swatch, .tab, .seg-btn, .stepper li, .icon-btn, .frame-card, " +
@@ -3187,7 +3199,7 @@ if (document.readyState === "loading") {
             "#generate, #heroGenerate, #generateMobile";
 
   document.addEventListener("mousemove", function (e) {
-    tx = e.clientX; ty = e.clientY;
+    tx = e.clientX / Z; ty = e.clientY / Z;
   }, { passive: true });
   document.addEventListener("mouseout", function (e) {
     if (!e.relatedTarget) orb.style.opacity = "0";
