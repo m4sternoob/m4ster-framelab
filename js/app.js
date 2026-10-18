@@ -3184,8 +3184,15 @@ if (document.readyState === "loading") {
    * land the orb exactly on the pointer (else it drifts down-right). */
   var Z = 1;
   function measureZoom() {
+    /* getBoundingClientRect on <html> can't reveal CSS zoom (root always
+     * matches the viewport) — use a 100px probe div: its rendered width
+     * IS affected by the inherited zoom */
     try {
-      var z = document.documentElement.getBoundingClientRect().width / window.innerWidth;
+      var d = document.createElement("div");
+      d.style.cssText = "position:absolute;left:0;top:0;width:100px;height:10px;visibility:hidden;pointer-events:none;";
+      document.body.appendChild(d);
+      var z = d.getBoundingClientRect().width / 100;
+      d.remove();
       if (z > 0.5 && z < 4) Z = z;
     } catch (e) {}
   }
