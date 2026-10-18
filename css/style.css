@@ -784,3 +784,65 @@ textarea:focus:not(:focus-visible) { outline: none; }
   .monogram, .monogram-wrap::after { animation: none; }
   .monogram-wrap::after { opacity: 0; }
 }
+
+/* ---------- v6.5: m4ster signature cursor + live interactivity ----------
+ * The m4ster fingerprint: a custom orb follows the mouse everywhere
+ * (desktop/fine-pointer only, respects reduced-motion). Orb glow uses
+ * the theme accent (--violet), so it matches Ember/Violet/etc. Download
+ * + generate CTAs get an extra signature pulse ring. */
+@media (pointer: fine) {
+  html.has-orb, html.has-orb * { cursor: none !important; }
+}
+.cursor-orb {
+  position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none;
+  width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+  background: radial-gradient(circle, var(--violet-soft) 0%, var(--violet) 38%, transparent 72%);
+  opacity: .85; will-change: transform;
+  transition: width .22s ease, height .22s ease, margin .22s ease, opacity .25s ease;
+}
+.cursor-orb.is-hover {
+  width: 42px; height: 42px; margin: -21px 0 0 -21px; opacity: 1;
+}
+/* signature: download/export/generate CTAs — bigger glow + pulsing ring */
+.cursor-orb.is-cta {
+  width: 60px; height: 60px; margin: -30px 0 0 -30px; opacity: 1;
+  background: radial-gradient(circle, #ffffff 0%, var(--violet-soft) 24%, var(--violet) 56%, transparent 78%);
+}
+.cursor-orb.is-cta::after {
+  content: ""; position: absolute; inset: -10px; border-radius: 50%;
+  border: 2px solid var(--violet);
+  animation: orbRing 1.15s ease-out infinite;
+}
+@keyframes orbRing {
+  from { transform: scale(.68); opacity: .95; }
+  to   { transform: scale(1.28); opacity: 0; }
+}
+/* no orb on touch or when the user asked for less motion */
+@media (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .cursor-orb { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cursor-orb.is-cta::after { animation: none; }
+}
+
+/* ---------- v6.5: background aura reaches toward the cursor ---------- */
+@media (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .aura { transform: translate3d(var(--aura-px, 0vmax), var(--aura-py, 0vmax), 0); }
+}
+
+/* ---------- v6.5: logo glows harder (already alive, now stronger) ---------- */
+.monogram-wrap::after { opacity: .24; }
+.monogram-wrap:hover::after { opacity: .6; }
+@keyframes logoGlow { 0%, 100% { opacity: .22; } 50% { opacity: .58; } }
+
+/* ---------- v6.5: everything the cursor touches gives feedback ----------
+ * gallery cards already lift+glow; extend the same language to every
+ * interactive surface so nothing feels dead on hover. */
+.cat-card:hover, .preset-chip:hover, .swatch:hover, .frame-card:hover,
+.stepper li:hover, .tab:hover, .seg-btn:hover, .icon-btn:hover,
+.key:hover {
+  transform: translateY(-2px);
+  border-color: var(--violet);
+  box-shadow: 0 10px 30px -12px var(--glow);
+}
+.gh-link:hover { color: var(--violet); }
