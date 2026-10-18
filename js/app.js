@@ -2417,10 +2417,11 @@ function wireSlicer() {
     if (!f) return;
     try {
       const bmp = await createImageBitmap(f);
-      const cv = makeCanvas(bmp.width, bmp.height);
+      const bw = bmp.width, bh = bmp.height; // read BEFORE close(): dims go 0 after
+      const cv = makeCanvas(bw, bh);
       cv.getContext("2d").drawImage(bmp, 0, 0);
       if (bmp.close) bmp.close();
-      S.sheet = cv; S.imgW = bmp.width; S.imgH = bmp.height;
+      S.sheet = cv; S.imgW = bw; S.imgH = bh;
       S.pieces = []; S.selection = [];
       stageMsg(`loaded ${f.name} — ${bmp.width}×${bmp.height}, slicing…`);
       runSlicer();
