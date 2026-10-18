@@ -794,14 +794,17 @@ textarea:focus:not(:focus-visible) { outline: none; }
 .cursor-orb.is-hover {
   width: 42px; height: 42px; margin: -21px 0 0 -21px; opacity: 1;
 }
-/* signature: download/export/generate CTAs — bigger glow + pulsing ring */
+/* signature: download/export/generate CTAs — bigger glow + pulsing ring.
+ * v6.6.1: red-hot core + red ring so the orb stays distinguishable on top
+ * of orange (Ember) buttons — orange-on-orange was invisible. */
 .cursor-orb.is-cta {
   width: 60px; height: 60px; margin: -30px 0 0 -30px; opacity: 1;
-  background: radial-gradient(circle, #ffffff 0%, var(--violet-soft) 24%, var(--violet) 56%, transparent 78%);
+  background: radial-gradient(circle, #ffffff 0%, #ff6b6b 26%, #ff3d2e 48%, rgba(255, 122, 26, .55) 64%, transparent 78%);
+  box-shadow: 0 0 22px 4px rgba(255, 61, 46, .55), 0 0 60px 10px rgba(255, 122, 26, .30);
 }
 .cursor-orb.is-cta::after {
   content: ""; position: absolute; inset: -10px; border-radius: 50%;
-  border: 2px solid var(--violet);
+  border: 2px solid #ff3d2e;
   animation: orbRing 1.15s ease-out infinite;
 }
 @keyframes orbRing {
