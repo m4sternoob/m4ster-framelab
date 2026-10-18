@@ -91,9 +91,9 @@
       <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="8" y="14" width="32" height="20" rx="10" fill="currentColor"/><circle cx="24" cy="24" r="5" fill="var(--panel)"/></svg>
       <b>UI</b><span>buttons, icons, coins, hearts</span>
     </button>
-    <button class="cat-card" data-cat="splitter" type="button">
-      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="6" width="36" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><line x1="24" y1="6" x2="24" y2="42" stroke="currentColor" stroke-width="3"/><line x1="6" y1="24" x2="42" y2="24" stroke="currentColor" stroke-width="3"/></svg>
-      <b>Splitter</b><span>cut a sheet into frames, animate</span>
+    <button class="cat-card" data-cat="slicer" type="button">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="8" width="36" height="32" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><line x1="6" y1="24" x2="42" y2="24" stroke="currentColor" stroke-width="3" stroke-dasharray="5 4"/><path d="M30 34l6 6M36 34l-6 6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+      <b>Slicer</b><span>slice a sheet into frames, animate</span>
     </button>
     <button class="cat-card" data-cat="pixelart" type="button">
       <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="6" width="11" height="11" fill="currentColor"/><rect x="18.5" y="6" width="11" height="11" fill="currentColor" opacity=".55"/><rect x="31" y="6" width="11" height="11" fill="currentColor"/><rect x="6" y="18.5" width="11" height="11" fill="currentColor" opacity=".55"/><rect x="18.5" y="18.5" width="11" height="11" fill="currentColor"/><rect x="31" y="18.5" width="11" height="11" fill="currentColor" opacity=".55"/><rect x="6" y="31" width="11" height="11" fill="currentColor"/><rect x="18.5" y="31" width="11" height="11" fill="currentColor" opacity=".55"/><rect x="31" y="31" width="11" height="11" fill="currentColor"/></svg>
@@ -125,36 +125,10 @@
       <button class="tab" data-cat="ui" role="tab">UI</button>
       <button class="tab" data-cat="effect" role="tab">Effect</button>
       <button class="tab" data-cat="pixelart" role="tab">Pixel Art</button>
+      <button class="tab" data-cat="slicer" role="tab">Slicer</button>
     </div>
 
     <div id="params"></div>
-
-    <div id="splitterPanel" hidden>
-      <div class="field-label">Sheet splitter</div>
-      <div class="seg" id="splitModeSeg">
-        <button class="seg-btn active" data-mode="grid" type="button">Grid</button>
-        <button class="seg-btn" data-mode="auto" type="button">Auto-detect</button>
-      </div>
-      <div id="splitGridRow">
-        <span class="dim">rows</span>
-        <input type="number" class="num" id="splitRows" min="1" max="32" value="1">
-        <span class="dim">cols</span>
-        <input type="number" class="num" id="splitCols" min="1" max="32" value="1">
-      </div>
-      <div class="field-label">Piece background <span class="dim">(treated as empty)</span></div>
-      <div class="seg cols4" id="splitBgSeg">
-        <button class="seg-btn active" data-bg="transparent" type="button">Alpha</button>
-        <button class="seg-btn" data-bg="black" type="button">Black</button>
-        <button class="seg-btn" data-bg="white" type="button">White</button>
-        <button class="seg-btn" data-bg="chroma" type="button">Key</button>
-      </div>
-      <label class="knock-row"><input type="checkbox" id="splitKnockout" checked> Knock out background → transparent</label>
-      <div class="split-actions">
-        <button class="btn-ghost" id="splitSelectAll" type="button">Select all</button>
-        <button class="btn-ghost" id="splitClear" type="button">Clear</button>
-      </div>
-      <div class="dim" style="margin-top:8px">Click pieces in order — 1st click = frame 1, 2nd = frame 2…</div>
-    </div>
 
     <label class="field-label" for="prompt">Describe it</label>
     <textarea id="prompt" rows="3" placeholder="e.g. zombie pirate with a rusty hook hand"></textarea>
@@ -167,9 +141,7 @@
     <div class="seg" id="sourceSeg">
       <button class="seg-btn active" data-src="ai">AI image</button>
       <button class="seg-btn" data-src="procedural">Procedural <span class="offline">offline</span></button>
-      <button class="seg-btn" data-src="upload">Upload</button>
     </div>
-    <input type="file" id="uploadInput" accept="image/*" hidden>
 
     <div class="field-label" id="keyLabel">Background key <span class="dim">(stripped from the sprite)</span></div>
     <div class="keys" id="keyRow">

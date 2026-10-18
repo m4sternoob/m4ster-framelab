@@ -10,6 +10,26 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.6 — dedicated sprite Slicer
+
+The sheet slicer is now a first-class lane, not a buried panel — Unity
+sprite-editor style, 100% offline:
+
+- **Live grid overlay** — upload a sheet and see the cut lines drawn right
+  on it: numbered cells, cell-size readout (e.g. "80 × 110 px per cell").
+  Rows/cols sliders (1–32) redraw the overlay live as you drag.
+- **Margin / padding / offset** — sheet borders and cell spacing, like a
+  real sprite editor.
+- **Auto-detect** — content-based blob detection as the alternative to grid.
+- **Numbered piece picker** — click cells in order (order badges, click
+  again to deselect and renumber). Empty cells are flagged, not clickable.
+- **Animated preview** — picked frames play with fps + loop / once /
+  ping-pong, bottom-aligned so walk cycles don't jitter.
+- **Background knockout** — alpha, black, white, or your chroma key counts
+  as "empty"; optional knockout punches it to transparent.
+- **Export** — one button: animation sheet PNG + manifest JSON (v2.2.0,
+  `engine: "slicer"`); individual cell PNGs too.
+
 ## v6.5 — image → pixel art converter
 
 Upload any image and convert it to pixel art at the dimensions you choose —
@@ -69,20 +89,11 @@ paywall, everything below free forever:
 
 ## v5 — Sheet Splitter
 
-Upload a whole sprite sheet and the app no longer treats it as one blob:
+*(Superseded by the v6.6 dedicated Slicer lane — same engine, proper tool.)*
 
-- **Split it** — even **Grid** mode (rows × cols, row-major numbering) or
-  **Auto-detect** (content-based blob detection, reading order).
-- **Background selector** — what counts as "empty": alpha, black, white,
-  or your chroma key color. Optional **knockout** punches that background
-  to transparent in the pieces (leave it off for opaque tilesets).
-- **Numbered piece picker** — click pieces in order: 1st click = frame 1,
-  2nd = frame 2… Selected pieces get order badges. Select all / Clear.
-- **Animated preview** — your picked frames play in motion with the fps
-  selector, bottom-aligned so walk cycles don't jitter.
-- **Download animation** — one button packs the picked frames into a
-  sprite-sheet PNG + manifest JSON (v2.1.0, `engine: "splitter"`).
-  Individual picked frames export too.
+Upload a whole sprite sheet and the app no longer treats it as one blob:
+grid or auto-detect split, background knockout, numbered piece picker,
+animated preview, PNG + manifest JSON export.
 
 ## v4 — reliability + procedural variety
 

@@ -859,8 +859,7 @@ textarea:focus:not(:focus-visible) { outline: none; }
 .controls.mode-pixelart #keyLabel,
 .controls.mode-pixelart #keyRow,
 .controls.mode-pixelart #generate,
-.controls.mode-pixelart .gen-note,
-.controls.mode-pixelart #splitterPanel { display: none !important; }
+.controls.mode-pixelart .gen-note { display: none !important; }
 .stage-panel.mode-pixelart .canvas-wrap,
 .stage-panel.mode-pixelart #retryBar,
 .stage-panel.mode-pixelart #framesHead,
@@ -899,3 +898,62 @@ body.mode-pixelart .mobile-bar { display: none !important; }
   .pixel-side { grid-template-columns: 1fr; }
   .px-dims { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ---------- v6.6: dedicated sprite slicer ---------- */
+/* slicer mode hides the sprite-pipeline controls; the slicer owns the lab.
+ * The stage canvas shows the sheet with a live grid overlay, the piece picker
+ * and the animated preview stay visible; export moves to dedicated buttons. */
+.controls.mode-slicer #prompt,
+.controls.mode-slicer label[for="prompt"],
+.controls.mode-slicer #promptPeek,
+.controls.mode-slicer #sourceLabel,
+.controls.mode-slicer #sourceSeg,
+.controls.mode-slicer #keyLabel,
+.controls.mode-slicer #keyRow,
+.controls.mode-slicer #generate,
+.controls.mode-slicer .gen-note { display: none !important; }
+.stage-panel.mode-slicer #retryBar,
+.stage-panel.mode-slicer #framesHead,
+.stage-panel.mode-slicer #framesRow,
+.stage-panel.mode-slicer .export-box,
+.stage-panel.mode-slicer .stepper { display: none !important; }
+/* phone sticky generate bar must not fire the sprite pipeline in slicer mode */
+body.mode-slicer .mobile-bar { display: none !important; }
+
+/* slicer controls */
+.sl-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.sl-row .dim { min-width: 52px; }
+.sl-row input[type="range"] { flex: 1; accent-color: var(--violet); }
+.sl-val {
+  font-family: var(--mono); font-size: 12px; color: var(--violet);
+  min-width: 34px; text-align: right;
+}
+.sl-grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 6px 0; }
+.sl-grid4 label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--dim); }
+.sl-grid4 .num { width: 100%; }
+.sl-readout {
+  font-family: var(--mono); font-size: 12px; color: var(--dim);
+  background: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; margin: 8px 0;
+}
+.sl-readout b { color: var(--violet); }
+.sl-hint { font-size: 12px; color: var(--dim); margin: 8px 0; }
+.sl-pick-row { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+.sl-download {
+  border-color: var(--violet); color: var(--violet); font-weight: 700;
+  text-align: center; margin-top: 10px; width: 100%;
+}
+.sl-download:hover { background: var(--violet); color: var(--on-accent); }
+.sl-download:disabled { opacity: .4; cursor: not-allowed; }
+.sl-seg-label { font-size: 12px; color: var(--dim); margin: 10px 0 6px; }
+/* sheet + grid overlay sits on the stage canvas; cut lines drawn in JS */
+.stage-panel.mode-slicer .canvas-wrap { position: relative; }
+.sl-overlay-cap {
+  font-family: var(--mono); font-size: 12px; color: var(--dim);
+  text-align: center; margin-top: 6px;
+}
+@media (max-width: 767px) {
+  .sl-grid4 { grid-template-columns: repeat(2, 1fr); }
+}
+/* slicer has its own fps/playback controls; hide the shared pipeline ones */
+.stage-panel.mode-slicer .preview-controls { display: none !important; }

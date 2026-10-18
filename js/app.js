@@ -41,7 +41,7 @@ function colorDist(r1, g1, b1, r2, g2, b2) {
 
 const state = {
   category: "character",
-  source: "ai",            // ai | procedural | upload
+  source: "ai",            // ai | procedural
   key: { r: 255, g: 0, b: 255 },
   rows: [],                // [{ name, frames:[canvas], order:[idx], fps, loop }]
   originals: [],           // untouched extracted frames, parallel to rows
@@ -49,7 +49,7 @@ const state = {
   atlas: null,             // { canvas, manifest, pngName, jsonName }
   busy: false,
   strict: false,           // retry mode: appends the strict isolation clause to prompts
-  split: null,             // v5 sheet splitter: { pieces:[{canvas,empty}], selection:[idx...], rows, cols, mode, bg, imgW, imgH }
+  slicer: null,            // v6.6 dedicated slicer: { sheet, imgW, imgH, rows, cols, mode, bg, knockout, margin, pad, ox, oy, pieces:[{canvas,empty,rect}], selection:[], fps, playback }
   pixelart: null,          // v6.5 image→pixel-art: { src:{data,w,h}, imgW, imgH, w, h, colors, dither, scale, out }
 };
 
@@ -105,6 +105,7 @@ const CATEGORY_DEFAULTS = {
   ui:        { kind: "button", states: 3 },
   effect:    { type: "explosion", frames: 8 },
   pixelart:  { w: 64, h: 64, colors: 16 },
+  slicer:    { rows: 3, cols: 9, mode: "grid", bg: "black", knockout: true, margin: 0, pad: 0, ox: 0, oy: 0, fps: 8, playback: "loop" },
 };
 
 const STATE_FPS = { idle: 6, walk: 8, run: 10, jump: 8, attack: 10 };
@@ -214,6 +215,53 @@ function renderParams() {
       <button type="button" class="btn-ghost px-download" id="pxDownload">Download pixel art</button>
       <div class="dim">Upload any image — it never leaves your browser.</div>`;
     wirePixelArt();
+  } else if (cat === "slicer") {
+    const sl = slState();
+    box.innerHTML = `
+      <div class="field-label">Sprite slicer <span class="dim">(100% offline)</span></div>
+      <div class="row">
+        <button type="button" class="btn-ghost" id="slPick" style="text-align:center">Upload sheet</button>
+        <input type="file" id="slFile" accept="image/*" hidden>
+      </div>
+      <div class="sl-seg-label">Mode</div>
+      <div class="seg" id="slModeSeg">
+        <button type="button" class="seg-btn${sl.mode === "grid" ? " active" : ""}" data-mode="grid">Grid</button>
+        <button type="button" class="seg-btn${sl.mode === "auto" ? " active" : ""}" data-mode="auto">Auto-detect</button>
+      </div>
+      <div id="slGridRow"${sl.mode === "grid" ? "" : " hidden"}>
+        <div class="sl-row"><span class="dim">rows</span><input type="range" id="slRows" min="1" max="32" value="${sl.rows}" aria-label="grid rows"><span class="sl-val" id="slRowsVal">${sl.rows}</span></div>
+        <div class="sl-row"><span class="dim">cols</span><input type="range" id="slCols" min="1" max="32" value="${sl.cols}" aria-label="grid columns"><span class="sl-val" id="slColsVal">${sl.cols}</span></div>
+        <div class="sl-grid4">
+          <label>margin<input type="number" class="num" id="slMargin" min="0" max="200" value="${sl.margin}"></label>
+          <label>padding<input type="number" class="num" id="slPad" min="0" max="200" value="${sl.pad}"></label>
+          <label>offset x<input type="number" class="num" id="slOx" min="0" max="500" value="${sl.ox}"></label>
+          <label>offset y<input type="number" class="num" id="slOy" min="0" max="500" value="${sl.oy}"></label>
+        </div>
+      </div>
+      <div class="sl-readout" id="slReadout">upload a sheet to start</div>
+      <div class="sl-seg-label">Background <span class="dim">(treated as empty)</span></div>
+      <div class="seg cols4" id="slBgSeg">
+        ${[["transparent", "Alpha"], ["black", "Black"], ["white", "White"], ["chroma", "Key"]].map(([v, lbl]) => `<button type="button" class="seg-btn${v === sl.bg ? " active" : ""}" data-bg="${v}">${lbl}</button>`).join("")}
+      </div>
+      <label class="knock-row"><input type="checkbox" id="slKnockout"${sl.knockout ? " checked" : ""}> Knock out background &rarr; transparent</label>
+      <div class="sl-pick-row">
+        <button type="button" class="btn-ghost" id="slSelectAll">Select all</button>
+        <button type="button" class="btn-ghost" id="slClear">Clear</button>
+        <button type="button" class="btn-ghost" id="slReslice">Re-slice</button>
+      </div>
+      <div class="sl-hint">Click pieces in order &mdash; 1st click = frame 1, 2nd = frame 2. Empty cells are flagged.</div>
+      <div class="sl-seg-label">Playback</div>
+      <div class="row">
+        <span class="dim">fps</span>
+        <select id="slFps">${[6, 8, 12, 24].map(f => `<option value="${f}"${f === sl.fps ? " selected" : ""}>${f} fps</option>`).join("")}</select>
+      </div>
+      <div class="seg" id="slPlaybackSeg" style="margin-top:8px">
+        ${[["loop", "Loop"], ["once", "Once"], ["pingpong", "Ping-pong"]].map(([v, lbl]) => `<button type="button" class="seg-btn${v === sl.playback ? " active" : ""}" data-playback="${v}">${lbl}</button>`).join("")}
+      </div>
+      <button type="button" class="btn-ghost sl-download" id="slDownload" disabled>Download animation <span class="dim">PNG + JSON</span></button>
+      <button type="button" class="btn-ghost sl-download" id="slCells" disabled>Download cells <span class="dim">individual PNGs</span></button>
+      <div class="dim">The sheet never leaves your browser.</div>`;
+    wireSlicer();
   } else {
     box.innerHTML = `
       <div class="field-label">Effect</div>
@@ -234,6 +282,7 @@ function renderParams() {
     ui: "round fantasy RPG menu button, gold trim",
     effect: "fiery explosion with smoke",
     pixelart: "not used — upload an image instead",
+    slicer: "not used — upload a sheet instead",
   };
   $("#prompt").placeholder = "e.g. " + prompts[cat];
 
@@ -775,7 +824,7 @@ let previewRAF = 0, previewRow = 0, previewT = 0;
 
 function startPreview() {
   cancelAnimationFrame(previewRAF);
-  cancelAnimationFrame(splitRAF);
+  cancelAnimationFrame(slicerRAF);
   const sel = $("#previewState");
   sel.innerHTML = "";
   sel.disabled = false;
@@ -858,12 +907,12 @@ function wireExport() {
     setTimeout(() => downloadJSON(state.atlas.manifest, state.atlas.jsonName || "m4ster-sprite-atlas.json"), 400);
   };
   $("#dlFrames").onclick = () => {
-    if (state.split) {
-      // splitter: export the picked frames in order
+    if (state.slicer && state.slicer.selection.length) {
+      // slicer: export the picked frames in order
       let delay = 0;
-      state.split.selection.forEach((pi, oi) => {
-        const c = state.split.pieces[pi].canvas;
-        setTimeout(() => downloadCanvas(c, `m4ster-split-frame${oi}.png`), delay);
+      state.slicer.selection.forEach((pi, oi) => {
+        const c = state.slicer.pieces[pi].canvas;
+        setTimeout(() => downloadCanvas(c, `m4ster-slice-frame${oi}.png`), delay);
         delay += 350;
       });
       return;
@@ -1636,8 +1685,6 @@ function pushRow(name, frames, extra = {}) {
 }
 
 async function runPipeline() {
-  // v5: uploads go through the sheet splitter (grid/auto -> numbered picker)
-  if (state.source === "upload") { await runSplitter(); return; }
   if (state.busy) return;
   setBusy(true);
   resetSteps();
@@ -1645,8 +1692,6 @@ async function runPipeline() {
   $("#promptPeek").hidden = true;
   enableExport(false);
   state.rows = []; state.originals = []; state.atlas = null;
-  state.split = null;
-  showSplitUI(false);
   state.revision = Date.now().toString(36);
   renderFramesUI();
   $("#previewMeta").textContent = "";
@@ -2032,104 +2077,18 @@ function wirePixelArt() {
   syncPixelMode();
 }
 
-/* ================= v5: sheet splitter =================
- * Upload a whole sprite sheet -> split into numbered pieces -> click pieces
- * in order (1st click = frame 1) -> animated preview -> download animation.
- * Split modes: even grid (rows x cols, row-major numbering) or content
- * auto-detect (flood-fill blobs, reading order). The background selector
- * decides what counts as "empty": alpha, black, white, or the chroma key.
- * Knockout punches that background to transparent in the pieces. */
+/* ================= v6.6: dedicated sprite slicer =================
+ * One proper slicer (supersedes the v5 splitter): upload a sheet, see a
+ * live grid overlay on the sheet, tune rows/cols/margin/padding/offset,
+ * or auto-detect pieces. Click cells in order to pick frames, animated
+ * preview, export sheet PNG + manifest JSON.
+ *
+ * Grid math (Unity-sprite-editor style):
+ *   cellW = (W - 2*margin - (cols-1)*pad) / cols
+ *   x(c)  = margin + ox + c * (cellW + pad)
+ * (same for the rows). Fractional rects are kept until cut time so odd
+ * sheet sizes never drop a pixel. */
 
-function splitState() {
-  const modeEl = document.querySelector("#splitModeSeg .seg-btn.active");
-  const bgEl = document.querySelector("#splitBgSeg .seg-btn.active");
-  return {
-    rows: clampInt($("#splitRows").value, 1, 32, 1),
-    cols: clampInt($("#splitCols").value, 1, 32, 1),
-    mode: modeEl ? modeEl.dataset.mode : "grid",
-    bg: bgEl ? bgEl.dataset.bg : "transparent",
-    knockout: $("#splitKnockout") ? $("#splitKnockout").checked : true,
-  };
-}
-
-/* what counts as "ink" vs "empty background" for trim + auto-detect.
- * bg: "transparent" | "black" | "white" (chroma is pre-keyed to transparent) */
-function contentTest(data, w, h, bg) {
-  if (bg === "black") {
-    return (x, y) => {
-      const o = (y * w + x) * 4;
-      return data[o + 3] > 12 && Math.max(data[o], data[o + 1], data[o + 2]) > 28;
-    };
-  }
-  if (bg === "white") {
-    return (x, y) => {
-      const o = (y * w + x) * 4;
-      return data[o + 3] > 12 && Math.min(data[o], data[o + 1], data[o + 2]) < 227;
-    };
-  }
-  return (x, y) => data[(y * w + x) * 4 + 3] > 12;
-}
-
-function copyCanvas(src) {
-  const c = makeCanvas(src.width, src.height);
-  c.getContext("2d").drawImage(src, 0, 0);
-  return c;
-}
-
-/* punch the selected background to transparent, in place */
-function knockoutBg(canvas, bg) {
-  const w = canvas.width, h = canvas.height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  const img = ctx.getImageData(0, 0, w, h);
-  const isContent = contentTest(img.data, w, h, bg);
-  const d = img.data;
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < w; x++)
-      if (!isContent(x, y)) d[(y * w + x) * 4 + 3] = 0;
-  ctx.putImageData(img, 0, 0);
-  return canvas;
-}
-
-/* crop to the content bbox (+2px pad). Returns null when the cell is empty. */
-function trimToContent(cell, bg) {
-  const w = cell.width, h = cell.height;
-  const data = cell.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
-  const isContent = contentTest(data, w, h, bg);
-  let x0 = w, x1 = -1, y0 = h, y1 = -1;
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < w; x++)
-      if (isContent(x, y)) {
-        if (x < x0) x0 = x; if (x > x1) x1 = x;
-        if (y < y0) y0 = y; if (y > y1) y1 = y;
-      }
-  if (x1 < x0) return null;
-  const pad = 2;
-  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad);
-  x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
-  const out = makeCanvas(x1 - x0 + 1, y1 - y0 + 1);
-  out.getContext("2d").drawImage(cell, x0, y0, x1 - x0 + 1, y1 - y0 + 1, 0, 0, x1 - x0 + 1, y1 - y0 + 1);
-  return out;
-}
-
-/* even grid slice, row-major order (piece 1 = top-left). Handles fractional cells. */
-function splitGridCells(img, rows, cols) {
-  const w = img.width, h = img.height;
-  const cells = [];
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const sx = Math.floor((c * w) / cols), sx1 = Math.ceil(((c + 1) * w) / cols);
-      const sy = Math.floor((r * h) / rows), sy1 = Math.ceil(((r + 1) * h) / rows);
-      const cell = makeCanvas(Math.max(1, sx1 - sx), Math.max(1, sy1 - sy));
-      cell.getContext("2d").drawImage(img, sx, sy, sx1 - sx, sy1 - sy, 0, 0, sx1 - sx, sy1 - sy);
-      cells.push(cell);
-    }
-  }
-  return cells;
-}
-
-/* content auto-detect: flood-fill blobs (no fixed count), each blob -> one
- * trimmed piece. Sorted in reading order (top-to-bottom bands, left-to-right)
- * so numbering is predictable. */
 function detectPieces(img, bg) {
   const w = img.width, h = img.height;
   const data = img.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
@@ -2195,10 +2154,303 @@ function placeBottomCenter(piece, cw, ch) {
   return cell;
 }
 
+/* what counts as ink vs empty background for trim + auto-detect. bg: transparent | black | white (chroma is pre-keyed to transparent) */
+function contentTest(data, w, h, bg) {
+  if (bg === "black") {
+    return (x, y) => {
+      const o = (y * w + x) * 4;
+      return data[o + 3] > 12 && Math.max(data[o], data[o + 1], data[o + 2]) > 28;
+    };
+  }
+  if (bg === "white") {
+    return (x, y) => {
+      const o = (y * w + x) * 4;
+      return data[o + 3] > 12 && Math.min(data[o], data[o + 1], data[o + 2]) < 227;
+    };
+  }
+  return (x, y) => data[(y * w + x) * 4 + 3] > 12;
+}
+
+/* canvas copy */
+function copyCanvas(src) {
+  const c = makeCanvas(src.width, src.height);
+  c.getContext("2d").drawImage(src, 0, 0);
+  return c;
+}
+
+/* punch the selected background to transparent, in place */
+function knockoutBg(canvas, bg) {
+  const w = canvas.width, h = canvas.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const img = ctx.getImageData(0, 0, w, h);
+  const isContent = contentTest(img.data, w, h, bg);
+  const d = img.data;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      if (!isContent(x, y)) d[(y * w + x) * 4 + 3] = 0;
+  ctx.putImageData(img, 0, 0);
+  return canvas;
+}
+
+/* crop to the content bbox (+2px pad). Returns null when the cell is empty. */
+function trimToContent(cell, bg) {
+  const w = cell.width, h = cell.height;
+  const data = cell.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+  const isContent = contentTest(data, w, h, bg);
+  let x0 = w, x1 = -1, y0 = h, y1 = -1;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      if (isContent(x, y)) {
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+  if (x1 < x0) return null;
+  const pad = 2;
+  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad);
+  x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
+  const out = makeCanvas(x1 - x0 + 1, y1 - y0 + 1);
+  out.getContext("2d").drawImage(cell, x0, y0, x1 - x0 + 1, y1 - y0 + 1, 0, 0, x1 - x0 + 1, y1 - y0 + 1);
+  return out;
+}
+
+/* even grid rects with margin / padding / offset, row-major order.
+ * Pure math — no DOM — so it unit-tests cleanly. */
+function slicerGridRects(w, h, rows, cols, o) {
+  o = o || {};
+  const margin = Math.max(0, +o.margin || 0), pad = Math.max(0, +o.pad || 0);
+  const ox = +o.ox || 0, oy = +o.oy || 0;
+  rows = Math.max(1, Math.round(rows)); cols = Math.max(1, Math.round(cols));
+  const cw = (w - margin * 2 - (cols - 1) * pad) / cols;
+  const ch = (h - margin * 2 - (rows - 1) * pad) / rows;
+  const rects = [];
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      rects.push({
+        x: margin + ox + c * (cw + pad),
+        y: margin + oy + r * (ch + pad),
+        w: cw, h: ch,
+      });
+  return rects;
+}
+
+/* cut each rect out of the sheet. Start floored, end ceiled (like v5) so
+ * coverage is exact and no pixel is ever dropped to rounding. */
+function slicerCutCells(sheet, rects) {
+  const W = sheet.width, H = sheet.height;
+  return rects.map(rc => {
+    const x0 = Math.max(0, Math.floor(rc.x)), y0 = Math.max(0, Math.floor(rc.y));
+    const x1 = Math.min(W, Math.ceil(rc.x + rc.w)), y1 = Math.min(H, Math.ceil(rc.y + rc.h));
+    const cw = Math.max(1, x1 - x0), ch = Math.max(1, y1 - y0);
+    const cell = makeCanvas(cw, ch);
+    cell.getContext("2d").drawImage(sheet, x0, y0, cw, ch, 0, 0, cw, ch);
+    return cell;
+  });
+}
+
+/* ---------------- slicer state + wiring ---------------- */
+
+function slState() {
+  if (!state.slicer) {
+    const d = CATEGORY_DEFAULTS.slicer;
+    state.slicer = {
+      sheet: null, imgW: 0, imgH: 0,
+      rows: d.rows, cols: d.cols, mode: d.mode, bg: d.bg, knockout: d.knockout,
+      margin: d.margin, pad: d.pad, ox: d.ox, oy: d.oy,
+      pieces: [], selection: [],
+      fps: d.fps, playback: d.playback,
+    };
+  }
+  return state.slicer;
+}
+
+function syncSlicerMode() {
+  const on = state.category === "slicer";
+  const aside = document.querySelector("aside.controls");
+  const stage = document.querySelector("section.stage-panel");
+  if (aside) aside.classList.toggle("mode-slicer", on);
+  if (stage) stage.classList.toggle("mode-slicer", on);
+  document.body.classList.toggle("mode-slicer", on);
+  if (!on) {
+    // leaving the lane: hide the piece picker (the pipeline owns the stage)
+    const grid = $("#splitGrid"), head = $("#splitHead");
+    if (grid) grid.hidden = true;
+    if (head) head.hidden = true;
+  }
+}
+
+/* draw the sheet + live grid overlay on the stage canvas */
+function slicerOverlay() {
+  const S = slState();
+  const st = $("stage");
+  if (!st) return;
+  if (!S.sheet) { clearStage(); return; }
+  st.width = S.imgW; st.height = S.imgH;
+  const ctx = st.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(S.sheet, 0, 0);
+  const ro = $("#slReadout");
+  if (S.mode === "grid") {
+    const rects = slicerGridRects(S.imgW, S.imgH, S.rows, S.cols, S);
+    let accent = "#f97316";
+    try { accent = getComputedStyle(document.documentElement).getPropertyValue("--violet").trim() || accent; } catch (e) {}
+    ctx.strokeStyle = accent; ctx.fillStyle = accent;
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = Math.max(1, Math.min(S.imgW, S.imgH) / 400);
+    const fs = Math.max(10, Math.min(S.imgW, S.imgH) / 24);
+    ctx.font = `${fs}px monospace`;
+    rects.forEach((rc, i) => {
+      ctx.strokeRect(rc.x + 0.5, rc.y + 0.5, Math.max(1, rc.w - 1), Math.max(1, rc.h - 1));
+      ctx.fillText(String(i + 1), rc.x + 4, rc.y + fs);
+    });
+    ctx.globalAlpha = 1;
+    if (ro) ro.innerHTML = `sheet <b>${S.imgW} &times; ${S.imgH}</b> &rarr; ${S.rows}&times;${S.cols} = ${rects.length} cells &middot; <b>${Math.round(rects[0].w)} &times; ${Math.round(rects[0].h)} px</b> per cell`;
+  } else {
+    if (ro) ro.innerHTML = `sheet <b>${S.imgW} &times; ${S.imgH}</b> &middot; auto-detect: <b>${S.pieces.length}</b> piece(s) found`;
+  }
+  stageMsg("");
+}
+
+/* main slice: normalize background -> cut pieces -> number them */
+function runSlicer() {
+  const S = slState();
+  if (!S.sheet) { stageMsg("Upload a sprite sheet first.", true); return; }
+  // normalize: chroma -> keyed copy; black/white -> knockout copy (optional);
+  // trim + detect then work on plain transparency
+  let work = copyCanvas(S.sheet);
+  let effBg = S.bg;
+  if (S.bg === "chroma") { work = chromaKey(work, state.key); effBg = "transparent"; }
+  else if (S.knockout && S.bg !== "transparent") { knockoutBg(work, S.bg); effBg = "transparent"; }
+
+  let pieces;
+  if (S.mode === "grid") {
+    const rects = slicerGridRects(S.imgW, S.imgH, S.rows, S.cols, S);
+    pieces = slicerCutCells(work, rects).map((cell, i) => {
+      const t = trimToContent(cell, effBg);
+      return { canvas: t, empty: !t, rect: rects[i] };
+    });
+  } else {
+    pieces = detectPieces(work, effBg).map(c => ({ canvas: c, empty: false, rect: null }));
+  }
+  const usable = pieces.filter(p => !p.empty);
+  S.pieces = pieces;
+  S.selection = S.selection.filter(i => i < pieces.length && !pieces[i].empty);
+  slicerOverlay();
+  renderSlicerPieces();
+  slicerPreview();
+  updateSlicerExport();
+  if (!usable.length) {
+    stageMsg("slicer found no usable pieces — try a different background, or fewer rows/cols.", true);
+    return;
+  }
+  const empty = pieces.length - usable.length;
+  stageMsg(`sliced ${pieces.length} piece(s), ${usable.length} usable${empty ? ` (${empty} empty)` : ""} — click pieces in order`);
+}
+
+/* numbered piece picker: click in order, click again to deselect (renumbers) */
+function renderSlicerPieces() {
+  const S = state.slicer;
+  const grid = $("#splitGrid"), head = $("#splitHead");
+  const on = !!(S && S.sheet && S.pieces.length);
+  if (grid) grid.hidden = !on;
+  if (head) head.hidden = !on;
+  if (!on || !S) return;
+  grid.innerHTML = "";
+  $("#splitMeta").textContent = `· ${S.pieces.length} pieces, ${S.selection.length} picked`;
+  S.pieces.forEach((p, i) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "piece-card" + (p.empty ? " empty" : "");
+    card.disabled = !!p.empty;
+    card.setAttribute("aria-label", `piece ${i + 1}${p.empty ? " (empty)" : ""}`);
+    const orderIdx = S.selection.indexOf(i);
+    if (orderIdx >= 0) card.classList.add("picked");
+    const badges = document.createElement("span");
+    badges.innerHTML = `<span class="pnum">${i + 1}</span>` +
+      (orderIdx >= 0 ? `<span class="porder">${orderIdx + 1}</span>` : "");
+    card.appendChild(badges);
+    if (p.canvas) {
+      const cv = document.createElement("canvas");
+      const sc = Math.min(56 / p.canvas.width, 56 / p.canvas.height, 1);
+      cv.width = Math.max(1, Math.round(p.canvas.width * sc));
+      cv.height = Math.max(1, Math.round(p.canvas.height * sc));
+      cv.getContext("2d").drawImage(p.canvas, 0, 0, cv.width, cv.height);
+      card.appendChild(cv);
+    } else {
+      const em = document.createElement("span");
+      em.className = "pempty";
+      em.textContent = "—";
+      card.appendChild(em);
+    }
+    card.addEventListener("click", () => slicerPick(i));
+    grid.appendChild(card);
+  });
+}
+
+function slicerPick(i) {
+  const S = state.slicer;
+  if (!S || S.pieces[i].empty) return;
+  const at = S.selection.indexOf(i);
+  if (at >= 0) S.selection.splice(at, 1);
+  else S.selection.push(i);
+  renderSlicerPieces();
+  slicerPreview();
+  updateSlicerExport();
+}
+
+let slicerRAF = 0, slicerT = 0, slicerDir = 1;
+function slicerPreview() {
+  cancelAnimationFrame(slicerRAF);
+  cancelAnimationFrame(previewRAF);
+  const S = state.slicer;
+  const pc = $("#preview");
+  if (!pc) return;
+  const pctx = pc.getContext("2d");
+  pctx.imageSmoothingEnabled = false;
+  const sel = $("#previewState");
+  sel.innerHTML = "";
+  const o = document.createElement("option");
+  o.value = 0; o.textContent = "slice animation";
+  sel.appendChild(o);
+  sel.disabled = true;
+  slicerT = 0; slicerDir = 1;
+  pctx.clearRect(0, 0, pc.width, pc.height);
+  if (!S || !S.selection.length) {
+    $("#previewMeta").textContent = (S && S.sheet) ? "· pick frames above" : "";
+    return;
+  }
+  let last = performance.now();
+  function tick(now) {
+    slicerRAF = requestAnimationFrame(tick);
+    const fr = S.selection.map(j => S.pieces[j].canvas);
+    if (!fr.length) return;
+    const fps = S.fps || 8;
+    if (now - last < 1000 / fps) return;
+    last = now;
+    if (S.playback === "once") { if (slicerT < fr.length - 1) slicerT++; }
+    else if (S.playback === "pingpong") {
+      slicerT += slicerDir;
+      if (slicerT >= fr.length - 1) { slicerT = fr.length - 1; slicerDir = -1; }
+      if (slicerT <= 0) { slicerT = 0; slicerDir = 1; }
+    }
+    else slicerT = (slicerT + 1) % fr.length;
+    let cw = 0, ch = 0;
+    for (const f of fr) { cw = Math.max(cw, f.width); ch = Math.max(ch, f.height); }
+    const sc = Math.min(pc.width / cw, pc.height / ch, 8);
+    const dw = Math.max(1, Math.round(cw * sc)), dh = Math.max(1, Math.round(ch * sc));
+    const ox = (pc.width - dw) / 2, oy = (pc.height - dh) / 2;
+    pctx.clearRect(0, 0, pc.width, pc.height);
+    const f = fr[slicerT];
+    const fw = Math.max(1, Math.round(f.width * sc)), fh = Math.max(1, Math.round(f.height * sc));
+    pctx.drawImage(f, ox + Math.round((dw - fw) / 2), oy + dh - fh, fw, fh);
+    $("#previewMeta").textContent = `· slice · frame ${slicerT + 1}/${fr.length}`;
+  }
+  tick(last);
+}
+
 /* pack ONLY the picked frames into a one-row animation sheet + manifest */
-function buildSplitAtlas() {
-  const sp = state.split;
-  const sel = sp.selection.map(i => sp.pieces[i].canvas);
+function buildSlicerAtlas() {
+  const S = state.slicer;
+  const sel = S.selection.map(i => S.pieces[i].canvas);
   if (!sel.length) fail("pick at least one frame first — click pieces in order.");
   let cw = 0, ch = 0;
   for (const f of sel) { cw = Math.max(cw, f.width); ch = Math.max(ch, f.height); }
@@ -2209,233 +2461,145 @@ function buildSplitAtlas() {
   const rects = [];
   norm.forEach((f, i) => {
     const x = pad + i * cw;
-    drawFrameAt(sctx, f, x, pad);
+    sctx.drawImage(f, x, pad);
     rects.push({ x, y: pad, w: cw, h: ch });
   });
-  const fps = +$("#previewFps").value || 8;
   const manifest = {
     tool: BRAND.tool,
     version: "2.2.0",
-    engine: "splitter",
+    engine: "slicer",
     runRevision: state.revision,
     atlas: "m4ster-split-animation.png",
     sheetWidth: sheet.width,
     sheetHeight: sheet.height,
-    splitSource: { mode: sp.mode, bg: sp.bg, grid: [sp.rows, sp.cols], sheetW: sp.imgW, sheetH: sp.imgH },
+    sliceSource: {
+      mode: S.mode, bg: S.bg, grid: [S.rows, S.cols],
+      margin: S.margin, pad: S.pad, offset: [S.ox, S.oy],
+      sheetW: S.imgW, sheetH: S.imgH,
+    },
     frameLayout: { padding: pad, rows: { anim: { row: 0, cellWidth: cw, cellHeight: ch, rects } } },
     animations: {
       anim: {
-        row: 0, frames: norm.length, fps, loop: true,
-        facing: state.flipX ? "left" : "right",
-        durationsMs: norm.map(() => Math.round(1000 / fps)),
-        frameOrder: sp.selection.slice(),
+        row: 0, frames: norm.length, fps: S.fps, loop: S.playback !== "once",
+        playback: S.playback,
+        durationsMs: norm.map(() => Math.round(1000 / S.fps)),
+        frameOrder: S.selection.slice(),
       },
     },
   };
   return { canvas: sheet, manifest, pngName: "m4ster-split-animation.png", jsonName: "m4ster-split-animation.json" };
 }
 
-async function runSplitter() {
-  if (state.busy) return;
-  setBusy(true);
-  resetSteps();
-  hideRetry();
-  $("#promptPeek").hidden = true;
-  state.rows = []; state.originals = []; state.atlas = null;
-  state.split = null;
-  state.revision = Date.now().toString(36);
-  renderFramesUI();
-  showSplitUI(false);
-  $("#previewMeta").textContent = "";
-  enableExport(false);
-
-  try {
-    if (!uploadImg) fail("upload source selected but no image chosen — pick a file first.");
-    const sp = splitState();
-
-    setStep("prompt", "done", `upload ${uploadImg.width}×${uploadImg.height} ready`);
-    setStep("row", "active", sp.mode === "grid"
-      ? `splitting ${sp.rows}×${sp.cols} grid…`
-      : "auto-detecting pieces…");
-
-    // normalize: chroma -> keyed copy; black/white -> knockout copy (optional);
-    // trim + detect then work on plain transparency
-    let work = copyCanvas(uploadImg);
-    let effBg = sp.bg;
-    if (sp.bg === "chroma") { work = chromaKey(work, state.key); effBg = "transparent"; }
-    else if (sp.knockout && sp.bg !== "transparent") { knockoutBg(work, sp.bg); effBg = "transparent"; }
-
-    let raw;
-    if (sp.mode === "grid") {
-      raw = splitGridCells(work, sp.rows, sp.cols).map(c => {
-        const t = trimToContent(c, effBg);
-        return { canvas: t, empty: !t };
-      });
-    } else {
-      raw = detectPieces(work, effBg).map(c => ({ canvas: c, empty: false }));
-    }
-    if (!raw.length || !raw.some(p => !p.empty)) {
-      clearStage();
-      fail("splitter found no usable pieces — try a different background mode, or grid mode with fewer rows/cols.");
-    }
-
-    state.split = {
-      pieces: raw, selection: [],
-      rows: sp.rows, cols: sp.cols, mode: sp.mode, bg: sp.bg,
-      imgW: uploadImg.width, imgH: uploadImg.height,
-    };
-
-    const usable = raw.filter(p => !p.empty).length;
-    setStep("row", "done", `split into ${raw.length} piece(s), ${usable} usable`);
-    setStep("alpha", "done", sp.bg === "transparent" ? "alpha background" :
-      sp.knockout ? `${sp.bg} background knocked out` : `${sp.bg} treated as empty`);
-    setStep("extract", "done", "pieces numbered — click in order");
-    setStep("atlas", "active", "waiting for frame picks…");
-
-    showStage(uploadImg, `source sheet ${uploadImg.width}×${uploadImg.height} — pick frames below, preview plays them`);
-    renderSplitUI();
-    startSplitPreview();
-    updateSplitExport();
-  } catch (e) {
-    const active = document.querySelector("#stepper li.active");
-    if (active) { active.classList.remove("active"); active.classList.add("error"); }
-    stageMsg("FAILED: " + e.message, true);
-  } finally {
-    setBusy(false);
-  }
+function updateSlicerExport() {
+  const n = state.slicer ? state.slicer.selection.length : 0;
+  const on = n > 0;
+  ["#slDownload", "#slCells"].forEach(sl => { const el = $(sl); if (el) el.disabled = !on; });
+  state.atlas = on ? buildSlicerAtlas() : null;
+  slicerOverlay();
 }
 
-function showSplitUI(on) {
-  $("#splitGrid").hidden = !on;
-  $("#splitHead").hidden = !on;
-  $("#framesRow").hidden = on;
-  $("#framesHead").hidden = on;
-  // "Download animation" only makes sense for the splitter's picked frames
-  $("#dlAnim").style.display = on ? "" : "none";
+function slicerDownload() {
+  const S = state.slicer;
+  if (!S || !S.selection.length) { stageMsg("pick at least one frame first.", true); return; }
+  const a = buildSlicerAtlas();
+  downloadCanvas(a.canvas, a.pngName);
+  setTimeout(() => downloadJSON(a.manifest, a.jsonName), 400);
 }
 
-function renderSplitUI() {
-  const sp = state.split;
-  showSplitUI(!!sp);
-  if (!sp) return;
-  const grid = $("#splitGrid");
-  grid.innerHTML = "";
-  $("#splitMeta").textContent = `· ${sp.pieces.length} pieces, ${sp.selection.length} picked`;
-  sp.pieces.forEach((p, i) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "piece-card" + (p.empty ? " empty" : "");
-    card.disabled = !!p.empty;
-    card.setAttribute("aria-label", `piece ${i + 1}${p.empty ? " (empty)" : ""}`);
-    const orderIdx = sp.selection.indexOf(i);
-    if (orderIdx >= 0) card.classList.add("picked");
-    const badges = document.createElement("span");
-    badges.innerHTML = `<span class="pnum">${i + 1}</span>` +
-      (orderIdx >= 0 ? `<span class="porder">${orderIdx + 1}</span>` : "");
-    card.appendChild(badges);
-    if (p.canvas) {
-      const cv = document.createElement("canvas");
-      const s = Math.min(56 / p.canvas.width, 56 / p.canvas.height, 1);
-      cv.width = Math.max(1, Math.round(p.canvas.width * s));
-      cv.height = Math.max(1, Math.round(p.canvas.height * s));
-      cv.getContext("2d").drawImage(p.canvas, 0, 0, cv.width, cv.height);
-      card.appendChild(cv);
-    } else {
-      const em = document.createElement("span");
-      em.className = "pempty";
-      em.textContent = "—";
-      card.appendChild(em);
-    }
-    card.addEventListener("click", () => togglePiece(i));
-    grid.appendChild(card);
+function slicerDownloadCells() {
+  const S = state.slicer;
+  if (!S || !S.selection.length) return;
+  let delay = 0;
+  S.selection.forEach((pi, oi) => {
+    const c = S.pieces[pi].canvas;
+    setTimeout(() => downloadCanvas(c, `m4ster-slice-frame${oi}.png`), delay);
+    delay += 350;
   });
 }
 
-function togglePiece(i) {
-  const sp = state.split;
-  if (!sp || sp.pieces[i].empty) return;
-  const at = sp.selection.indexOf(i);
-  if (at >= 0) sp.selection.splice(at, 1);
-  else sp.selection.push(i);
-  renderSplitUI();
-  startSplitPreview();
-  updateSplitExport();
-}
+/* ---------------- slicer control wiring ---------------- */
 
-let splitRAF = 0, splitT = 0;
-function startSplitPreview() {
-  cancelAnimationFrame(splitRAF);
-  cancelAnimationFrame(previewRAF);
-  const sp = state.split;
-  const pc = $("#preview");
-  const pctx = pc.getContext("2d");
-  pctx.imageSmoothingEnabled = false;
-  const sel = $("#previewState");
-  sel.innerHTML = "";
-  if (!sp) return;
-  const o = document.createElement("option");
-  o.value = 0; o.textContent = "split animation";
-  sel.appendChild(o);
-  sel.disabled = true;
-  splitT = 0;
-  pctx.clearRect(0, 0, pc.width, pc.height);
-  if (!sp.selection.length) {
-    $("#previewMeta").textContent = "· pick frames above";
-    return;
-  }
-  let last = performance.now();
-  function tick(now) {
-    splitRAF = requestAnimationFrame(tick);
-    const fr = sp.selection.map(j => sp.pieces[j].canvas);
-    if (!fr.length) return;
-    const pb = state.splitPlayback || { fps: 0, mode: "loop", name: "" };
-    const fps = pb.fps || (+$("#previewFps").value || 8);
-    if (now - last < 1000 / fps) return;
-    last = now;
-    if (pb.mode === "once") { if (splitT < fr.length - 1) splitT++; }
-    else if (pb.mode === "pingpong") {
-      splitT += splitDir;
-      if (splitT >= fr.length - 1) { splitT = fr.length - 1; splitDir = -1; }
-      if (splitT <= 0) { splitT = 0; splitDir = 1; }
+function wireSlicer() {
+  const S = slState();
+
+  $("#slPick").onclick = () => $("#slFile").click();
+  $("#slFile").onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      const bmp = await createImageBitmap(f);
+      const cv = makeCanvas(bmp.width, bmp.height);
+      cv.getContext("2d").drawImage(bmp, 0, 0);
+      if (bmp.close) bmp.close();
+      S.sheet = cv; S.imgW = bmp.width; S.imgH = bmp.height;
+      S.pieces = []; S.selection = [];
+      stageMsg(`loaded ${f.name} — ${bmp.width}×${bmp.height}, slicing…`);
+      runSlicer();
+    } catch (err) {
+      stageMsg("couldn't read that image — try a PNG or JPG.", true);
     }
-    else splitT = (splitT + 1) % fr.length;
-    let cw = 0, ch = 0;
-    for (const f of fr) { cw = Math.max(cw, f.width); ch = Math.max(ch, f.height); }
-    const s = Math.min(pc.width / cw, pc.height / ch, 8);
-    const dw = Math.max(1, Math.round(cw * s)), dh = Math.max(1, Math.round(ch * s));
-    const ox = (pc.width - dw) / 2, oy = (pc.height - dh) / 2;
-    pctx.clearRect(0, 0, pc.width, pc.height);
-    const f = fr[splitT];
-    const fw = Math.max(1, Math.round(f.width * s)), fh = Math.max(1, Math.round(f.height * s));
-    pctx.save();
-    if (state.flipX) { pctx.translate(pc.width, 0); pctx.scale(-1, 1); }
-    pctx.drawImage(f, ox + Math.round((dw - fw) / 2), oy + dh - fh, fw, fh);
-    pctx.restore();
-    const tag = pb.name ? ` · ${pb.name}` : "";
-    $("#previewMeta").textContent = `· split${tag} · frame ${splitT + 1}/${fr.length}`;
-  }
-  tick(last);
-}
+    e.target.value = "";
+  };
 
-function updateSplitExport() {
-  const n = state.split ? state.split.selection.length : 0;
-  const on = n > 0;
-  ["#dlSheet", "#dlJson", "#dlFrames", "#dlAnim", "#dlBundle"].forEach(s => { const el = $(s); if (el) el.disabled = !on; });
-  if (on) {
-    state.atlas = buildSplitAtlas();
-    setStep("atlas", "done", `animation packed — ${n} frame(s)`);
-    setStep("done", "done", `done — ${n} picked frame(s), rev ${state.revision}`);
-    showStage(state.atlas.canvas, `animation sheet ${state.atlas.canvas.width}×${state.atlas.canvas.height} — ${n} picked frame(s)`);
-  } else {
-    state.atlas = null;
-    setStep("atlas", "active", "waiting for frame picks…");
-    const ds = document.querySelector('#stepper li[data-step="done"]');
-    if (ds) ds.classList.remove("done");
-  }
-}
+  document.querySelectorAll("#slModeSeg .seg-btn").forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll("#slModeSeg .seg-btn").forEach(x => x.classList.toggle("active", x === b));
+      S.mode = b.dataset.mode;
+      $("#slGridRow").hidden = S.mode !== "grid";
+      runSlicer();
+    };
+  });
 
-/* upload source: provider-agnostic — any image in, pieces out (v5 splitter) */
-let uploadImg = null;
+  // sliders: live overlay while dragging, re-slice on release
+  const bindRange = (id, valId, key) => {
+    const el = $(id);
+    el.oninput = () => { S[key] = +el.value; $(valId).textContent = el.value; slicerOverlay(); };
+    el.onchange = () => { S[key] = +el.value; runSlicer(); };
+  };
+  bindRange("#slRows", "#slRowsVal", "rows");
+  bindRange("#slCols", "#slColsVal", "cols");
+
+  [["slMargin", "margin"], ["slPad", "pad"], ["slOx", "ox"], ["slOy", "oy"]].forEach(([id, key]) => {
+    $(id).onchange = (e) => {
+      S[key] = Math.max(0, Math.round(+e.target.value || 0));
+      e.target.value = S[key];
+      slicerOverlay();
+      runSlicer();
+    };
+  });
+
+  document.querySelectorAll("#slBgSeg .seg-btn").forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll("#slBgSeg .seg-btn").forEach(x => x.classList.toggle("active", x === b));
+      S.bg = b.dataset.bg;
+      runSlicer();
+    };
+  });
+  $("#slKnockout").onchange = (e) => { S.knockout = e.target.checked; runSlicer(); };
+
+  $("#slFps").onchange = (e) => { S.fps = +e.target.value || 8; slicerT = 0; };
+  document.querySelectorAll("#slPlaybackSeg .seg-btn").forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll("#slPlaybackSeg .seg-btn").forEach(x => x.classList.toggle("active", x === b));
+      S.playback = b.dataset.playback;
+      slicerT = 0; slicerDir = 1;
+    };
+  });
+
+  $("#slSelectAll").onclick = () => {
+    if (!S.pieces.length) return;
+    S.selection = S.pieces.map((p, i) => i).filter(i => !S.pieces[i].empty);
+    renderSlicerPieces(); slicerPreview(); updateSlicerExport();
+  };
+  $("#slClear").onclick = () => {
+    S.selection = [];
+    renderSlicerPieces(); slicerPreview(); updateSlicerExport();
+  };
+  $("#slReslice").onclick = runSlicer;
+  $("#slDownload").onclick = slicerDownload;
+  $("#slCells").onclick = slicerDownloadCells;
+  syncSlicerMode();
+}
 
 /* ================= wiring ================= */
 
@@ -2443,14 +2607,17 @@ function init() {
   renderParams();
   wireExport();
   syncPixelMode();
+  syncSlicerMode();
 
   document.querySelectorAll(".tab").forEach(t => {
     t.onclick = () => {
       document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
       t.classList.add("active");
       state.category = t.dataset.cat;
+      cancelAnimationFrame(slicerRAF);
       renderParams();
       syncPixelMode();
+      syncSlicerMode();
     };
   });
 
@@ -2459,52 +2626,8 @@ function init() {
       document.querySelectorAll("#sourceSeg .seg-btn").forEach(x => x.classList.remove("active"));
       b.classList.add("active");
       state.source = b.dataset.src;
-      $("#splitterPanel").hidden = state.source !== "upload";
-      if (state.source === "upload") $("#uploadInput").click();
     };
   });
-
-  $("#uploadInput").onchange = async (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const bmp = await createImageBitmap(f);
-    uploadImg = makeCanvas(bmp.width, bmp.height);
-    uploadImg.getContext("2d").drawImage(bmp, 0, 0);
-    stageMsg(`uploaded ${bmp.width}×${bmp.height} — splitting…`);
-    showStage(uploadImg, "upload ready");
-    runSplitter();
-  };
-
-  // v5 splitter controls
-  document.querySelectorAll("#splitModeSeg .seg-btn").forEach(b => {
-    b.onclick = () => {
-      document.querySelectorAll("#splitModeSeg .seg-btn").forEach(x => x.classList.remove("active"));
-      b.classList.add("active");
-      $("#splitGridRow").hidden = b.dataset.mode !== "grid";
-    };
-  });
-  document.querySelectorAll("#splitBgSeg .seg-btn").forEach(b => {
-    b.onclick = () => {
-      document.querySelectorAll("#splitBgSeg .seg-btn").forEach(x => x.classList.remove("active"));
-      b.classList.add("active");
-    };
-  });
-  $("#splitSelectAll").onclick = () => {
-    const sp = state.split;
-    if (!sp) return;
-    sp.selection = sp.pieces.map((p, i) => i).filter(i => !sp.pieces[i].empty);
-    renderSplitUI();
-    startSplitPreview();
-    updateSplitExport();
-  };
-  $("#splitClear").onclick = () => {
-    const sp = state.split;
-    if (!sp) return;
-    sp.selection = [];
-    renderSplitUI();
-    startSplitPreview();
-    updateSplitExport();
-  };
 
   document.querySelectorAll("#keyRow .key").forEach(k => {
     k.onclick = () => {
@@ -2664,8 +2787,7 @@ const BRAND = {
 };
 
 state.flipX = false;         // character facing: false = right, true = left (non-destructive view)
-state.splitPlayback = null;  // { fps, mode: loop|once|pingpong, name } — set by motion presets
-let splitDir = 1;
+/* (v6.6: slicer playback lives on state.slicer.fps/.playback; slicerT/slicerDir below) */
 
 /* ---------- facing flip: non-destructive view transform, like curation ---------- */
 function drawFrameAt(ctx, frame, x, y) {
@@ -2986,11 +3108,13 @@ function renderPresets() {
 
 function applyPreset(p) {
   document.querySelectorAll(".preset-chip").forEach(c => c.classList.toggle("active", c.dataset.preset === p.id));
-  if (state.split) {
-    state.splitPlayback = { fps: p.fps, mode: p.playback, name: p.label };
-    splitT = 0; splitDir = 1;
-    startSplitPreview();
-    stageMsg(`preset "${p.label}" → split playback: ${p.fps}fps, ${p.playback}`);
+  if (state.slicer && state.slicer.sheet && state.slicer.pieces.length) {
+    state.slicer.fps = p.fps; state.slicer.playback = p.playback;
+    slicerT = 0; slicerDir = 1;
+    const fs = $("#slFps"); if (fs) fs.value = String(p.fps);
+    document.querySelectorAll("#slPlaybackSeg .seg-btn").forEach(x => x.classList.toggle("active", x.dataset.playback === p.playback));
+    slicerPreview();
+    stageMsg(`preset "${p.label}" → slice playback: ${p.fps}fps, ${p.playback}`);
     return;
   }
   if (state.category === "character") {
@@ -3008,13 +3132,13 @@ function applyPreset(p) {
 
 /* ---------- export bundle: PNG + GIF + JSON in one click ---------- */
 function currentExportFrames() {
-  if (state.split) return state.split.selection.map(i => state.split.pieces[i].canvas);
+  if (state.slicer && state.slicer.selection.length) return state.slicer.selection.map(i => state.slicer.pieces[i].canvas);
   const r = state.rows[previewRow];
   return r ? r.order.map(fi => r.frames[fi]) : [];
 }
 
 function currentExportFps() {
-  if (state.splitPlayback && state.splitPlayback.fps) return state.splitPlayback.fps;
+  if (state.slicer && state.slicer.sheet && state.slicer.fps) return state.slicer.fps;
   const sel = +((($("#previewFps") || {}).value) || 8);
   const r = state.rows[previewRow];
   return (r && r.fps) || sel;
@@ -3052,13 +3176,8 @@ function initV6() {
   document.querySelectorAll(".cat-card").forEach(c => {
     c.onclick = () => {
       const cat = c.dataset.cat;
-      if (cat === "splitter") {
-        const up = document.querySelector('#sourceSeg .seg-btn[data-src="upload"]');
-        if (up) up.click(); // opens the file picker
-      } else {
-        const tab = document.querySelector(`.tab[data-cat="${cat}"]`);
-        if (tab) tab.click();
-      }
+      const tab = document.querySelector(`.tab[data-cat="${cat}"]`);
+      if (tab) tab.click();
       document.getElementById("tool").scrollIntoView({ behavior: "smooth", block: "start" });
     };
   });
@@ -3075,9 +3194,9 @@ function initV6() {
       renderFramesUI();
       startPreview();
       showStage(state.atlas.canvas, "atlas rebuilt — facing " + (state.flipX ? "left" : "right"));
-    } else if (state.split) {
-      startSplitPreview();
-      updateSplitExport();
+    } else if (state.slicer && state.slicer.sheet) {
+      slicerPreview();
+      updateSlicerExport();
     }
   });
 
