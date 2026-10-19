@@ -291,7 +291,7 @@ textarea#prompt:focus { outline: none; border-color: var(--violet); }
   color: var(--on-accent); border: 2px solid color-mix(in srgb, var(--violet) 60%, #fff);
   /* hand-drawn wobble — matches the MFL logo sketch style */
   border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px;
-  font-family: var(--mono); font-weight: 700; font-size: 15px; letter-spacing: 2px;
+  font-family: var(--sans); font-weight: 800; font-size: 16px; letter-spacing: .5px;
   cursor: pointer;
   box-shadow: 0 8px 28px -8px var(--glow), 0 0 18px -4px var(--violet);
   transition: transform .18s ease, box-shadow .25s ease, filter .18s ease;
