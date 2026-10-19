@@ -858,10 +858,18 @@ textarea:focus:not(:focus-visible) { outline: none; }
 @media (max-width: 767px) {
   .page-section { padding-left: 12px; padding-right: 12px; }
   .hero { padding: 40px 12px 20px; }
-  .hero-prompt-row { flex-direction: column; }
-  .hero-go.generate { width: 100%; padding: 16px; }
+  .hero-prompt-row { flex-direction: column; align-items: center; }
+  .hero-go.generate { width: calc(100% - 48px); padding: 16px; border-radius: 20px; }
   #heroPrompt { min-height: 72px; font-size: 16px; } /* 16px stops iOS zoom */
   .hero-hints { gap: 12px; }
+
+  /* full-bleed bars on mobile — no gaps at the edges */
+  .topbar, .foot { border-radius: 0; }
+  .mobile-bar {
+    margin-left: 0; margin-right: 0; padding-left: 24px; padding-right: 24px;
+    background: color-mix(in srgb, var(--bg) 97%, transparent);
+  }
+  .mobile-bar .generate { width: calc(100% - 24px); margin-left: auto; margin-right: auto; display: block; border-radius: 20px; }
 
   .cat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .cat-card { padding: 16px 10px; }
