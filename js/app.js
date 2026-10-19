@@ -144,9 +144,10 @@ function renderParams() {
     box.innerHTML = `
       <div class="field-label">Image &rarr; pixel art <span class="dim">(100% offline)</span></div><div class="row"><button type="button" class="btn-ghost" id="pxPick" style="text-align:center">Upload image</button><input type="file" id="pxFile" accept="image/*" hidden></div><div class="field-label">Output size</div><div class="px-dims" id="pxDims">
         ${[16, 32, 48, 64, 96, 128].map(s => `<button type="button" class="seg-btn${s === px.w ? " active" : ""}" data-px="${s}">${s}</button>`).join("")}
-      </div><div class="row" style="margin-top:8px"><span class="dim">W</span><input type="number" class="num" id="pxW" min="8" max="256" value="${px.w}"><span class="dim">H</span><input type="number" class="num" id="pxH" min="8" max="256" value="${px.h}"></div><div class="field-label">Colors</div><div class="row"><select id="pxColors" class="grow">
+        <button type="button" class="seg-btn" id="pxOrigBtn" title="use the uploaded image's original dimensions">Original</button>
+      </div><div class="row" style="margin-top:8px"><span class="dim">W</span><input type="number" class="num" id="pxW" min="8" max="512" value="${px.w}"><span class="dim">H</span><input type="number" class="num" id="pxH" min="8" max="512" value="${px.h}"></div><div class="field-label">Tile grid <span class="dim">(tilemap overlay)</span></div><div class="row"><label class="chk"><input type="checkbox" id="pxGrid"${px.grid ? " checked" : ""}> show grid</label><select id="pxTile" aria-label="tile size">${[8, 16, 24, 32, 48, 64].map(t => `<option value="${t}"${t === px.tile ? " selected" : ""}>${t}px tiles</option>`).join("")}</select><span class="dim" id="pxTileCount"></span></div><div class="field-label">Colors</div><div class="row"><select id="pxColors" class="grow">
           ${[[2, "2 colors"], [4, "4 colors"], [8, "8 colors"], [16, "16 colors"], [32, "32 colors"], [256, "256 colors"], [0, "Full color"]].map(([v, lbl]) => `<option value="${v}"${v === px.colors ? " selected" : ""}>${lbl}</option>`).join("")}
-        </select></div><label class="chk"><input type="checkbox" id="pxDither"> dithering <span class="dim">(Floyd&ndash;Steinberg)</span></label><div class="row" style="margin-top:8px"><span class="dim">preview</span><input type="range" id="pxScale" min="2" max="16" value="8" class="grow" aria-label="preview scale"><span class="dim" id="pxScaleVal">&times;8</span></div><button type="button" class="btn-ghost px-download" id="pxDownload">Download pixel art</button><div class="dim">Upload any image — it never leaves your browser.</div>`;
+        </select></div><label class="chk"><input type="checkbox" id="pxDither"${px.dither ? " checked" : ""}> dithering <span class="dim">(Floyd&ndash;Steinberg)</span></label><div class="row" style="margin-top:8px"><span class="dim">preview</span><input type="range" id="pxScale" min="2" max="16" value="${px.scale}" class="grow" aria-label="preview scale"><span class="dim" id="pxScaleVal">&times;${px.scale}</span></div><button type="button" class="btn-ghost px-download" id="pxDownload">Download pixel art</button><div class="dim">Upload any image — it never leaves your browser.</div>`;
     wirePixelArt();
   } else if (cat === "slicer") {
     const sl = slState();
@@ -1855,7 +1856,7 @@ function pxConvert(src, opts) {
 function pxState() {
   if (!state.pixelart) {
     const d = CATEGORY_DEFAULTS.pixelart;
-    state.pixelart = { src: null, imgW: 0, imgH: 0, w: d.w, h: d.h, colors: d.colors, dither: false, scale: 8, out: null };
+    state.pixelart = { src: null, imgW: 0, imgH: 0, w: d.w, h: d.h, colors: d.colors, dither: false, scale: 8, grid: false, tile: 32, out: null };
   }
   return state.pixelart;
 }
@@ -1893,11 +1894,25 @@ function pxRender() {
   oc.style.maxWidth = "100%";
 
   pc.width = P.w; pc.height = P.h;
-  pc.getContext("2d").putImageData(new ImageData(P.out.data, P.out.w, P.out.h), 0, 0);
+  const pctx = pc.getContext("2d");
+  pctx.putImageData(new ImageData(P.out.data, P.out.w, P.out.h), 0, 0);
   pc.style.width = Math.min(P.w * P.scale, 420) + "px";
+  // tile grid overlay (visual aid only — never baked into P.out or downloads)
+  let tileInfo = "";
+  if (P.grid && P.tile >= 8) {
+    pctx.strokeStyle = "rgba(255,255,255,.45)";
+    pctx.lineWidth = 1;
+    pctx.beginPath();
+    for (let gx = P.tile; gx < P.w; gx += P.tile) { pctx.moveTo(gx + .5, 0); pctx.lineTo(gx + .5, P.h); }
+    for (let gy = P.tile; gy < P.h; gy += P.tile) { pctx.moveTo(0, gy + .5); pctx.lineTo(P.w, gy + .5); }
+    pctx.stroke();
+    tileInfo = ` · ${Math.ceil(P.w / P.tile)}×${Math.ceil(P.h / P.tile)} tiles`;
+  }
+  const tc = $("#pxTileCount");
+  if (tc) tc.textContent = tileInfo.replace(" · ", "");
 
   $("#pxOrigCap").textContent = `original · ${P.imgW} × ${P.imgH}`;
-  $("#pxOutCap").textContent = `pixel art · ${P.w} × ${P.h} · ${pxColorLabel(P.colors)}${P.dither ? " · dithered" : ""} · ${ms}ms`;
+  $("#pxOutCap").textContent = `pixel art · ${P.w} × ${P.h} · ${pxColorLabel(P.colors)}${P.dither ? " · dithered" : ""}${tileInfo} · ${ms}ms`;
   side.hidden = false;
 }
 
@@ -1913,7 +1928,13 @@ function pxDownloadArt() {
 
 function wirePixelArt() {
   const P = pxState();
-  const clampWH = (v) => Math.max(8, Math.min(256, Math.round(v) || 64));
+  const clampWH = (v) => Math.max(8, Math.min(512, Math.round(v) || 64));
+
+  const syncOrigBtn = () => {
+    const ob = $("#pxOrigBtn");
+    if (ob && P.imgW) ob.textContent = `Original ${P.imgW}×${P.imgH}`;
+  };
+  syncOrigBtn();
 
   $("#pxPick").onclick = () => $("#pxFile").click();
   $("#pxFile").onchange = async (e) => {
@@ -1929,6 +1950,7 @@ function wirePixelArt() {
       P.src = { data: id.data, w: bmp.width, h: bmp.height };
       P.imgW = bmp.width; P.imgH = bmp.height;
       if (bmp.close) bmp.close();
+      syncOrigBtn();
       stageMsg(`loaded ${f.name} — ${bmp.width}×${bmp.height}`);
     } catch (err) {
       stageMsg("couldn't read that image — try a PNG or JPG.", true);
@@ -1941,7 +1963,12 @@ function wirePixelArt() {
   document.querySelectorAll("#pxDims .seg-btn").forEach(b => {
     b.onclick = () => {
       document.querySelectorAll("#pxDims .seg-btn").forEach(x => x.classList.toggle("active", x === b));
-      P.w = P.h = parseInt(b.dataset.px, 10);
+      if (b.id === "pxOrigBtn") {
+        if (!P.src) { stageMsg("Upload an image first.", true); return; }
+        P.w = clampWH(P.imgW); P.h = clampWH(P.imgH);
+      } else {
+        P.w = P.h = parseInt(b.dataset.px, 10);
+      }
       $("#pxW").value = P.w; $("#pxH").value = P.h;
       pxRender();
     };
@@ -1956,6 +1983,8 @@ function wirePixelArt() {
   $("#pxW").onchange = wh; $("#pxH").onchange = wh;
   $("#pxColors").onchange = (e) => { P.colors = parseInt(e.target.value, 10); pxRender(); };
   $("#pxDither").onchange = (e) => { P.dither = e.target.checked; pxRender(); };
+  $("#pxGrid").onchange = (e) => { P.grid = e.target.checked; pxRender(); };
+  $("#pxTile").onchange = (e) => { P.tile = parseInt(e.target.value, 10); pxRender(); };
   $("#pxScale").oninput = (e) => {
     P.scale = parseInt(e.target.value, 10);
     $("#pxScaleVal").textContent = "×" + P.scale;
