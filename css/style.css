@@ -119,8 +119,11 @@ html[data-theme="porcelain"] {
 .layout, .foot { position: relative; z-index: 1; }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; overflow-x: clip; }
+html { scroll-behavior: smooth; overflow-x: clip; max-width: 100%; }
 html, body { margin: 0; padding: 0; }
+img, canvas, svg, video { max-width: 100%; }
+/* grid/flex children must be allowed to shrink — prevents blowout */
+.layout > *, .page-section > *, .preview-export > * { min-width: 0; }
 body {
   height: 100%;
   overflow-x: clip;
@@ -856,6 +859,7 @@ textarea:focus:not(:focus-visible) { outline: none; }
 
 /* ---------- phone: genuinely different, thumb-first ---------- */
 @media (max-width: 767px) {
+  html { zoom: 1; } /* 115% zoom causes horizontal overflow on phones — desktop only */
   .page-section { padding-left: 12px; padding-right: 12px; }
   .hero { padding: 40px 12px 20px; }
   .hero-prompt-row { flex-direction: column; align-items: center; }
