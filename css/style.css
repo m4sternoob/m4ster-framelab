@@ -773,7 +773,20 @@ body.no-rgb .marquee::before, body.no-rgb .marquee::after { display: none; }
   .rgb-sep, .topbar::after, .marquee::before, .marquee::after { animation: none; }
 }
 
-/* ---------- v6.1: living logo — glow pulse + gentle float, transform/opacity only ---------- */
+/* ---------- v6.8: cursor glow trail canvas (5IN1 GridGlow idea) ---------- */
+#cursor-trail {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) { #cursor-trail { display: none; } }
+
+/* ---------- v6.8: logo letter glow (each letter glows) ---------- */
+.monogram .glow-m { filter: drop-shadow(0 0 5px #a78bfa) drop-shadow(0 0 12px rgba(167,139,250,.6)); animation: letterPulse 3s ease-in-out infinite; }
+.monogram .glow-f { filter: drop-shadow(0 0 5px #7dd3fc) drop-shadow(0 0 12px rgba(125,211,252,.6)); animation: letterPulse 3s ease-in-out .5s infinite; }
+.monogram .glow-l { filter: drop-shadow(0 0 4px #a78bfa) drop-shadow(0 0 10px rgba(167,139,250,.6)); animation: letterPulse 3s ease-in-out 1s infinite; }
+@keyframes letterPulse { 0%, 100% { opacity: .92; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .monogram .glow-m, .monogram .glow-f, .monogram .glow-l { animation: none; }
+}
 .monogram-wrap { position: relative; display: inline-flex; flex: none; }
 .monogram-wrap::after {
   content: ""; position: absolute; inset: -9px; border-radius: 22px;

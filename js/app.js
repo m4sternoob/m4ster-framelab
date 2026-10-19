@@ -3273,6 +3273,36 @@ if (document.readyState === "loading") {
   document.body.appendChild(orb);
   document.documentElement.classList.add("has-orb");
 
+  /* v6.8: cursor glow trail (5IN1 GridGlow idea) — canvas overlay paints
+   * fading theme-colored glow spots where the cursor travels. */
+  var trail = document.createElement("canvas");
+  trail.id = "cursor-trail";
+  trail.setAttribute("aria-hidden", "true");
+  document.body.appendChild(trail);
+  var tctx = trail.getContext("2d");
+  var spots = [];
+  var TR_LIFE = 900, TR_MAX = 50, TR_GAP = 18, trLast = 0;
+  function sizeTrail() {
+    trail.width = Math.max(1, window.innerWidth);
+    trail.height = Math.max(1, window.innerHeight);
+  }
+  sizeTrail();
+  window.addEventListener("resize", sizeTrail);
+  var themeGlow = "167,139,250"; /* violet default; updated per theme */
+  function drawTrail(now) {
+    tctx.clearRect(0, 0, trail.width, trail.height);
+    for (var i = spots.length - 1; i >= 0; i--) {
+      var s = spots[i], age = now - s.born;
+      if (age > TR_LIFE) { spots.splice(i, 1); continue; }
+      var k = 1 - age / TR_LIFE, r = 90 * (0.5 + 0.5 * k);
+      var g = tctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
+      g.addColorStop(0, "rgba(" + themeGlow + "," + (0.28 * k).toFixed(3) + ")");
+      g.addColorStop(1, "rgba(" + themeGlow + ",0)");
+      tctx.fillStyle = g;
+      tctx.beginPath(); tctx.arc(s.x, s.y, r, 0, 6.2832); tctx.fill();
+    }
+  }
+
   var tx = -100, ty = -100, x = -100, y = -100; /* target / lerped orb pos */
   /* page runs at 115% CSS zoom: mouse client coords are viewport space but the
    * orb lives inside the zoomed document, so divide by the effective zoom to
@@ -3302,6 +3332,12 @@ if (document.readyState === "loading") {
 
   document.addEventListener("mousemove", function (e) {
     tx = e.clientX / Z; ty = e.clientY / Z;
+    var now = performance.now();
+    if (now - trLast >= TR_GAP) {
+      trLast = now;
+      spots.push({ x: e.clientX, y: e.clientY, born: now });
+      if (spots.length > TR_MAX) spots.splice(0, spots.length - TR_MAX);
+    }
   }, { passive: true });
   document.addEventListener("mouseout", function (e) {
     if (!e.relatedTarget) orb.style.opacity = "0";
@@ -3349,6 +3385,9 @@ if (document.readyState === "loading") {
       auraEl.style.transform = "translate3d(" + (ax * 1.5).toFixed(2) + "vmax," + (ay * 1.5).toFixed(2) + "vmax,0)";
       lastA = ak;
     }
+    /* cursor glow trail (5IN1 GridGlow): fading spots, drawn only while moving */
+    if (spots.length) drawTrail(performance.now());
+    else if (trail.width) tctx.clearRect(0, 0, trail.width, trail.height);
     requestAnimationFrame(tick);
   })();
 })();
