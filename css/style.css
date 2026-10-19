@@ -119,8 +119,9 @@ html[data-theme="porcelain"] {
 .layout, .foot { position: relative; z-index: 1; }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; overflow-x: clip; max-width: 100%; }
+html { scroll-behavior: smooth; overflow-x: clip; max-width: 100%; background: var(--bg); }
 html, body { margin: 0; padding: 0; }
+body { background: var(--bg); min-height: 100vh; min-height: 100dvh; }
 img, canvas, svg, video { max-width: 100%; }
 /* grid/flex children must be allowed to shrink — prevents blowout */
 .layout > *, .page-section > *, .preview-export > * { min-width: 0; }
