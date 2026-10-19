@@ -821,7 +821,7 @@ textarea:focus:not(:focus-visible) { outline: none; }
  * of orange (Ember) buttons — orange-on-orange was invisible. */
 .cursor-orb.is-cta {
   width: 60px; height: 60px; margin: -30px 0 0 -30px; opacity: 1;
-  background: radial-gradient(circle, #fff 0%, #ff2d2d 32%, #c40e0e 58%, transparent 74%);
+  background: radial-gradient(circle, rgba(255,255,255,.5) 0%, rgba(255,45,45,.42) 32%, rgba(196,14,14,.32) 58%, transparent 74%);
   box-shadow: 0 0 0 3px rgba(0,0,0,.72), 0 0 26px 8px rgba(255,45,45,.55);
 }
 .cursor-orb.is-cta::after {
