@@ -728,6 +728,51 @@ section.page-section { scroll-margin-top: 78px; }
 @keyframes marquee { to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
 
+/* ---------- v6.8: RGB separators (m4ster standard — all apps) ----------
+ * Flowing rainbow gradient lines. Modes: flow (default) / breathing.
+ * Speed via --rgb-speed (seconds). Toggle via body.no-rgb. */
+:root { --rgb-speed: 6s; }
+.rgb-sep {
+  height: 2px; border: 0; margin: 0; padding: 0;
+  background: linear-gradient(90deg,
+    #ff2d78, #ff8c00, #ffee00, #00e676,
+    #00ccff, #7c4dff, #ff2d78);
+  background-size: 200% 100%;
+  animation: rgbFlow var(--rgb-speed, 6s) linear infinite;
+}
+@keyframes rgbFlow { to { background-position: 200% 0; } }
+body.rgb-breathe .rgb-sep { animation: rgbBreathe var(--rgb-speed, 6s) ease-in-out infinite; }
+@keyframes rgbBreathe { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+body.no-rgb .rgb-sep { display: none; }
+/* topbar + marquee use RGB seps instead of flat borders */
+.topbar { border-bottom: 0; }
+.topbar::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  background: linear-gradient(90deg,
+    #ff2d78, #ff8c00, #ffee00, #00e676,
+    #00ccff, #7c4dff, #ff2d78);
+  background-size: 200% 100%;
+  animation: rgbFlow var(--rgb-speed, 6s) linear infinite;
+}
+body.rgb-breathe .topbar::after { animation: rgbBreathe var(--rgb-speed, 6s) ease-in-out infinite; }
+body.no-rgb .topbar::after { display: none; }
+.marquee { border-top: 0; border-bottom: 0; position: relative; }
+.marquee::before, .marquee::after {
+  content: ""; position: absolute; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg,
+    #ff2d78, #ff8c00, #ffee00, #00e676,
+    #00ccff, #7c4dff, #ff2d78);
+  background-size: 200% 100%;
+  animation: rgbFlow var(--rgb-speed, 6s) linear infinite;
+}
+.marquee::before { top: 0; }
+.marquee::after { bottom: 0; }
+body.rgb-breathe .marquee::before, body.rgb-breathe .marquee::after { animation: rgbBreathe var(--rgb-speed, 6s) ease-in-out infinite; }
+body.no-rgb .marquee::before, body.no-rgb .marquee::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .rgb-sep, .topbar::after, .marquee::before, .marquee::after { animation: none; }
+}
+
 /* ---------- v6.1: living logo — glow pulse + gentle float, transform/opacity only ---------- */
 .monogram-wrap { position: relative; display: inline-flex; flex: none; }
 .monogram-wrap::after {

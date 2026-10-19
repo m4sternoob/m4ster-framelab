@@ -2660,6 +2660,40 @@ document.addEventListener("DOMContentLoaded", init);
     applyAura();
   }
 
+  /* ---------- v6.8: RGB separators (m4ster standard) ---------- */
+  var LS_RGB = "m4ster.rgb";
+  function readRGB() {
+    var d = { enabled: true, speed: 6, breathe: false };
+    try {
+      var raw = lsGet(LS_RGB);
+      if (raw) {
+        var p = JSON.parse(raw);
+        if (typeof p.enabled === "boolean") d.enabled = p.enabled;
+        if (isFinite(p.speed)) d.speed = Math.min(20, Math.max(2, +p.speed));
+        if (typeof p.breathe === "boolean") d.breathe = p.breathe;
+      }
+    } catch (e) {}
+    return d;
+  }
+  function applyRGB() {
+    var r = readRGB();
+    document.body.classList.toggle("no-rgb", !r.enabled);
+    document.body.classList.toggle("rgb-breathe", r.breathe);
+    document.documentElement.style.setProperty("--rgb-speed", r.speed + "s");
+    var tg = document.getElementById("rgbToggle");
+    if (tg) tg.setAttribute("aria-checked", r.enabled ? "true" : "false");
+    var sp = document.getElementById("rgbSpeed");
+    if (sp) sp.value = String(r.speed);
+    var br = document.getElementById("rgbBreathe");
+    if (br) br.setAttribute("aria-checked", r.breathe ? "true" : "false");
+  }
+  function saveRGB(patch) {
+    var r = readRGB();
+    for (var k in patch) r[k] = patch[k];
+    lsSet(LS_RGB, JSON.stringify(r));
+    applyRGB();
+  }
+
   function initCustomize() {
     var btn = document.getElementById("customizeBtn");
     var pop = document.getElementById("customizePop");
@@ -2702,9 +2736,19 @@ document.addEventListener("DOMContentLoaded", init);
     document.getElementById("auraIntensity").addEventListener("input", function (e) {
       saveAura({ intensity: +e.target.value });
     });
+    document.getElementById("rgbToggle").addEventListener("click", function () {
+      saveRGB({ enabled: !readRGB().enabled });
+    });
+    document.getElementById("rgbSpeed").addEventListener("input", function (e) {
+      saveRGB({ speed: +e.target.value });
+    });
+    document.getElementById("rgbBreathe").addEventListener("click", function () {
+      saveRGB({ breathe: !readRGB().breathe });
+    });
 
     applyTheme(lsGet(LS_THEME) || "ember", false);
     applyAura();
+    applyRGB();
   }
 
   if (document.readyState === "loading") {
