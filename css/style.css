@@ -119,7 +119,7 @@ html[data-theme="porcelain"] {
 .layout, .foot { position: relative; z-index: 1; }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: clip; }
 html, body { margin: 0; padding: 0; }
 body {
   height: 100%;
@@ -782,10 +782,10 @@ textarea:focus:not(:focus-visible) { outline: none; }
   .gcard { flex: 0 0 240px; scroll-snap-align: start; }
 
   .preset-row {
-    flex-wrap: nowrap; overflow-x: auto; padding: 4px 12px 12px; margin: 0 -12px;
-    scrollbar-width: thin;
+    flex-wrap: wrap; overflow-x: visible; padding: 4px 0 12px; margin: 0;
   }
-  .preset-chip { flex: none; }
+  .preset-chip { flex: 1 1 calc(33.333% - 8px); min-width: 0; padding: 8px; gap: 8px; }
+  .preset-chip .pcanvas { width: 40px; height: 40px; }
 
   #tool { padding-top: 32px; }
 }
