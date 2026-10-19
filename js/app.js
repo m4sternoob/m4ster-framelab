@@ -318,6 +318,11 @@ async function fetchWithRetry(url, onAttempt) {
     }
     if (res.ok) return res;
     lastStatus = res.status;
+    if (res.status === 401) {
+      // New endpoint needs the domain registered (enter.pollinations.ai) —
+      // caller falls back to the legacy host instead of failing.
+      throw new Error("POLLINATIONS_401_DOMAIN_NOT_REGISTERED");
+    }
     if (!retryableStatus(res.status)) {
       fail(`image request failed (HTTP ${res.status}) — not retryable; try Procedural mode`);
     }
@@ -328,13 +333,30 @@ async function fetchWithRetry(url, onAttempt) {
     `. Wait a minute and retry, or use Procedural mode.`);
 }
 
-async function fetchImageBitmap(url, onAttempt) {
-  const res = await fetchWithRetry(url, onAttempt);
-  const blob = await res.blob();
-  return createImageBitmap(blob);
+async function fetchImageBitmap(url, onAttempt, fallbackUrl) {
+  try {
+    const res = await fetchWithRetry(url, onAttempt);
+    const blob = await res.blob();
+    return createImageBitmap(blob);
+  } catch (e) {
+    // Domain not registered on the new endpoint → legacy host (Sana, weaker but free)
+    if (fallbackUrl && e && /POLLINATIONS_401/.test(e.message)) {
+      const res = await fetchWithRetry(fallbackUrl, onAttempt);
+      const blob = await res.blob();
+      return createImageBitmap(blob);
+    }
+    throw e;
+  }
 }
 
 function pollinationsURL(prompt, w, h, seed) {
+  // New unified endpoint: serves real FLUX/Z-Image (old host only serves Sana now).
+  // Works keyless once the domain is registered at enter.pollinations.ai
+  // (referer-based); falls back to the legacy host on 401.
+  return "https://gen.pollinations.ai/image/" + encodeURIComponent(prompt) +
+    `?width=${w}&height=${h}&seed=${seed}&nologo=true&model=flux`;
+}
+function pollinationsLegacyURL(prompt, w, h, seed) {
   return "https://image.pollinations.ai/prompt/" + encodeURIComponent(prompt) +
     `?width=${w}&height=${h}&seed=${seed}&nologo=true&model=flux`;
 }
@@ -348,7 +370,7 @@ async function genRowAI(prompt, frames, cellH, label) {
   const url = pollinationsURL(prompt, w, h, seed);
   const bmp = await fetchImageBitmap(url, (n, total) => {
     if (n > 1) setStep("row", "active", `row gen [${label}] — retry ${n}/${total}…`);
-  });
+  }, pollinationsLegacyURL(prompt, w, h, seed));
   const c = makeCanvas(bmp.width, bmp.height);
   c.getContext("2d").drawImage(bmp, 0, 0);
   return c;
@@ -1555,7 +1577,7 @@ async function genTileAI(prompt, size) {
   const seed = (Math.random() * 1e9) | 0;
   const bmp = await fetchImageBitmap(pollinationsURL(prompt, 512, 512, seed), (n, total) => {
     if (n > 1) setStep("row", "active", `tile gen — retry ${n}/${total}…`);
-  });
+  }, pollinationsLegacyURL(prompt, 512, 512, seed));
   const full = makeCanvas(bmp.width, bmp.height);
   full.getContext("2d").drawImage(bmp, 0, 0);
   const out = makeCanvas(size, size);
