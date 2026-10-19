@@ -119,6 +119,7 @@ html[data-theme="porcelain"] {
 .layout, .foot { position: relative; z-index: 1; }
 
 * { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 html, body { margin: 0; padding: 0; }
 body {
   height: 100%;
@@ -702,14 +703,30 @@ section.page-section { scroll-margin-top: 78px; }
   opacity: 1; transform: none;
   transition: opacity .55s ease var(--d, 0s), transform .55s cubic-bezier(.22, 1, .36, 1) var(--d, 0s);
 }
-/* pop variant: hero + category cards snap in on load (<600ms) */
+/* pop variant: hero + category cards float in on load (<600ms) — buttery, no bounce */
 .js .reveal-pop { opacity: 0; }
-.js .reveal-pop.in { opacity: 1; animation: popIn .55s cubic-bezier(.22, 1, .36, 1) var(--d, 0s) backwards; }
+.js .reveal-pop.in { opacity: 1; animation: popIn .6s cubic-bezier(.22, 1, .36, 1) var(--d, 0s) backwards; }
 @keyframes popIn {
-  from { opacity: 0; transform: translateY(16px) scale(.94); }
-  60%  { opacity: 1; transform: translateY(-2px) scale(1.012); }
+  from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: none; }
 }
+
+/* ---------- v6.7: marquee ticker (artcraft-style infinite scroll) ---------- */
+.marquee {
+  overflow: hidden; white-space: nowrap; position: relative; z-index: 1;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  padding: 14px 0; margin: 8px 0 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.marquee-track { display: inline-flex; gap: 26px; align-items: baseline; animation: marquee 28s linear infinite; }
+.marquee-track span {
+  font-family: var(--mono); font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--dim); white-space: nowrap;
+}
+.marquee-track i { color: var(--violet); font-style: normal; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
 
 /* ---------- v6.1: living logo — glow pulse + gentle float, transform/opacity only ---------- */
 .monogram-wrap { position: relative; display: inline-flex; flex: none; }
