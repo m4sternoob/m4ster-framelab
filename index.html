@@ -9,6 +9,14 @@
 <meta name="author" content="m4ster">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#1a1428">
+<!-- PWA / Chrome app -->
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="FrameLab">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FrameLab">
 <link rel="canonical" href="https://m4ster-framelab.vercel.app/">
 <!-- Open Graph -->
 <meta property="og:type" content="website">
@@ -80,6 +88,10 @@
     </div>
   </button>
   <div class="topbar-right">
+    <button class="install-btn" id="installBtn" type="button" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg>
+      <span>Install App</span>
+    </button>
     <button class="icon-btn" id="customizeBtn" aria-label="Customize theme and aura" aria-haspopup="dialog" aria-expanded="false" title="Customize">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
         <line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4" fill="var(--panel)"/>
@@ -314,5 +326,44 @@
 </footer>
 
 <script src="js/app.js"></script>
+<script>
+/* m4ster FrameLab PWA: service worker + install prompt */
+(function(){
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){});
+    });
+  }
+  var btn = document.getElementById('installBtn');
+  var deferred = null;
+  function isInstalled(){
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           window.navigator.standalone === true;
+  }
+  if (isInstalled()) return; // already installed — keep button hidden
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferred = e;
+    if (btn) btn.hidden = false;
+  });
+  window.addEventListener('appinstalled', function(){
+    deferred = null;
+    if (btn) btn.hidden = true;
+  });
+  if (btn) btn.addEventListener('click', function(){
+    if (!deferred) return;
+    deferred.prompt();
+    deferred.userChoice.then(function(){ deferred = null; btn.hidden = true; });
+  });
+  // iOS: no beforeinstallprompt — show hint button that explains Add to Home Screen
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (isIOS && btn && !isInstalled()) {
+    btn.hidden = false;
+    btn.addEventListener('click', function(){
+      alert('To install FrameLab: tap Share, then "Add to Home Screen".');
+    });
+  }
+})();
+</script>
 </body>
 </html>

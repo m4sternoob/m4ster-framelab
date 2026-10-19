@@ -169,6 +169,18 @@ button.brand { background: none; border: 0; padding: 0; font: inherit; color: in
 }
 .gh-link:hover { border-color: var(--violet); color: var(--violet); }
 
+/* ---------- PWA install button ---------- */
+.install-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  color: var(--text); font-family: var(--mono); font-size: 13px;
+  border: 1px solid var(--violet); border-radius: 10px; padding: 8px 14px;
+  background: color-mix(in srgb, var(--violet) 14%, transparent);
+  cursor: pointer; box-shadow: 0 0 14px color-mix(in srgb, var(--violet) 45%, transparent);
+}
+.install-btn:hover { transform: translateY(-1px); box-shadow: 0 0 20px color-mix(in srgb, var(--violet) 65%, transparent); }
+.install-btn[hidden] { display: none; }
+.install-btn svg { width: 16px; height: 16px; }
+
 /* ---------- layout: PC = wide two-panel tool ---------- */
 .layout {
   display: grid;
