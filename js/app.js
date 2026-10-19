@@ -2745,6 +2745,20 @@ document.addEventListener("DOMContentLoaded", init);
     document.getElementById("rgbBreathe").addEventListener("click", function () {
       saveRGB({ breathe: !readRGB().breathe });
     });
+    document.getElementById("custSave").addEventListener("click", function () {
+      /* all settings already persist on change — this force-saves the full
+       * snapshot (theme + aura + rgb) and confirms visually */
+      try {
+        lsSet(LS_THEME, document.documentElement.getAttribute("data-theme") || "ember");
+        saveAura(readAura());
+        saveRGB(readRGB());
+      } catch (e) {}
+      var tick = document.getElementById("saveTick");
+      if (tick) {
+        tick.classList.add("show");
+        setTimeout(function () { tick.classList.remove("show"); }, 1400);
+      }
+    });
 
     applyTheme(lsGet(LS_THEME) || "ember", false);
     applyAura();

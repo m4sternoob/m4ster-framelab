@@ -773,6 +773,23 @@ body.no-rgb .marquee::before, body.no-rgb .marquee::after { display: none; }
   .rgb-sep, .topbar::after, .marquee::before, .marquee::after { animation: none; }
 }
 
+/* ---------- v6.8: customize save button ---------- */
+.save-btn {
+  width: 100%; margin-top: 14px; padding: 12px;
+  background: var(--violet); color: #fff; border: 0; border-radius: 10px;
+  font-family: var(--mono); font-size: 14px; font-weight: 700; letter-spacing: 1px;
+  cursor: pointer; position: relative; overflow: hidden;
+  transition: transform .18s ease, filter .18s ease;
+}
+.save-btn:hover { transform: translateY(-2px); filter: brightness(1.12); }
+.save-btn:active { transform: translateY(0) scale(.98); }
+.save-tick {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: #16a34a; color: #fff; opacity: 0; pointer-events: none;
+  transition: opacity .25s ease;
+}
+.save-tick.show { opacity: 1; }
+
 /* ---------- v6.8: cursor glow trail canvas (5IN1 GridGlow idea) ---------- */
 #cursor-trail {
   position: fixed; inset: 0; z-index: 1; pointer-events: none;
