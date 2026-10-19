@@ -145,7 +145,7 @@ function renderParams() {
       <div class="field-label">Image &rarr; pixel art <span class="dim">(100% offline)</span></div><div class="row"><button type="button" class="btn-ghost" id="pxPick" style="text-align:center">Upload image</button><input type="file" id="pxFile" accept="image/*" hidden></div><div class="field-label">Output size</div><div class="px-dims" id="pxDims">
         ${[16, 32, 48, 64, 96, 128].map(s => `<button type="button" class="seg-btn${s === px.w ? " active" : ""}" data-px="${s}">${s}</button>`).join("")}
         <button type="button" class="seg-btn" id="pxOrigBtn" title="use the uploaded image's original dimensions">Original</button>
-      </div><div class="row" style="margin-top:8px"><span class="dim">W</span><input type="number" class="num" id="pxW" min="8" max="512" value="${px.w}"><span class="dim">H</span><input type="number" class="num" id="pxH" min="8" max="512" value="${px.h}"></div><div class="field-label">Tile grid <span class="dim">(tilemap overlay)</span></div><div class="row"><label class="chk"><input type="checkbox" id="pxGrid"${px.grid ? " checked" : ""}> show grid</label><select id="pxTile" aria-label="tile size">${[8, 16, 24, 32, 48, 64].map(t => `<option value="${t}"${t === px.tile ? " selected" : ""}>${t}px tiles</option>`).join("")}</select><span class="dim" id="pxTileCount"></span></div><div class="field-label">Colors</div><div class="row"><select id="pxColors" class="grow">
+      </div><div class="row" style="margin-top:8px"><span class="dim">W</span><input type="number" class="num" id="pxW" min="8" max="1024" value="${px.w}"><span class="dim">H</span><input type="number" class="num" id="pxH" min="8" max="1024" value="${px.h}"></div><div class="field-label">Tile grid <span class="dim">(tilemap overlay)</span></div><div class="row"><label class="chk"><input type="checkbox" id="pxGrid"${px.grid ? " checked" : ""}> show grid</label><select id="pxTile" aria-label="tile size">${[8, 16, 24, 32, 48, 64].map(t => `<option value="${t}"${t === px.tile ? " selected" : ""}>${t}px tiles</option>`).join("")}</select><span class="dim" id="pxTileCount"></span></div><div class="field-label">Colors</div><div class="row"><select id="pxColors" class="grow">
           ${[[2, "2 colors"], [4, "4 colors"], [8, "8 colors"], [16, "16 colors"], [32, "32 colors"], [256, "256 colors"], [0, "Full color"]].map(([v, lbl]) => `<option value="${v}"${v === px.colors ? " selected" : ""}>${lbl}</option>`).join("")}
         </select></div><label class="chk"><input type="checkbox" id="pxDither"${px.dither ? " checked" : ""}> dithering <span class="dim">(Floyd&ndash;Steinberg)</span></label><div class="row" style="margin-top:8px"><span class="dim">preview</span><input type="range" id="pxScale" min="2" max="16" value="${px.scale}" class="grow" aria-label="preview scale"><span class="dim" id="pxScaleVal">&times;${px.scale}</span></div><button type="button" class="btn-ghost px-download" id="pxDownload">Download pixel art</button><div class="dim">Upload any image — it never leaves your browser.</div>`;
     wirePixelArt();
@@ -1928,7 +1928,7 @@ function pxDownloadArt() {
 
 function wirePixelArt() {
   const P = pxState();
-  const clampWH = (v) => Math.max(8, Math.min(512, Math.round(v) || 64));
+  const clampWH = (v) => Math.max(8, Math.min(1024, Math.round(v) || 64));
 
   const syncOrigBtn = () => {
     const ob = $("#pxOrigBtn");
