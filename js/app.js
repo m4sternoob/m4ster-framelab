@@ -3405,3 +3405,33 @@ if (document.readyState === "loading") {
     requestAnimationFrame(tick);
   })();
 })();
+
+/* v6.9: PWA — register SW, Install App button (Download section only).
+ * Button shows on beforeinstallprompt, hides after install or 6s timeout,
+ * and never shows when already running as installed PWA (standalone). */
+(function () {
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () {});
+    });
+  }
+  var btn = document.getElementById("installApp");
+  if (!btn) return;
+  var isStandalone = window.matchMedia("(display-mode: standalone)").matches ||
+                     window.navigator.standalone === true;
+  if (isStandalone) return; /* installed — already fullscreen, no button */
+  var deferred = null, hideTimer = null;
+  function hide() { btn.hidden = true; if (hideTimer) clearTimeout(hideTimer); }
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    deferred = e;
+    btn.hidden = false;
+    hideTimer = setTimeout(hide, 6000); /* auto-hide if ignored */
+  });
+  btn.addEventListener("click", function () {
+    if (!deferred) { hide(); return; }
+    deferred.prompt();
+    deferred.userChoice.then(function () { hide(); deferred = null; });
+  });
+  window.addEventListener("appinstalled", hide);
+})();

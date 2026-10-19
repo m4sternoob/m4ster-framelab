@@ -805,6 +805,13 @@ body.no-rgb .marquee::before, body.no-rgb .marquee::after { display: none; }
   .rgb-sep, .topbar::after, .marquee::before, .marquee::after { animation: none; }
 }
 
+/* ---------- v6.9: PWA — service worker + install button ---------- */
+.install-app {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #fff; border: 0;
+}
+.install-app:hover { filter: brightness(1.1); transform: translateY(-2px); }
+
 /* ---------- v6.8: customize save button ---------- */
 .save-btn {
   width: 100%; margin-top: 14px; padding: 12px;
