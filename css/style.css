@@ -402,7 +402,7 @@ textarea#prompt:focus { outline: none; border-color: var(--violet); }
 @media (max-width: 767px) {
   .topbar { padding: 10px 14px; }
   .brand-name { font-size: 16px; }
-  .tagline { font-size: 11px; }
+  .tagline { display: none; }
   .monogram { width: 36px; height: 36px; }
   .pill { display: none; }
   .gh-link { padding: 7px 12px; font-size: 12px; }
@@ -586,6 +586,9 @@ section.page-section { scroll-margin-top: 78px; }
   letter-spacing: -.5px; margin: 0 0 18px;
 }
 .section-title .dim { font-size: 13px; letter-spacing: 0; }
+@media (max-width: 767px) {
+  .section-title .dim { display: block; margin-top: 6px; line-height: 1.5; }
+}
 
 /* ---------- hero ---------- */
 .hero { padding: 60px 20px 30px; text-align: center; }
