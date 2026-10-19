@@ -172,11 +172,11 @@ button.brand { background: none; border: 0; padding: 0; font: inherit; color: in
 /* ---------- layout: PC = wide two-panel tool ---------- */
 .layout {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 18px;
   padding: 20px;
   width: 100%;
-  max-width: 1440px;
+  max-width: 1280px;
   margin: 0 auto;
   flex: 1;
   align-items: start;
