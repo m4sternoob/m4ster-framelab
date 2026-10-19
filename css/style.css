@@ -287,12 +287,22 @@ textarea#prompt:focus { outline: none; border-color: var(--violet); }
 .generate {
   display: inline-block;
   width: 100%; margin-top: 20px; padding: 14px 24px;
-  background: var(--violet); color: var(--on-accent); border: 1px solid transparent; border-radius: 10px;
+  background: linear-gradient(135deg, var(--violet) 0%, var(--violet-soft) 100%);
+  color: var(--on-accent); border: 2px solid color-mix(in srgb, var(--violet) 60%, #fff);
+  /* hand-drawn wobble — matches the MFL logo sketch style */
+  border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px;
   font-family: var(--mono); font-weight: 700; font-size: 15px; letter-spacing: 2px;
   cursor: pointer;
-  box-shadow: 0 8px 28px -8px var(--glow);
+  box-shadow: 0 8px 28px -8px var(--glow), 0 0 18px -4px var(--violet);
+  transition: transform .18s ease, box-shadow .25s ease, filter .18s ease;
 }
-.generate:hover { background: var(--violet-soft); transform: translateY(-2px); box-shadow: 0 14px 36px -8px var(--glow); }
+.generate:hover {
+  background: linear-gradient(135deg, var(--violet-soft) 0%, var(--violet) 100%);
+  transform: translateY(-2px) rotate(-.4deg);
+  box-shadow: 0 14px 36px -8px var(--glow), 0 0 28px -4px var(--violet);
+  filter: brightness(1.08);
+}
+.generate:active { transform: translateY(0) rotate(0) scale(.98); }
 .generate:active { transform: translateY(0); }
 .generate:disabled { opacity: .45; cursor: wait; }
 .gen-note { color: var(--dim); font-size: 11px; margin-top: 10px; text-align: center; line-height: 1.5; }
@@ -863,7 +873,7 @@ textarea:focus:not(:focus-visible) { outline: none; }
   .page-section { padding-left: 12px; padding-right: 12px; }
   .hero { padding: 40px 12px 20px; }
   .hero-prompt-row { flex-direction: column; align-items: center; }
-  .hero-go.generate { width: calc(100% - 48px); padding: 16px; border-radius: 20px; }
+  .hero-go.generate { width: calc(100% - 48px); padding: 16px; }
   #heroPrompt { min-height: 72px; font-size: 16px; } /* 16px stops iOS zoom */
   .hero-hints { gap: 12px; }
 
@@ -873,7 +883,7 @@ textarea:focus:not(:focus-visible) { outline: none; }
     margin-left: 0; margin-right: 0; padding-left: 24px; padding-right: 24px;
     background: color-mix(in srgb, var(--bg) 97%, transparent);
   }
-  .mobile-bar .generate { width: calc(100% - 24px); margin-left: auto; margin-right: auto; display: block; border-radius: 20px; }
+  .mobile-bar .generate { width: calc(100% - 24px); margin-left: auto; margin-right: auto; display: block; }
 
   .cat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .cat-card { padding: 16px 10px; }
