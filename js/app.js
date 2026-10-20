@@ -124,28 +124,43 @@ function renderParams() {
 
   if (cat === "character") {
     box.innerHTML = `
-      <div class="field-label">Animation states <span class="dim" id="stateCostNote">(one AI call per state)</span></div><div class="row" id="stateRow">
+      <div class="field-label">Animation states <span class="dim" id="stateCostNote">(one AI call per state)</span></div>
+      <div class="states-grid" id="stateRow">
         ${["idle", "walk", "run", "jump", "attack"].map(s =>
           `<label class="chk"><input type="checkbox" data-state="${s}" ${d.states.includes(s) ? "checked" : ""}>${s}</label>`).join("")}
-      </div><div class="row"><span class="dim">frames/state</span><input type="number" class="num" id="pFrames" min="2" max="12" value="${d.frames}"><span class="dim">style</span><select id="pStyle" class="grow"><option value="flat 2D game sprite, absolutely no 3D, no 3D render, no volumetric lighting, solid flat colors, crisp edges">clean 2D</option><option value="retro pixel art, visible square pixels, limited 16-color palette, 16-bit game sprite, absolutely no 3D, no smooth 3D shading">pixel art</option><option value="2D cartoon, flat colors, bold outlines, hand-drawn animation cel style, absolutely no 3D">cartoon</option><option value="dark fantasy 2D game art, flat painterly 2D illustration, moody lighting, absolutely no 3D render">dark fantasy</option></select></div><div class="row"><span class="dim">view</span><select id="pView"><option value="side">side</option><option value="front">front</option></select><span class="dim">facing</span><div class="seg" id="pFlipSeg" style="grid-template-columns:repeat(2,minmax(0,1fr));flex:1"><button type="button" class="seg-btn${state.flipX ? "" : " active"}" data-flip="0" title="face right">&#8594; right</button><button type="button" class="seg-btn${state.flipX ? " active" : ""}" data-flip="1" title="face left">&#8592; left</button></div></div><div class="row"><span class="dim">archetype</span><select id="pArch" class="grow">
+      </div>
+      <div class="pgrid">
+        <div class="pfield"><label for="pFrames">Frames / state</label><input type="number" id="pFrames" min="2" max="12" value="${d.frames}"></div>
+        <div class="pfield"><label for="pStyle">Style</label><select id="pStyle"><option value="flat 2D game sprite, absolutely no 3D, no 3D render, no volumetric lighting, solid flat colors, crisp edges">clean 2D</option><option value="retro pixel art, visible square pixels, limited 16-color palette, 16-bit game sprite, absolutely no 3D, no smooth 3D shading">pixel art</option><option value="2D cartoon, flat colors, bold outlines, hand-drawn animation cel style, absolutely no 3D">cartoon</option><option value="dark fantasy 2D game art, flat painterly 2D illustration, moody lighting, absolutely no 3D render">dark fantasy</option></select></div>
+        <div class="pfield"><label for="pView">View</label><select id="pView"><option value="side">side</option><option value="front">front</option></select></div>
+        <div class="pfield"><label>Facing</label><div class="seg" id="pFlipSeg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button type="button" class="seg-btn${state.flipX ? "" : " active"}" data-flip="0" title="face right">&#8594; right</button><button type="button" class="seg-btn${state.flipX ? " active" : ""}" data-flip="1" title="face left">&#8592; left</button></div></div>
+        <div class="pfield"><label for="pArch">Archetype</label><select id="pArch">
           ${[["biped", "biped"], ["quadruped", "quadruped"], ["flyer", "flyer / bird"], ["slime", "slime"], ["robot", "robot"], ["ghost", "ghost"]]
             .map(([v, lbl]) => `<option value="${v}" ${v === d.archetype ? "selected" : ""}>${lbl}</option>`).join("")}
-        </select><span class="dim">palette</span><select id="pPal">
+        </select></div>
+        <div class="pfield"><label for="pPal">Palette</label><div class="pal-row"><select id="pPal">
           ${["classic", "ember", "frost", "toxic", "royal", "shadow"].map(pl => `<option ${pl === d.palette ? "selected" : ""}>${pl}</option>`).join("")}
-        </select><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div>`;
+        </select><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div></div>
+      </div>`;
   } else if (cat === "tile") {
     box.innerHTML = `
-      <div class="field-label">Tile</div><div class="row"><span class="dim">size</span><select id="pSize">
+      <div class="pgrid">
+        <div class="pfield"><label for="pSize">Tile size</label><select id="pSize">
           ${[32, 64, 128, 256].map(s => `<option value="${s}" ${s === d.size ? "selected" : ""}>${s}px</option>`).join("")}
-        </select><span class="dim">procedural pattern</span><select id="pPattern" class="grow">
+        </select></div>
+        <div class="pfield"><label for="pPattern">Procedural pattern</label><div class="pal-row"><select id="pPattern">
           ${TILE_PATTERNS.map(pat => `<option ${pat === d.pattern ? "selected" : ""}>${pat}</option>`).join("")}
-        </select><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div><div class="dim" style="margin-bottom:4px">Tiles export edge-to-edge (no keying) and preview in a 3&times;3 wrap.</div>`;
+        </select><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div></div>
+      </div><div class="dim" style="margin-top:8px">Tiles export edge-to-edge (no keying) and preview in a 3&times;3 wrap.</div>`;
   } else if (cat === "ui") {
     box.innerHTML = `
-      <div class="field-label">UI element</div><div class="row"><select id="pKind" class="grow">
+      <div class="pgrid">
+        <div class="pfield"><label for="pKind">UI element</label><select id="pKind">
           ${[["button", "button"], ["icon", "icon"], ["panel", "panel"], ["coin", "coin"], ["gem", "gem"], ["heart", "heart"], ["star", "star"], ["health", "health bar"]]
             .map(([v, lbl]) => `<option value="${v}" ${v === d.kind ? "selected" : ""}>${lbl}</option>`).join("")}
-        </select><span class="dim">variants</span><input type="number" class="num" id="pStates" min="1" max="4" value="${d.states}"><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div><div class="dim">Variants = normal / hover / pressed style states, extracted left to right.</div>`;
+        </select></div>
+        <div class="pfield"><label for="pStates">Variants</label><div class="pal-row"><input type="number" id="pStates" min="1" max="4" value="${d.states}"><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div></div>
+      </div><div class="dim" style="margin-top:8px">Variants = normal / hover / pressed style states, extracted left to right.</div>`;
   } else if (cat === "pixelart") {
     const px = CATEGORY_DEFAULTS.pixelart;
     box.innerHTML = `
@@ -240,9 +255,10 @@ function boostPromptText(cat, raw) {
 }
 
 function showPromptPeek(prompt) {
-  $("#promptSent").textContent = prompt;
-  $("#boostTag").hidden = !(state.lastBoost && state.lastBoost.boosted);
-  $("#promptPeek").hidden = false;
+  /* the boosted prompt used to be dumped into a panel under the prompt
+   * box — a wall of debug text nobody asked to read. Boosting still
+   * happens; it just stays silent now. Kept as a no-op so callers and
+   * state.lastBoost bookkeeping stay exactly as they were. */
 }
 
 /* ---------------- prompt builder ----------------
@@ -509,7 +525,7 @@ function syncAiModelUI() {
   const genNote = document.querySelector(".gen-note");
   if (genNote) {
     genNote.textContent = state.source === "ai"
-      ? "AI source: model picked above. Procedural runs 100% offline."
+      ? "AI models run free on AI Horde — no key needed."
       : "Procedural runs 100% offline — no network at all.";
   }
 }
@@ -2578,7 +2594,6 @@ async function runPipeline() {
   setStatusBar("");
   resetSteps();
   hideRetry();
-  $("#promptPeek").hidden = true;
   enableExport(false);
   state.rows = []; state.originals = []; state.atlas = null;
   state.revision = Date.now().toString(36);
@@ -3744,7 +3759,7 @@ document.addEventListener("DOMContentLoaded", init);
   /* ---------- v6.8: RGB separators (m4ster standard) ---------- */
   var LS_RGB = "m4ster.rgb";
   function readRGB() {
-    var d = { enabled: true, speed: 6, breathe: false };
+    var d = { enabled: true, speed: 6, breathe: false, rainbow: false };
     try {
       var raw = lsGet(LS_RGB);
       if (raw) {
@@ -3752,6 +3767,7 @@ document.addEventListener("DOMContentLoaded", init);
         if (typeof p.enabled === "boolean") d.enabled = p.enabled;
         if (isFinite(p.speed)) d.speed = Math.min(20, Math.max(2, +p.speed));
         if (typeof p.breathe === "boolean") d.breathe = p.breathe;
+        if (typeof p.rainbow === "boolean") d.rainbow = p.rainbow;
       }
     } catch (e) {}
     return d;
@@ -3760,6 +3776,7 @@ document.addEventListener("DOMContentLoaded", init);
     var r = readRGB();
     document.body.classList.toggle("no-rgb", !r.enabled);
     document.body.classList.toggle("rgb-breathe", r.breathe);
+    document.body.classList.toggle("rgb-rainbow", r.rainbow);
     document.documentElement.style.setProperty("--rgb-speed", r.speed + "s");
     var tg = document.getElementById("rgbToggle");
     if (tg) tg.setAttribute("aria-checked", r.enabled ? "true" : "false");
@@ -3767,6 +3784,8 @@ document.addEventListener("DOMContentLoaded", init);
     if (sp) sp.value = String(r.speed);
     var br = document.getElementById("rgbBreathe");
     if (br) br.setAttribute("aria-checked", r.breathe ? "true" : "false");
+    var rb = document.getElementById("rgbRainbow");
+    if (rb) rb.setAttribute("aria-checked", r.rainbow ? "true" : "false");
   }
   function saveRGB(patch) {
     var r = readRGB();
@@ -3825,6 +3844,9 @@ document.addEventListener("DOMContentLoaded", init);
     });
     document.getElementById("rgbBreathe").addEventListener("click", function () {
       saveRGB({ breathe: !readRGB().breathe });
+    });
+    document.getElementById("rgbRainbow").addEventListener("click", function () {
+      saveRGB({ rainbow: !readRGB().rainbow });
     });
     document.getElementById("custSave").addEventListener("click", function () {
       /* all settings already persist on change — this force-saves the full

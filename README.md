@@ -10,6 +10,22 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.16 — the lab, redesigned as steps
+
+Frontend only — the pipeline is untouched. The controls now read as a
+path: **Step 1** what you're making, **Step 2** source & model (moved up
+from the bottom, where it was buried), **Step 3** options (rebuilt as a
+labelled grid — states as even chips, frames/style, view/facing and
+archetype/palette as proper pairs), **Step 4** describe it, **Step 5**
+background key — joined by a rail line, with one unified button scale
+throughout. The boosted-prompt debug panel is gone (boosting still
+happens, silently). Frames + animation preview now live in one
+**Visualizer** panel with a proper filmstrip. Separators changed too:
+by default they wear the **active theme's colours** (Ember in, orange
+lines everywhere); the full rainbow is a "Rainbow flow" switch in
+Customize, alongside the existing on/off, speed and breathing controls.
+Status colours (green/amber/red) still override while generating.
+
 ## v6.15 — status bars
 
 The RGB separators now report the pipeline state: rainbow while working,

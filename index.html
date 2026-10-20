@@ -131,29 +131,24 @@
 
   <!-- ============ LEFT: CONTROLS ============ -->
   <aside class="panel controls">
-    <div class="tabs" role="tablist">
-      <button class="tab active" data-cat="character" role="tab">Character</button>
-      <button class="tab" data-cat="tile" role="tab">Tile</button>
-      <button class="tab" data-cat="ui" role="tab">UI</button>
-      <button class="tab" data-cat="effect" role="tab">Effect</button>
-      <button class="tab" data-cat="pixelart" role="tab">Pixel Art</button>
-      <button class="tab" data-cat="slicer" role="tab">Slicer</button>
-    </div>
+    <section class="ctl-group">
+      <div class="ctl-head"><span class="ctl-num">1</span><div class="ctl-titles"><span class="ctl-step">Step 1</span><h3>What are you making?</h3></div></div>
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-cat="character" role="tab">Character</button>
+        <button class="tab" data-cat="tile" role="tab">Tile</button>
+        <button class="tab" data-cat="ui" role="tab">UI</button>
+        <button class="tab" data-cat="effect" role="tab">Effect</button>
+        <button class="tab" data-cat="pixelart" role="tab">Pixel Art</button>
+        <button class="tab" data-cat="slicer" role="tab">Slicer</button>
+      </div>
+    </section>
 
-    <div id="params"></div>
-
-    <label class="field-label" for="prompt">Describe it</label>
-    <textarea id="prompt" rows="3" placeholder="e.g. zombie pirate with a rusty hook hand"></textarea>
-    <details class="prompt-peek" id="promptPeek" hidden>
-      <summary>prompt sent to AI <span id="boostTag" class="boost-tag" hidden>auto-boosted</span></summary>
-      <p id="promptSent"></p>
-    </details>
-
-    <div class="field-label" id="sourceLabel">Source</div>
-    <div class="seg" id="sourceSeg">
-      <button class="seg-btn active" data-src="ai">AI image</button>
-      <button class="seg-btn" data-src="procedural">Procedural <span class="offline">offline</span></button>
-    </div>
+    <section class="ctl-group">
+      <div class="ctl-head"><span class="ctl-num">2</span><div class="ctl-titles"><span class="ctl-step">Step 2</span><h3>Source &amp; model</h3></div></div>
+      <div class="seg" id="sourceSeg">
+        <button class="seg-btn active" data-src="ai">AI image</button>
+        <button class="seg-btn" data-src="procedural">Procedural <span class="offline">offline</span></button>
+      </div>
 
     <div id="aiModelBox">
       <div class="field-label">AI model <span class="dim">(swap anytime)</span></div>
@@ -183,18 +178,33 @@
         <p class="ai-model-note">Still + Alive: the AI draws ONE character and FrameLab animates it — poses can never be sliced in half. AI strip: the classic multi-pose sheet, cut afterwards.</p>
       </div>
     </div>
+    </section>
 
-    <div class="field-label" id="keyLabel">Background key <span class="dim">(stripped from the sprite)</span></div>
-    <div class="keys" id="keyRow">
-      <button class="key active" data-key="255,0,255" style="--kc:#ff00ff" title="Magenta"></button>
-      <button class="key" data-key="0,255,0" style="--kc:#00ff00" title="Green"></button>
-      <button class="key" data-key="0,120,255" style="--kc:#0078ff" title="Blue"></button>
-      <button class="key" data-key="255,255,255" style="--kc:#ffffff" title="White"></button>
-      <button class="key" data-key="0,0,0" style="--kc:#000000" title="Black"></button>
-    </div>
+    <section class="ctl-group">
+      <div class="ctl-head"><span class="ctl-num">3</span><div class="ctl-titles"><span class="ctl-step">Step 3</span><h3>Options</h3></div></div>
+      <div id="params"></div>
+    </section>
+
+    <section class="ctl-group">
+      <div class="ctl-head"><span class="ctl-num">4</span><div class="ctl-titles"><span class="ctl-step">Step 4</span><h3>Describe it</h3></div></div>
+      <textarea id="prompt" rows="3" placeholder="e.g. zombie pirate with a rusty hook hand" aria-label="Describe your sprite"></textarea>
+    </section>
+
+    
+
+    <section class="ctl-group">
+      <div class="ctl-head"><span class="ctl-num">5</span><div class="ctl-titles"><span class="ctl-step">Step 5</span><h3>Background key <span class="dim">— stripped from the sprite</span></h3></div></div>
+      <div class="keys" id="keyRow">
+        <button class="key active" data-key="255,0,255" style="--kc:#ff00ff" title="Magenta"></button>
+        <button class="key" data-key="0,255,0" style="--kc:#00ff00" title="Green"></button>
+        <button class="key" data-key="0,120,255" style="--kc:#0078ff" title="Blue"></button>
+        <button class="key" data-key="255,255,255" style="--kc:#ffffff" title="White"></button>
+        <button class="key" data-key="0,0,0" style="--kc:#000000" title="Black"></button>
+      </div>
+    </section>
 
     <button id="generate" class="generate">GENERATE SPRITE</button>
-    <div class="gen-note">AI source uses Pollinations (free, no key). Procedural runs 100% offline.</div>
+    <div class="gen-note">AI models run free on AI Horde (no key). Procedural runs 100% offline.</div>
   </aside>
 
   <!-- ============ RIGHT: PIPELINE + OUTPUT ============ -->
@@ -232,25 +242,31 @@
       </div>
     </div>
 
-    <div class="frames-head" id="framesHead">
-      <span class="field-label">Frames <span class="dim" id="framesMeta"></span></span>
-      <span class="dim">originals kept untouched — reorder arrows only change the manifest</span>
-    </div>
-    <div class="frames-row" id="framesRow"></div>
+    <div class="viz-panel">
+      <div class="viz-head">
+        <span class="viz-title">Visualizer</span>
+        <span class="dim">every sprite + animation, live</span>
+      </div>
 
-    <div class="frames-head" id="splitHead" hidden>
-      <span class="field-label">Pieces <span class="dim" id="splitMeta"></span></span>
-      <span class="dim">click in order — 1st = frame 1</span>
-    </div>
-    <div class="split-grid" id="splitGrid" hidden></div>
+      <div class="frames-head" id="framesHead">
+        <span class="field-label">Frames <span class="dim" id="framesMeta"></span></span>
+        <span class="dim">click a frame to download it · arrows reorder the manifest only</span>
+      </div>
+      <div class="frames-row" id="framesRow"></div>
+
+      <div class="frames-head" id="splitHead" hidden>
+        <span class="field-label">Pieces <span class="dim" id="splitMeta"></span></span>
+        <span class="dim">click in order — 1st = frame 1</span>
+      </div>
+      <div class="split-grid" id="splitGrid" hidden></div>
 
     <div class="preview-export">
       <div class="preview-box">
-        <div class="field-label">Preview <span class="dim" id="previewMeta"></span></div>
+        <div class="field-label">Animation preview <span class="dim" id="previewMeta"></span></div>
         <canvas id="preview" width="256" height="256"></canvas>
         <div class="preview-controls">
-          <select id="previewState"></select>
-          <select id="previewFps">
+          <select id="previewState" aria-label="Animation to preview"></select>
+          <select id="previewFps" aria-label="Preview speed">
             <option value="6">6 fps</option>
             <option value="8" selected>8 fps</option>
             <option value="12">12 fps</option>
@@ -273,6 +289,7 @@
         <button class="btn install-app" id="installApp" hidden>📲 Install App</button>
         <div class="export-note">Bundle = sheet PNG + animated GIF preview + manifest (absolute frame rects, fps, loop). Your game reads the rects — never recompute.</div>
       </div>
+    </div>
     </div>
   </section>
 </main>
@@ -308,6 +325,10 @@
   <div class="cust-row">
     <span>Breathing</span>
     <button class="switch" id="rgbBreathe" role="switch" aria-checked="false" aria-label="Toggle RGB breathing mode"><span class="knob"></span></button>
+  </div>
+  <div class="cust-row">
+    <span>Rainbow flow <span class="dim">(off = theme colours)</span></span>
+    <button class="switch" id="rgbRainbow" role="switch" aria-checked="false" aria-label="Toggle rainbow separator colours"><span class="knob"></span></button>
   </div>
   <button class="save-btn" id="custSave" type="button">💾 Save<span class="save-tick" id="saveTick">Saved ✓</span></button>
 </div>
