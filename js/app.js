@@ -422,12 +422,12 @@ const AI_PROVIDERS = {
   "pol-flux": {
     note: "Real FLUX quality.",
     keyField: "pollinations", keyLabel: "Pollinations key",
-    keyHint: `Free key: sign in at <a href="https://enter.pollinations.ai" target="_blank" rel="noopener">enter.pollinations.ai</a>, create a key, paste it here. Saved only in your browser.`
+    keyHint: `Free key: sign in at <a href="https://enter.pollinations.ai" target="_blank" rel="noopener">enter.pollinations.ai</a>, create a key, paste it here. Stored only in this browser's localStorage — sent only to Pollinations when you generate.`
   },
   "hf-flux": {
     note: "FLUX.1 schnell through Hugging Face — fast FLUX renders.",
     keyField: "huggingface", keyLabel: "Hugging Face token",
-    keyHint: `Free token: <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> → New token (Read) → paste here. Saved only in your browser.`
+    keyHint: `Free token: <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> → New token (Read) → paste here. Stored only in this browser's localStorage — sent only to Hugging Face when you generate.`
   }
 };
 

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>m4ster FrameLab — free 2D game sprite generator</title>
-<meta name="description" content="m4ster FrameLab: prompt-first 2D game sprite + animation atlas studio in your browser. Free forever, open source, unlimited use. No keys, no signup, no payments. For the gamers, by the gamers.">
+<meta name="description" content="m4ster FrameLab: prompt-first 2D game sprite + animation atlas studio in your browser. Free forever, open source, unlimited use. No account, no signup, no payments. For the gamers, by the gamers.">
 <link rel="icon" href="icons/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" media="(prefers-color-scheme: dark)">
@@ -64,7 +64,7 @@
         <line x1="4" y1="17" x2="20" y2="17"/><circle cx="7" cy="17" r="2.4" fill="var(--panel)"/>
       </svg>
     </button>
-    <span class="pill">free · unlimited · no keys · no signup</span>
+    <span class="pill">free · unlimited · no key needed · no signup</span>
     <a class="gh-link" href="https://github.com/m4sternoob/m4ster-sprite-gen" target="_blank" rel="noopener">GitHub</a>
   </div>
 </header>
@@ -80,7 +80,7 @@
       <button id="heroGenerate" class="generate hero-go" type="button">MAKE IT</button>
     </div>
     <div class="hero-hints">
-      <span>no login</span><span>no paywall</span><span>no watermark</span><span>works offline</span>
+      <span>no login</span><span>no paywall</span><span>no watermark</span><span>procedural + tools work offline</span>
     </div>
   </div>
 </section>
@@ -203,7 +203,7 @@
           <option value="horde-zimage">AI Horde · Z-Image-Turbo — fast new model</option>
           <option value="horde-sd">AI Horde · Stable Diffusion — quick classic</option>
         </optgroup>
-        <optgroup label="Free key — paste once, saved in your browser">
+        <optgroup label="Free key — paste once, stored in this browser's localStorage">
           <option value="pol-flux">Pollinations · FLUX — top quality</option>
           <option value="hf-flux">Hugging Face · FLUX.1 schnell — fast FLUX</option>
         </optgroup>
@@ -411,7 +411,7 @@
     <h2>3D Lab <span class="dim">&mdash; image &rarr; mesh, same rules</span></h2>
     <p class="lab3d-lede">The flip at the top is the whole idea: <strong>one hub</strong>. Drop in an image
     and a free open model turns it into a real 3D mesh &mdash; a GLB that drops straight into
-    Unity / Unreal / Godot. No signup, no keys, and in AUTO mode the hub
+    Unity / Unreal / Godot. No signup, no key required, and in AUTO mode the hub
     <strong>switches provider itself</strong> if one fails &mdash; same deal as the 2D side.</p>
 
     <div class="m3-drop" id="m3Drop" role="button" tabindex="0" aria-label="Choose an image to turn into a 3D mesh">
@@ -428,7 +428,7 @@
     <div id="m3TokenRow">
       <label class="m3-label" for="m3Token">Hugging Face token <span class="dim">(optional &mdash; only when the free GPU quota runs dry)</span></label>
       <input id="m3Token" class="ai-model-select m3-select" type="password" autocomplete="off" spellcheck="false" placeholder="paste your free HF token (optional)">
-      <p class="ai-key-hint">The 3D spaces run on shared free GPUs (ZeroGPU). Anonymous runs work while quota lasts; a free token raises YOUR quota and is the fix the spaces themselves suggest. Get one at <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> (Read token). Saved only in your browser &mdash; shared with the 2D HF model key.</p>
+      <p class="ai-key-hint">The 3D spaces run on shared free GPUs (ZeroGPU). Anonymous runs work while quota lasts; a free token raises YOUR quota and is the fix the spaces themselves suggest. Get one at <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> (Read token). Stored in this browser's localStorage, never on a server &mdash; shared with the 2D HF model key, and sent only to the provider you run.</p>
     </div>
 
     <label class="m3-label" for="m3Provider">Provider</label>
@@ -499,7 +499,7 @@
 </div>
 
 <footer class="foot">
-  <span>m4ster FrameLab · MIT open source · runs 100% in your browser · free forever, no login, no paywall · your pixels never leave your machine except the AI prompt</span>
+  <span>m4ster FrameLab · MIT open source · runs 100% in your browser · free forever, no login, no paywall · AI generation sends your prompt (2D) or image (3D) to the free provider you pick — everything else never leaves your machine</span>
 </footer>
 
 <script src="js/app.js"></script>
