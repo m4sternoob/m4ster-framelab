@@ -10,6 +10,22 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.10 — one-click engine packs
+
+Two new export buttons, each a single ZIP built in the browser:
+
+- **Export for Godot** — the sprite sheet PNG + `animations.tres`, a real
+  Godot 4 `SpriteFrames` resource with every animation, fps and loop flag
+  set. Drop both files in a project, point an `AnimatedSprite2D` at the
+  `.tres`, press play.
+- **Export for Unity** — the sheet PNG with a pre-sliced `.png.meta`, a
+  `framelab-unity.json` sidecar, and `FrameLabAnimBuilder.cs`. Drop the
+  pack in Assets (script inside an `Editor` folder), run
+  **FrameLab > Build Animation Clips**, and get one `.anim` per animation
+  plus a ready AnimatorController. The builder resolves sprites by name
+  inside the editor — the reliable route, since raw `.anim` YAML
+  references internal sprite IDs that only Unity can assign.
+
 ## v6.9 — Still + Alive: one drawing in, every animation out
 
 Asking an image model for a whole pose strip is how characters end up

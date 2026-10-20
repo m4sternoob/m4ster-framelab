@@ -1114,6 +1114,10 @@ function wireExport() {
     downloadCanvas(state.atlas.canvas, state.atlas.pngName || "m4ster-sprite-sheet.png");
     setTimeout(() => downloadJSON(state.atlas.manifest, state.atlas.jsonName || "m4ster-sprite-atlas.json"), 400);
   };
+  const godotBtn = $("#dlGodot");
+  if (godotBtn) godotBtn.onclick = () => { downloadGodotPack().catch(e => stageMsg("Godot export failed: " + e.message, true)); };
+  const unityBtn = $("#dlUnity");
+  if (unityBtn) unityBtn.onclick = () => { downloadUnityPack().catch(e => stageMsg("Unity export failed: " + e.message, true)); };
   $("#dlFrames").onclick = () => {
     if (state.slicer && state.slicer.selection.length) {
       // slicer: export the picked frames in order
@@ -1137,7 +1141,467 @@ function wireExport() {
 }
 
 function enableExport(on) {
-  ["#dlSheet", "#dlJson", "#dlFrames", "#dlAnim", "#dlBundle"].forEach(s => { const el = $(s); if (el) el.disabled = !on; });
+  ["#dlSheet", "#dlJson", "#dlFrames", "#dlAnim", "#dlBundle", "#dlGodot", "#dlUnity"].forEach(s => { const el = $(s); if (el) el.disabled = !on; });
+}
+
+/* ================= v6.10: engine export packs =================
+ * One click per engine. Godot gets a real SpriteFrames .tres (plain text,
+ * generated exactly). Unity gets the sheet pre-sliced via a hand-authored
+ * .meta plus an Editor builder script that creates the .anim clips inside
+ * Unity — clips reference sprites by name at editor time, so there is no
+ * GUID guessing (the failure mode of shipping raw .anim YAML). */
+
+/* --- stored (uncompressed) ZIP writer: local headers + central dir --- */
+const CRC_TABLE = (() => {
+  const t = new Int32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c;
+  }
+  return t;
+})();
+function crc32(bytes) {
+  let c = -1;
+  for (let i = 0; i < bytes.length; i++) c = (c >>> 8) ^ CRC_TABLE[(c ^ bytes[i]) & 0xFF];
+  return (c ^ -1) >>> 0;
+}
+async function fileBytes(data) {
+  if (typeof data === "string") return new TextEncoder().encode(data);
+  if (data instanceof Uint8Array) return data;
+  if (data instanceof Blob) return new Uint8Array(await data.arrayBuffer());
+  if (data && data.toBlob) { // canvas
+    const blob = await new Promise(r => data.toBlob(r, "image/png"));
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+  throw new Error("zip: unsupported file data");
+}
+async function downloadZip(zipName, files) {
+  const chunks = [], central = [];
+  let offset = 0;
+  const u16 = n => [n & 0xFF, (n >>> 8) & 0xFF];
+  const u32 = n => [n & 0xFF, (n >>> 8) & 0xFF, (n >>> 16) & 0xFF, (n >>> 24) & 0xFF];
+  for (const f of files) {
+    const name = new TextEncoder().encode(f.name);
+    const bytes = await fileBytes(f.data);
+    const crc = crc32(bytes);
+    const local = new Uint8Array([
+      ...u32(0x04034b50), ...u16(20), ...u16(0x0800), ...u16(0),
+      ...u16(0), ...u16(0x21), ...u32(crc), ...u32(bytes.length), ...u32(bytes.length),
+      ...u16(name.length), ...u16(0), ...name
+    ]);
+    chunks.push(local, bytes);
+    central.push(new Uint8Array([
+      ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0),
+      ...u16(0), ...u16(0x21), ...u32(crc), ...u32(bytes.length), ...u32(bytes.length),
+      ...u16(name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(0), ...u32(offset), ...name
+    ]));
+    offset += local.length + bytes.length;
+  }
+  let cdSize = 0;
+  for (const c of central) { chunks.push(c); cdSize += c.length; }
+  chunks.push(new Uint8Array([
+    ...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(central.length),
+    ...u16(central.length), ...u32(cdSize), ...u32(offset), ...u16(0)
+  ]));
+  const total = chunks.reduce((a, c) => a + c.length, 0);
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const c of chunks) { out.set(c, pos); pos += c.length; }
+  downloadBytes(out, zipName, "application/zip");
+}
+
+/* --- shared: flatten manifest animations to [{name, fps, loop, rects}] --- */
+function manifestAnims(manifest) {
+  return Object.entries(manifest.animations).map(([name, a]) => ({
+    name,
+    fps: a.fps || 8,
+    loop: a.loop !== false,
+    rects: (manifest.frameLayout.rows[name] || {}).rects || []
+  })).filter(a => a.rects.length);
+}
+const safeName = s => String(s).replace(/[^a-zA-Z0-9_-]+/g, "_");
+
+/* --- Godot: SpriteFrames .tres (Godot 4, Rect2 origin is top-left, y down
+ * — exactly how our manifest stores rects, so no conversion) --- */
+function godotTres(manifest, pngName) {
+  const subs = [], animChunks = [];
+  let si = 0;
+  for (const a of manifestAnims(manifest)) {
+    const frames = a.rects.map(r => {
+      si++;
+      subs.push(`[sub_resource type="AtlasTexture" id="AtlasTexture_${si}"]\natlas = ExtResource("1")\nregion = Rect2(${r.x}, ${r.y}, ${r.w}, ${r.h})`);
+      return `{\n"duration": 1.0,\n"texture": SubResource("AtlasTexture_${si}")\n}`;
+    });
+    animChunks.push(`{\n"frames": [${frames.join(", ")}],\n"loop": ${a.loop},\n"name": &"${safeName(a.name)}",\n"speed": ${a.fps.toFixed(1)}\n}`);
+  }
+  return `[gd_resource type="SpriteFrames" format=3]\n\n` +
+    `[ext_resource type="Texture2D" path="res://${pngName}" id="1"]\n\n` +
+    subs.join("\n\n") + `\n\n[resource]\nanimations = [${animChunks.join(", ")}]\n`;
+}
+
+/* --- Unity: sidecar JSON the builder script reads --- */
+function unitySidecar(manifest, pngName) {
+  return JSON.stringify({
+    tool: "m4ster FrameLab",
+    texture: pngName,
+    width: manifest.sheetWidth,
+    height: manifest.sheetHeight,
+    animations: manifestAnims(manifest).map(a => ({
+      name: safeName(a.name), fps: a.fps, loop: a.loop, rects: a.rects
+    }))
+  }, null, 2);
+}
+
+/* --- Unity: pre-sliced .png.meta (bonus path — the builder script re-does
+ * the slicing from the sidecar anyway, so a Unity version that regenerates
+ * this file loses nothing). Unity rects are bottom-up: y flips. --- */
+function unityMeta(manifest, guid) {
+  const H = manifest.sheetHeight;
+  const hex = n => Array.from({ length: n }, () => "0123456789abcdef"[(Math.random() * 16) | 0]).join("");
+  const sprites = [], idTable = [], nameTable = [];
+  let idx = 0;
+  for (const a of manifestAnims(manifest)) {
+    a.rects.forEach((r, i) => {
+      const nm = `${safeName(a.name)}_${i}`;
+      const internalId = 21300000 + idx * 2;
+      const spriteID = hex(32);
+      sprites.push(
+`    - serializedVersion: 2
+      name: ${nm}
+      rect:
+        serializedVersion: 2
+        x: ${r.x}
+        y: ${H - r.y - r.h}
+        width: ${r.w}
+        height: ${r.h}
+      alignment: 0
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      customData:
+      physicsShape: []
+      bones: []
+      spriteID: ${spriteID}
+      internalID: ${internalId}
+      vertices: []
+      indices:
+      edges: []
+      weights: []`);
+      idTable.push(`  - first:\n      213: ${internalId}\n    second: ${nm}`);
+      nameTable.push(`      ${nm}: ${internalId}`);
+      idx++;
+    });
+  }
+  return `fileFormatVersion: 2
+guid: ${guid}
+TextureImporter:
+  internalIDToNameTable:
+${idTable.join("\n")}
+  externalObjects: {}
+  serializedVersion: 12
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignoreMipmapLimitSet: 0
+  applyGammaDecoding: 0
+  swizzle: 0
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 3
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_Bakery: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+${sprites.join("\n")}
+    nameFileIdTable:
+${nameTable.join("\n")}
+  mipmapLimitGroupName:
+  pSDRemoveMatte: 0
+  userData:
+  assetBundleName:
+  assetBundleVariant:
+`;
+}
+
+/* --- Unity: Editor builder script (plain text asset, written like any
+ * editor tool: menu click -> slice from sidecar -> build clips by name) --- */
+const UNITY_BUILDER_CS = `// FrameLabAnimBuilder.cs
+// Generated by m4ster FrameLab (https://m4ster-framelab.vercel.app).
+// Drop this file into any Editor folder in your Unity project, keep it next
+// to the FrameLab pack (sheet PNG + framelab-unity.json), then run:
+//   FrameLab > Build Animation Clips
+// It slices the sheet from the sidecar data and creates one .anim clip per
+// animation, plus a ready AnimatorController. Sprites are resolved by name
+// inside the editor, so references can never arrive broken.
+
+using System.Collections.Generic;
+using System.IO;
+using UnityEditor;
+using UnityEditor.Animations;
+using UnityEngine;
+
+public static class FrameLabAnimBuilder
+{
+    [System.Serializable]
+    private class RectJ { public int x; public int y; public int w; public int h; }
+
+    [System.Serializable]
+    private class AnimJ { public string name; public float fps; public bool loop; public RectJ[] rects; }
+
+    [System.Serializable]
+    private class PackJ { public string texture; public int width; public int height; public AnimJ[] animations; }
+
+    [MenuItem("FrameLab/Build Animation Clips")]
+    public static void Build()
+    {
+        string jsonPath = FindSidecar();
+        if (jsonPath == null)
+        {
+            EditorUtility.DisplayDialog("FrameLab", "framelab-unity.json not found in the project.", "OK");
+            return;
+        }
+
+        string dir = Path.GetDirectoryName(jsonPath).Replace("\\\\", "/");
+        var pack = JsonUtility.FromJson<PackJ>(File.ReadAllText(jsonPath));
+        string texPath = dir + "/" + pack.texture;
+        var importer = AssetImporter.GetAtPath(texPath) as TextureImporter;
+        if (importer == null)
+        {
+            EditorUtility.DisplayDialog("FrameLab", "Sheet texture not found next to the sidecar: " + texPath, "OK");
+            return;
+        }
+
+        // Slice the sheet exactly as the sidecar says. Unity rects are
+        // bottom-up, FrameLab rects are top-down, so y flips here.
+        importer.textureType = TextureImporterType.Sprite;
+        importer.spriteImportMode = SpriteImportMode.Multiple;
+        importer.filterMode = FilterMode.Point;
+        importer.textureCompression = TextureImporterCompression.Uncompressed;
+        var metas = new List<SpriteMetaData>();
+        foreach (var anim in pack.animations)
+        {
+            for (int i = 0; i < anim.rects.Length; i++)
+            {
+                var r = anim.rects[i];
+                metas.Add(new SpriteMetaData
+                {
+                    name = anim.name + "_" + i,
+                    rect = new Rect(r.x, pack.height - r.y - r.h, r.w, r.h),
+                    alignment = (int)SpriteAlignment.Custom,
+                    pivot = new Vector2(0.5f, 0f)
+                });
+            }
+        }
+        importer.spritesheet = metas.ToArray();
+        importer.SaveAndReimport();
+
+        var sprites = new Dictionary<string, Sprite>();
+        foreach (var obj in AssetDatabase.LoadAllAssetsAtPath(texPath))
+        {
+            var spr = obj as Sprite;
+            if (spr != null) sprites[spr.name] = spr;
+        }
+
+        string animDir = dir + "/Animations";
+        if (!AssetDatabase.IsValidFolder(animDir))
+            AssetDatabase.CreateFolder(dir, "Animations");
+
+        string controllerPath = animDir + "/FrameLab.controller";
+        if (File.Exists(controllerPath)) AssetDatabase.DeleteAsset(controllerPath);
+        var controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
+        var stateMachine = controller.layers[0].stateMachine;
+        AnimatorState firstState = null;
+
+        foreach (var anim in pack.animations)
+        {
+            var keys = new List<ObjectReferenceKeyframe>();
+            for (int i = 0; i < anim.rects.Length; i++)
+            {
+                Sprite spr;
+                if (!sprites.TryGetValue(anim.name + "_" + i, out spr)) continue;
+                keys.Add(new ObjectReferenceKeyframe { time = i / anim.fps, value = spr });
+            }
+            if (keys.Count == 0) continue;
+            // terminal keyframe: hold the last sprite for its full slot
+            keys.Add(new ObjectReferenceKeyframe
+            {
+                time = anim.rects.Length / anim.fps,
+                value = keys[keys.Count - 1].value
+            });
+
+            var clip = new AnimationClip { frameRate = anim.fps };
+            var settings = AnimationUtility.GetAnimationClipSettings(clip);
+            settings.loopTime = anim.loop;
+            AnimationUtility.SetAnimationClipSettings(clip, settings);
+            var binding = new EditorCurveBinding
+            {
+                type = typeof(SpriteRenderer),
+                path = "",
+                propertyName = "m_Sprite"
+            };
+            AnimationUtility.SetObjectReferenceCurve(clip, binding, keys.ToArray());
+            string clipPath = animDir + "/" + anim.name + ".anim";
+            if (File.Exists(clipPath)) AssetDatabase.DeleteAsset(clipPath);
+            AssetDatabase.CreateAsset(clip, clipPath);
+
+            var state = stateMachine.AddState(anim.name);
+            state.motion = clip;
+            if (firstState == null) firstState = state;
+        }
+        if (firstState != null) stateMachine.defaultState = firstState;
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        EditorUtility.DisplayDialog("FrameLab",
+            "Built " + pack.animations.Length + " animation clip(s) + FrameLab.controller in " + animDir, "OK");
+    }
+
+    private static string FindSidecar()
+    {
+        string[] guids = AssetDatabase.FindAssets("framelab-unity");
+        foreach (var guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            if (path.EndsWith("framelab-unity.json")) return path;
+        }
+        return null;
+    }
+}
+`;
+
+const GODOT_README = `m4ster FrameLab — Godot pack
+============================
+
+Files:
+- m4ster-sprite-sheet.png   the sprite sheet
+- animations.tres           a Godot 4 SpriteFrames resource (every animation, fps + loop set)
+
+Use it:
+1. Copy both files into your Godot project (keep them in the same folder).
+2. Add an AnimatedSprite2D node.
+3. In the Inspector, set its Sprite Frames to animations.tres
+   (click the Sprite Frames field > Load > pick the file).
+4. Pick an animation in the editor and press play, or from code:
+       $AnimatedSprite2D.play("walk")
+
+If you move the PNG, open animations.tres in a text editor and fix the
+path on the [ext_resource ...] line so it points at the PNG
+(res:// = your project root).
+`;
+
+const UNITY_README = `m4ster FrameLab — Unity pack
+============================
+
+Files:
+- m4ster-sprite-sheet.png        the sprite sheet (arrives pre-sliced via the .meta)
+- m4ster-sprite-sheet.png.meta   texture importer data with every frame sliced
+- framelab-unity.json            sidecar data (frame rects, fps, loop per animation)
+- FrameLabAnimBuilder.cs         editor script that builds the .anim clips
+
+Use it:
+1. Copy all four files into your Unity project's Assets (same folder).
+   Keep FrameLabAnimBuilder.cs inside a folder named "Editor".
+2. In Unity, run the menu:  FrameLab > Build Animation Clips
+3. You get one .anim per animation + FrameLab.controller in an
+   "Animations" folder next to the sheet. Put a SpriteRenderer +
+   Animator on your character, assign the controller, done.
+
+Why a builder script? Raw .anim files reference sprites by internal IDs
+that only Unity can assign. The script resolves sprites by name inside
+the editor, so clips can never arrive with "Missing (Sprite)".
+`;
+
+async function downloadGodotPack() {
+  if (!state.atlas) return;
+  const m = state.atlas.manifest, pngName = state.atlas.pngName;
+  const png = await fileBytes(state.atlas.canvas);
+  await downloadZip("m4ster-framelab-godot.zip", [
+    { name: pngName, data: png },
+    { name: "animations.tres", data: godotTres(m, pngName) },
+    { name: "README-godot.txt", data: GODOT_README }
+  ]);
+  stageMsg("Godot pack downloaded — unzip into your project, point an AnimatedSprite2D at animations.tres.");
+}
+
+async function downloadUnityPack() {
+  if (!state.atlas) return;
+  const m = state.atlas.manifest, pngName = state.atlas.pngName;
+  const guid = Array.from({ length: 32 }, () => "0123456789abcdef"[(Math.random() * 16) | 0]).join("");
+  const png = await fileBytes(state.atlas.canvas);
+  await downloadZip("m4ster-framelab-unity.zip", [
+    { name: pngName, data: png },
+    { name: pngName + ".meta", data: unityMeta(m, guid) },
+    { name: "framelab-unity.json", data: unitySidecar(m, pngName) },
+    { name: "FrameLabAnimBuilder.cs", data: UNITY_BUILDER_CS },
+    { name: "README-unity.txt", data: UNITY_README }
+  ]);
+  stageMsg("Unity pack downloaded — unzip into Assets, then run FrameLab > Build Animation Clips.");
 }
 /* ================= procedural (offline) generators =================
  * Seeded pixel-art mode: palette-locked, selective outline, binary alpha.
@@ -3811,7 +4275,7 @@ if (document.readyState === "loading") {
   var HOVER = "a, button, input, select, textarea, .gcard, .cat-card, .preset-chip, " +
               ".swatch, .tab, .seg-btn, .stepper li, .icon-btn, .frame-card, " +
               ".key, label, summary, [role=button]";
-  var CTA = "#dlBundle, #dlSheet, #dlJson, #dlFrames, #dlAnim, " +
+  var CTA = "#dlBundle, #dlSheet, #dlJson, #dlFrames, #dlAnim, #dlGodot, #dlUnity, " +
             "#generate, #heroGenerate, #generateMobile";
 
   document.addEventListener("mousemove", function (e) {
