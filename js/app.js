@@ -3545,7 +3545,7 @@ function wireSlicer() {
   bindRange("#slCols", "#slColsVal", "cols");
 
   [["slMargin", "margin"], ["slPad", "pad"], ["slOx", "ox"], ["slOy", "oy"]].forEach(([id, key]) => {
-    $(id).onchange = (e) => {
+    $("#" + id).onchange = (e) => {
       S[key] = Math.max(0, Math.round(+e.target.value || 0));
       e.target.value = S[key];
       slicerOverlay();

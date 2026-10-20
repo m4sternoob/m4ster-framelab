@@ -10,6 +10,14 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.17.1 — slicer wiring fix
+
+A bare-id selector in the slicer's control wiring (`$("slMargin")` for
+`$("#slMargin")`) threw on every Slicer open, silently killing the mode
+sync and the margin/padding/offset/knockout/fps bindings behind it. The
+core upload path bound earlier, so slicing still worked — the layout
+mode and half the controls didn't. Fixed and verified end-to-end.
+
 ## v6.17 — tools are tools
 
 Pixel Art and Slicer are utilities, not generation types — they're out of
