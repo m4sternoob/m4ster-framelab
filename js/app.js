@@ -887,6 +887,7 @@ function hideRetry() { $("#retryBar").hidden = true; }
 function showRetry(msg) {
   $("#retryMsg").textContent = msg;
   $("#retryBar").hidden = false;
+  setStatusBar("warn"); // a decision is on the table — bars go amber
 }
 
 function setBusy(b) {
@@ -2563,9 +2564,18 @@ function pushRow(name, frames, extra = {}) {
   state.originals.push(frames.slice());
 }
 
+/* status bars (v6.15): the RGB separators change colour with the pipeline —
+ * rainbow while working, green on done, amber when a decision is needed,
+ * red on failure. One body class drives every separator via --rgb-grad. */
+function setStatusBar(s) {
+  document.body.classList.remove("status-done", "status-warn", "status-error");
+  if (s) document.body.classList.add("status-" + s);
+}
+
 async function runPipeline() {
   if (state.busy) return;
   setBusy(true);
+  setStatusBar("");
   resetSteps();
   hideRetry();
   $("#promptPeek").hidden = true;
@@ -2718,6 +2728,7 @@ async function runPipeline() {
     renderFramesUI();
     startPreview();
     enableExport(true);
+    setStatusBar("done");
   } catch (e) {
     const active = document.querySelector("#stepper li.active");
     if (active) { active.classList.remove("active"); active.classList.add("error"); }
@@ -2729,9 +2740,11 @@ async function runPipeline() {
       setStep("row", "warn");
       stageMsg(msg, "warn");
       showRetry(msg);
+      setStatusBar("warn");
     } else {
       stageMsg("FAILED: " + e.message, true);
       showRetry("Extraction found nothing usable. Retry with a stricter prompt, lower the frame count, or pick a different background key.");
+      setStatusBar("error");
     }
   } finally {
     setBusy(false);

@@ -10,6 +10,13 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.15 — status bars
+
+The RGB separators now report the pipeline state: rainbow while working,
+green when a generation finishes, amber when a recovery decision is on the
+table, red on failure. Top bar, marquee, footer and the phone's sticky
+generate bar all switch together off one CSS variable.
+
 ## v6.14 — model list cut to what works
 
 Two providers removed (see the switcher notes below): Sana and OpenRouter.

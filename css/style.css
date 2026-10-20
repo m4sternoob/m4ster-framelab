@@ -455,9 +455,7 @@ textarea#prompt:focus { outline: none; border-color: var(--violet); }
 }
 .foot::before {
   content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
-  background: linear-gradient(90deg,
-    #ff2d78, #ff8c00, #ffee00, #00e676,
-    #00ccff, #7c4dff, #ff2d78);
+  background: var(--rgb-grad);
   background-size: 200% 100%;
   animation: rgbFlow var(--rgb-speed, 6s) linear infinite;
 }
@@ -805,12 +803,38 @@ section.page-section { scroll-margin-top: 78px; }
 /* ---------- v6.8: RGB separators (m4ster standard — all apps) ----------
  * Flowing rainbow gradient lines. Modes: flow (default) / breathing.
  * Speed via --rgb-speed (seconds). Toggle via body.no-rgb. */
-:root { --rgb-speed: 6s; }
-.rgb-sep {
-  height: 2px; border: 0; margin: 0; padding: 0;
-  background: linear-gradient(90deg,
+:root {
+  --rgb-speed: 6s;
+  --rgb-grad: linear-gradient(90deg,
     #ff2d78, #ff8c00, #ffee00, #00e676,
     #00ccff, #7c4dff, #ff2d78);
+}
+/* status colours (v6.15): the separators report the pipeline state —
+ * rainbow while working, green done, amber needs-a-decision, red failed */
+body.status-done {
+  --rgb-grad: linear-gradient(90deg,
+    #00c853, #00e676, #69f0ae, #00e676, #00c853, #00e676, #00c853);
+}
+body.status-warn {
+  --rgb-grad: linear-gradient(90deg,
+    #ff8c00, #ffc400, #ffee00, #ffc400, #ff8c00, #ffc400, #ff8c00);
+}
+body.status-error {
+  --rgb-grad: linear-gradient(90deg,
+    #d50000, #ff1744, #ff5252, #ff1744, #d50000, #ff1744, #d50000);
+}
+/* the phone's sticky generate bar gets the same line on its top edge */
+.mobile-bar::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: var(--rgb-grad);
+  background-size: 200% 100%;
+  animation: rgbFlow var(--rgb-speed, 6s) linear infinite;
+}
+body.rgb-breathe .mobile-bar::before { animation: rgbBreathe var(--rgb-speed, 6s) ease-in-out infinite; }
+body.no-rgb .mobile-bar::before { display: none; }
+.rgb-sep {
+  height: 2px; border: 0; margin: 0; padding: 0;
+  background: var(--rgb-grad);
   background-size: 200% 100%;
   animation: rgbFlow var(--rgb-speed, 6s) linear infinite;
 }
@@ -822,9 +846,7 @@ body.no-rgb .rgb-sep { display: none; }
 .topbar { border-bottom: 0; }
 .topbar::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
-  background: linear-gradient(90deg,
-    #ff2d78, #ff8c00, #ffee00, #00e676,
-    #00ccff, #7c4dff, #ff2d78);
+  background: var(--rgb-grad);
   background-size: 200% 100%;
   animation: rgbFlow var(--rgb-speed, 6s) linear infinite;
 }
@@ -833,9 +855,7 @@ body.no-rgb .topbar::after { display: none; }
 .marquee { border-top: 0; border-bottom: 0; position: relative; }
 .marquee::before, .marquee::after {
   content: ""; position: absolute; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg,
-    #ff2d78, #ff8c00, #ffee00, #00e676,
-    #00ccff, #7c4dff, #ff2d78);
+  background: var(--rgb-grad);
   background-size: 200% 100%;
   animation: rgbFlow var(--rgb-speed, 6s) linear infinite;
 }
@@ -844,7 +864,7 @@ body.no-rgb .topbar::after { display: none; }
 body.rgb-breathe .marquee::before, body.rgb-breathe .marquee::after { animation: rgbBreathe var(--rgb-speed, 6s) ease-in-out infinite; }
 body.no-rgb .marquee::before, body.no-rgb .marquee::after { display: none; }
 @media (prefers-reduced-motion: reduce) {
-  .rgb-sep, .topbar::after, .marquee::before, .marquee::after { animation: none; }
+  .rgb-sep, .topbar::after, .marquee::before, .marquee::after, .foot::before, .mobile-bar::before { animation: none; }
 }
 
 /* ---------- v6.9: PWA — service worker + install button ---------- */
