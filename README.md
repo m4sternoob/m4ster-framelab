@@ -10,6 +10,12 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.14 — model list cut to what works
+
+Two providers removed (see the switcher notes below): Sana and OpenRouter.
+AI Horde · Deliberate is the default now, and a saved preference for a
+removed model falls back to it automatically.
+
 ## v6.13 — every frame actually moves
 
 Still + Alive looping motion (idle, walk, run) was built on a lone sine
@@ -83,13 +89,14 @@ honours one contract — prompt + size in, one image out — and declares what
 it needs up front; a model that can't run says so instead of quietly
 downgrading you.
 
-- **Free, no key** — Pollinations · Sana (fast drafts), AI Horde ·
-  Deliberate / Juggernaut XL / Stable Diffusion (community GPUs, real
-  model choice, queue-based)
+- **Free, no key** — AI Horde · Deliberate (default) / Juggernaut XL /
+  Stable Diffusion (community GPUs, real model choice, queue-based)
 - **Free key, paste once** — Pollinations · FLUX (key from
   enter.pollinations.ai), Hugging Face · FLUX.1 schnell (free HF token)
-- **Your key, pay per image** — OpenRouter · Gemini Flash Image
-  (~1¢/image, billed to your own key, labelled in the UI)
+
+Removed in v6.14: Pollinations · Sana (soft, washed-out renders that
+ignored the brief) and OpenRouter (pay-per-image — a free tool doesn't
+need a paid lane).
 
 Keys are stored only in your browser's localStorage and are sent only to
 the provider you picked. NVIDIA NIM was evaluated and skipped: its image

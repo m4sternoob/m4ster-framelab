@@ -42,7 +42,7 @@ function colorDist(r1, g1, b1, r2, g2, b2) {
 const state = {
   category: "character",
   source: "ai",            // ai | procedural
-  aiModel: "pol-sana",     // provider id from the model switcher (AI_PROVIDERS)
+  aiModel: "horde-deliberate", // provider id from the model switcher (AI_PROVIDERS)
   aiStyle: "still",        // character AI: "still" (one drawing, animated in-house) | "strip"
   charStash: null,         // user's character-panel picks (states/frames/style…), kept across re-renders
   key: { r: 255, g: 0, b: 255 },
@@ -299,74 +299,7 @@ function buildPrompt(cat, p, sub, strict) {
     `vibrant flat game art, ` + flatBg + `, no text, no watermark` + strictClause;
 }
 
-/* ---------------- AI row generation (Pollinations, no auth) ---------------- */
-
-/* ---------------- AI fetch with retry ----------------
- * Pollinations rate-limits anonymous bursts (HTTP 402/429). Retry with
- * exponential backoff: immediate, +3s, +9s. 402/429/5xx and network
- * errors are retryable; other 4xx fail fast. onAttempt(n, total) drives
- * the stepper so the user sees "Row gen — retry 2/3…" instead of silence. */
-
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-function retryableStatus(s) { return s === 402 || s === 429 || s >= 500; }
-
-async function fetchWithRetry(url, onAttempt) {
-  const delays = [0, 3000, 9000];
-  let lastStatus = 0;
-  for (let i = 0; i < delays.length; i++) {
-    if (delays[i]) await sleep(delays[i]);
-    if (onAttempt) { try { onAttempt(i + 1, delays.length); } catch (e) {} }
-    let res;
-    try {
-      res = await fetch(url, { mode: "cors" });
-    } catch (e) {
-      continue; // network blip — transient, retry
-    }
-    if (res.ok) return res;
-    lastStatus = res.status;
-    if (res.status === 401) {
-      // New endpoint needs the domain registered (enter.pollinations.ai) —
-      // caller falls back to the legacy host instead of failing.
-      throw new Error("POLLINATIONS_401_DOMAIN_NOT_REGISTERED");
-    }
-    if (!retryableStatus(res.status)) {
-      fail(`image request failed (HTTP ${res.status}) — not retryable; try Procedural mode`);
-    }
-    // else: loop for another attempt
-  }
-  fail(`AI_RATE_LIMITED: Pollinations is rate-limiting free requests right now` +
-    (lastStatus ? ` (HTTP ${lastStatus} after 3 tries)` : ` (network unreachable after 3 tries)`) +
-    `. Wait a minute and retry, or use Procedural mode.`);
-}
-
-async function fetchImageBitmap(url, onAttempt, fallbackUrl) {
-  try {
-    const res = await fetchWithRetry(url, onAttempt);
-    const blob = await res.blob();
-    return createImageBitmap(blob);
-  } catch (e) {
-    // Domain not registered on the new endpoint → legacy host (Sana, weaker but free)
-    if (fallbackUrl && e && /POLLINATIONS_401/.test(e.message)) {
-      const res = await fetchWithRetry(fallbackUrl, onAttempt);
-      const blob = await res.blob();
-      return createImageBitmap(blob);
-    }
-    throw e;
-  }
-}
-
-function pollinationsURL(prompt, w, h, seed) {
-  // New unified endpoint: serves real FLUX/Z-Image (old host only serves Sana now).
-  // Works keyless once the domain is registered at enter.pollinations.ai
-  // (referer-based); falls back to the legacy host on 401.
-  return "https://gen.pollinations.ai/image/" + encodeURIComponent(prompt) +
-    `?width=${w}&height=${h}&seed=${seed}&nologo=true&model=flux`;
-}
-function pollinationsLegacyURL(prompt, w, h, seed) {
-  return "https://image.pollinations.ai/prompt/" + encodeURIComponent(prompt) +
-    `?width=${w}&height=${h}&seed=${seed}&nologo=true&model=flux`;
-}
 
 /* ---------------- AI model switcher (v6.8) ----------------
  * Every provider honours one contract: prompt + size in, one image bitmap
@@ -377,12 +310,8 @@ function pollinationsLegacyURL(prompt, w, h, seed) {
  * anywhere except the provider the user picked. */
 
 const AI_PROVIDERS = {
-  "pol-sana": {
-    note: "Free, no key. Fast — good for quick drafts.",
-    keyField: null
-  },
   "horde-deliberate": {
-    note: "Free, no key. Community GPUs — usually 20–60s, much better detail than Sana.",
+    note: "Free, no key. Community GPUs — usually 20–60s. The default.",
     keyField: null, hordeModel: "Deliberate"
   },
   "horde-juggernaut": {
@@ -402,11 +331,6 @@ const AI_PROVIDERS = {
     note: "FLUX.1 schnell through Hugging Face — fast FLUX renders.",
     keyField: "huggingface", keyLabel: "Hugging Face token",
     keyHint: `Free token: <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> → New token (Read) → paste here. Saved only in your browser.`
-  },
-  "openrouter": {
-    note: "Gemini Flash Image through OpenRouter. NOT free — roughly a cent per image, charged to your own OpenRouter key.",
-    keyField: "openrouter", keyLabel: "OpenRouter key",
-    keyHint: `Key: <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Saved only in your browser; images are billed to that key.`
   }
 };
 
@@ -499,7 +423,7 @@ async function hordeGenerate(prompt, w, h, model, onStatus) {
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return blobToBitmap(new Blob([bytes], { type: "image/webp" }));
   }
-  fail("AI Horde took over 5 minutes in the free queue — timed out. Retry, or pick a faster model (Sana / Stable Diffusion).");
+  fail("AI Horde took over 5 minutes in the free queue — timed out. Retry, or pick Stable Diffusion (the Horde's quickest).");
 }
 
 async function hfGenerate(prompt, w, h, token, onStatus) {
@@ -539,53 +463,13 @@ async function polFluxGenerate(prompt, w, h, key, onStatus) {
   return blobToBitmap(await res.blob());
 }
 
-async function openRouterGenerate(prompt, w, h, key, onStatus) {
-  let res;
-  try {
-    res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + key,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://m4ster-framelab.vercel.app",
-        "X-Title": "m4ster FrameLab"
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        modalities: ["image", "text"],
-        messages: [{ role: "user", content: prompt }]
-      })
-    });
-  } catch (e) { fail("OpenRouter is unreachable right now (network). Retry in a moment."); }
-  if (res.status === 401 || res.status === 403) {
-    fail("OpenRouter rejected that key. Check the key under \"AI model\" and retry.");
-  }
-  if (res.status === 402) {
-    fail("OpenRouter says that key has no credit. Image models there are pay-per-image — add credit or pick a free model.");
-  }
-  if (!res.ok) fail(`OpenRouter request failed (HTTP ${res.status}). Retry in a moment.`);
-  const data = await res.json();
-  const msg = data.choices && data.choices[0] && data.choices[0].message;
-  const img = msg && msg.images && msg.images[0] && msg.images[0].image_url && msg.images[0].image_url.url;
-  if (!img) fail("OpenRouter answered without an image. Retry once — if it repeats, pick another model.");
-  const imgRes = await fetch(img);
-  return blobToBitmap(await imgRes.blob());
-}
-
 /* the one door every AI image comes through */
 async function aiGenerateImage(prompt, w, h, onStatus) {
-  const id = AI_PROVIDERS[state.aiModel] ? state.aiModel : "pol-sana";
+  const id = AI_PROVIDERS[state.aiModel] ? state.aiModel : "horde-deliberate";
   const p = AI_PROVIDERS[id];
-  if (id === "pol-sana") {
-    const seed = (Math.random() * 1e9) | 0;
-    return fetchImageBitmap(pollinationsLegacyURL(prompt, w, h, seed), (n, total) => {
-      if (n > 1 && onStatus) onStatus(`Pollinations · Sana — retry ${n}/${total}…`);
-    });
-  }
   if (p.hordeModel) return hordeGenerate(prompt, w, h, p.hordeModel, onStatus);
   if (id === "pol-flux") return polFluxGenerate(prompt, w, h, needKey(id), onStatus);
   if (id === "hf-flux") return hfGenerate(prompt, w, h, needKey(id), onStatus);
-  if (id === "openrouter") return openRouterGenerate(prompt, w, h, needKey(id), onStatus);
   fail("Unknown AI model selected — pick one from the list.");
 }
 
@@ -595,7 +479,7 @@ function syncAiModelUI() {
   const box = document.getElementById("aiModelBox");
   if (!sel || !box) return;
   box.hidden = state.source !== "ai";
-  sel.value = AI_PROVIDERS[state.aiModel] ? state.aiModel : "pol-sana";
+  sel.value = AI_PROVIDERS[state.aiModel] ? state.aiModel : "horde-deliberate";
   const p = AI_PROVIDERS[sel.value];
   const keyRow = document.getElementById("aiKeyRow");
   const keyInput = document.getElementById("aiKey");
