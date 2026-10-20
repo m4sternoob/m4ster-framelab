@@ -10,6 +10,14 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.13 — every frame actually moves
+
+Still + Alive looping motion (idle, walk, run) was built on a lone sine
+wave, whose values repeat in pairs — a 6-frame row was really 3 poses shown
+twice, at an amplitude too small to see. The loops now mix two frequencies
+with phase-shifted bob and sway, so no two frames in a row share a pose and
+the motion reads clearly in the preview.
+
 ## v6.12 — transparent, honest, simpler
 
 AI still keying rebuilt: the background flood now runs with a drift cap that

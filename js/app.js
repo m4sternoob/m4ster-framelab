@@ -2628,13 +2628,13 @@ function animateStill(frame, sname, count) {
     const ph = t * TAU;
     let sx = 1, sy = 1, dx = 0, dy = 0, rot = 0;
     if (sname === "walk") {
-      dy = -H * 0.035 * Math.abs(Math.sin(ph));
-      rot = 0.035 * Math.sin(ph);
-      sy = 1 + 0.012 * Math.sin(2 * ph);
+      dy = -H * (0.034 * Math.abs(Math.sin(ph)) + 0.012 * Math.sin(2 * ph));
+      rot = 0.05 * Math.sin(ph) + 0.016 * Math.sin(2 * ph + 1.3) + 0.012 * Math.cos(ph);
+      sy = 1 + 0.02 * Math.sin(2 * ph + 0.6);
     } else if (sname === "run") {
-      dy = -H * 0.06 * Math.abs(Math.sin(ph));
-      rot = 0.06 + 0.04 * Math.sin(ph);
-      sy = 1 + 0.02 * Math.sin(2 * ph);
+      dy = -H * (0.055 * Math.abs(Math.sin(ph)) + 0.018 * Math.sin(2 * ph));
+      rot = 0.06 + 0.05 * Math.sin(ph) + 0.02 * Math.sin(2 * ph + 1.1) + 0.014 * Math.cos(ph);
+      sy = 1 + 0.028 * Math.sin(2 * ph + 0.6);
     } else if (sname === "jump") {
       const a = Math.sin(Math.PI * t);
       dy = -H * 0.20 * a;
@@ -2650,10 +2650,14 @@ function animateStill(frame, sname, count) {
       const a = t * t;
       rot = -1.45 * a; dy = H * 0.16 * a;
       sx = 1 - 0.10 * a; sy = 1 - 0.25 * a;
-    } else { /* idle + anything else: breathe */
-      sy = 1 + 0.028 * Math.sin(ph);
-      sx = 1 - 0.012 * Math.sin(ph);
-      dy = -H * 0.006 * (0.5 - 0.5 * Math.cos(ph));
+    } else { /* idle + anything else: breathe — two mixed frequencies plus a
+     * phase-shifted bob and sway, so no two frames in the loop ever land on
+     * the same pose (a lone sine repeats its values in pairs and the row
+     * reads as copies) */
+      sy = 1 + 0.045 * Math.sin(ph) + 0.015 * Math.sin(2 * ph + 0.7);
+      sx = 1 - 0.02 * Math.sin(ph + 0.4);
+      dy = -H * 0.014 * (0.5 + 0.5 * Math.sin(ph - 0.9));
+      rot = 0.012 * Math.sin(ph + 0.5);
     }
     const c = makeCanvas(W, H);
     const ctx = c.getContext("2d");
