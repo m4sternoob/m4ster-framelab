@@ -42,7 +42,7 @@ function colorDist(r1, g1, b1, r2, g2, b2) {
 const state = {
   category: "character",
   source: "ai",            // ai | procedural
-  aiModel: "horde-deliberate", // provider id from the model switcher (AI_PROVIDERS)
+  aiModel: "auto", // provider id from the model switcher (AI_PROVIDERS)
   aiStyle: "still",        // character AI: "still" (one drawing, animated in-house) | "strip"
   charStash: null,         // user's character-panel picks (states/frames/style…), kept across re-renders
   key: { r: 255, g: 0, b: 255 },
@@ -126,13 +126,13 @@ function renderParams() {
     box.innerHTML = `
       <div class="field-label">Animation states <span class="dim" id="stateCostNote">(one AI call per state)</span></div>
       <div class="states-grid" id="stateRow">
-        ${["idle", "walk", "run", "jump", "attack"].map(s =>
+        ${["idle", "walk", "run", "jump", "attack", "death"].map(s =>
           `<label class="chk"><input type="checkbox" data-state="${s}" ${d.states.includes(s) ? "checked" : ""}>${s}</label>`).join("")}
       </div>
       <div class="pgrid">
         <div class="pfield"><label for="pFrames">Frames / state</label><input type="number" id="pFrames" min="2" max="12" value="${d.frames}"></div>
-        <div class="pfield"><label for="pStyle">Style</label><select id="pStyle"><option value="flat 2D game sprite, absolutely no 3D, no 3D render, no volumetric lighting, solid flat colors, crisp edges">clean 2D</option><option value="retro pixel art, visible square pixels, limited 16-color palette, 16-bit game sprite, absolutely no 3D, no smooth 3D shading">pixel art</option><option value="2D cartoon, flat colors, bold outlines, hand-drawn animation cel style, absolutely no 3D">cartoon</option><option value="dark fantasy 2D game art, flat painterly 2D illustration, moody lighting, absolutely no 3D render">dark fantasy</option></select></div>
-        <div class="pfield"><label for="pView">View</label><select id="pView"><option value="side">side</option><option value="front">front</option></select></div>
+        <div class="pfield"><label for="pStyle">Style</label><select id="pStyle">${styleOptionsHtml()}</select></div>
+        <div class="pfield"><label for="pView">View</label><select id="pView"><option value="side">side</option><option value="front">front</option><option value="3/4 top-down">top 3/4</option><option value="top-down">top-down 90°</option></select></div>
         <div class="pfield"><label>Facing</label><div class="seg" id="pFlipSeg" style="grid-template-columns:repeat(2,minmax(0,1fr))"><button type="button" class="seg-btn${state.flipX ? "" : " active"}" data-flip="0" title="face right">&#8594; right</button><button type="button" class="seg-btn${state.flipX ? " active" : ""}" data-flip="1" title="face left">&#8592; left</button></div></div>
         <div class="pfield"><label for="pArch">Archetype</label><select id="pArch">
           ${[["biped", "biped"], ["quadruped", "quadruped"], ["flyer", "flyer / bird"], ["slime", "slime"], ["robot", "robot"], ["ghost", "ghost"]]
@@ -201,6 +201,7 @@ function renderParams() {
   // shuffle button: re-roll the procedural variant with a fresh random seed
   const sh = $("#pShuffle");
   if (sh) sh.onclick = () => runPipeline();
+  syncStudio();
 }
 
 function readParams() {
@@ -326,6 +327,86 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
  * anywhere except the provider the user picked. */
 
 const AI_PROVIDERS = {
+  "auto": {
+    note: "Auto chain (Phase 1 trial order): Deliberate → Juggernaut XL → Dreamshaper → AlbedoBase XL → Stable Diffusion → Flat-2D Animerge (your FLUX keys slot in near the front if saved). If one hits a limit or fails, it switches to the next BY ITSELF. No key, no signup.",
+    keyField: null, auto: true
+  },
+  "horde-novaflat": {
+    note: "Free, no key. Nova Flat XL — flat-shaded XL style, sprite-friendly.",
+    keyField: null, hordeModel: "Nova Flat XL"
+  },
+  "horde-animagine": {
+    note: "Free, no key. Animagine XL — polished modern anime.",
+    keyField: null, hordeModel: "Animagine XL"
+  },
+  "horde-anything5": {
+    note: "Free, no key. Anything v5 — anime all-rounder.",
+    keyField: null, hordeModel: "Anything v5"
+  },
+  "horde-dreamshaper": {
+    note: "Free, no key. Dreamshaper — the classic all-rounder (SD 1.5).",
+    keyField: null, hordeModel: "Dreamshaper"
+  },
+  "horde-photon": {
+    note: "Free, no key. Photon — clean realistic-leaning renders. Few workers — may queue a while.",
+    keyField: null, hordeModel: "Photon"
+  },
+  "horde-absreality": {
+    note: "Free, no key. AbsoluteReality — realistic characters.",
+    keyField: null, hordeModel: "AbsoluteReality"
+  },
+  "horde-flux": {
+    note: "Free, no key. FLUX.1 Schnell on community GPUs — top-tier quality, usually 30–90s in the queue.",
+    keyField: null, hordeModel: "Flux.1-Schnell fp8 (Compact)"
+  },
+  "horde-dreamshaper-xl": {
+    note: "Free, no key. DreamShaper XL — versatile, great for game art.",
+    keyField: null, hordeModel: "DreamShaper XL"
+  },
+  "horde-albedo": {
+    note: "Free, no key. AlbedoBase XL — sharp, detailed SDXL renders.",
+    keyField: null, hordeModel: "AlbedoBase XL (SDXL)"
+  },
+  "horde-rev": {
+    note: "Free, no key. Rev Animated — anime and animated-style characters.",
+    keyField: null, hordeModel: "Rev Animated"
+  },
+  "horde-flat2d": {
+    note: "Free, no key. Flat-2D Animerge — flat 2D style, made for sprites.",
+    keyField: null, hordeModel: "Flat-2D Animerge"
+  },
+  "horde-pixel": {
+    note: "Free, no key. AIO Pixel Art — the pixel-art specialist.",
+    keyField: null, hordeModel: "AIO Pixel Art"
+  },
+  "horde-counterfeit": {
+    note: "Free, no key. Counterfeit — polished anime renders.",
+    keyField: null, hordeModel: "Counterfeit"
+  },
+  "horde-realvis": {
+    note: "Free, no key. Realistic Vision — realistic characters and portraits.",
+    keyField: null, hordeModel: "Realistic Vision"
+  },
+  "horde-icbinp": {
+    note: "Free, no key. ICBINP — photoreal people and scenes.",
+    keyField: null, hordeModel: "ICBINP - I Can't Believe It's Not Photography"
+  },
+  "horde-anything": {
+    note: "Free, no key. Anything Diffusion — the anime classic.",
+    keyField: null, hordeModel: "Anything Diffusion"
+  },
+  "horde-zimage": {
+    note: "Free, no key. Z-Image-Turbo — new, fast, crisp.",
+    keyField: null, hordeModel: "Z-Image-Turbo"
+  },
+  "horde-sdxl": {
+    note: "Free, no key. SDXL 1.0 — the solid base model.",
+    keyField: null, hordeModel: "SDXL 1.0"
+  },
+  "horde-ghibli": {
+    note: "Free, no key. Ghibli Diffusion — soft storybook look.",
+    keyField: null, hordeModel: "Ghibli Diffusion"
+  },
   "horde-deliberate": {
     note: "Free, no key. Community GPUs — usually 20–60s. The default.",
     keyField: null, hordeModel: "Deliberate"
@@ -480,13 +561,62 @@ async function polFluxGenerate(prompt, w, h, key, onStatus) {
 }
 
 /* the one door every AI image comes through */
-async function aiGenerateImage(prompt, w, h, onStatus) {
-  const id = AI_PROVIDERS[state.aiModel] ? state.aiModel : "horde-deliberate";
+async function aiGenerateWith(id, prompt, w, h, onStatus) {
   const p = AI_PROVIDERS[id];
   if (p.hordeModel) return hordeGenerate(prompt, w, h, p.hordeModel, onStatus);
   if (id === "pol-flux") return polFluxGenerate(prompt, w, h, needKey(id), onStatus);
   if (id === "hf-flux") return hfGenerate(prompt, w, h, needKey(id), onStatus);
   fail("Unknown AI model selected — pick one from the list.");
+}
+
+/* AUTO chain — Phase 1 trial order (HUB roadmap, 2026-10-20; supersedes
+ * the earlier 16-model ranked chain by his latest directive — the manual
+ * dropdown still carries the full roster). Saved FLUX keys slot in near
+ * the front. */
+const AI_AUTO_CHAIN = [
+  "horde-deliberate", "horde-juggernaut", "horde-dreamshaper",
+  "horde-albedo", "horde-sd", "horde-flat2d"
+];
+const AI_MODEL_NAMES = {
+  "horde-flux": "FLUX.1 Schnell", "horde-juggernaut": "Juggernaut XL",
+  "horde-dreamshaper-xl": "DreamShaper XL", "horde-deliberate": "Deliberate",
+  "horde-albedo": "AlbedoBase XL", "horde-rev": "Rev Animated",
+  "horde-flat2d": "Flat-2D Animerge", "horde-pixel": "AIO Pixel Art",
+  "horde-counterfeit": "Counterfeit", "horde-realvis": "Realistic Vision",
+  "horde-icbinp": "ICBINP", "horde-anything": "Anything Diffusion",
+  "horde-zimage": "Z-Image-Turbo", "horde-sdxl": "SDXL 1.0",
+  "horde-ghibli": "Ghibli Diffusion", "horde-sd": "Stable Diffusion",
+  "horde-novaflat": "Nova Flat XL", "horde-animagine": "Animagine XL",
+  "horde-anything5": "Anything v5", "horde-dreamshaper": "Dreamshaper",
+  "horde-photon": "Photon", "horde-absreality": "AbsoluteReality",
+  "pol-flux": "Pollinations FLUX", "hf-flux": "HF FLUX.1"
+};
+
+/* AUTO mode: walk the free chain; a limit, a refusal or a dead queue on one
+ * model is not a failure — it is the signal to switch to the next one. Only
+ * when EVERY model in the chain is down does the run fail loud. */
+async function aiGenerateImage(prompt, w, h, onStatus) {
+  const id = AI_PROVIDERS[state.aiModel] ? state.aiModel : "auto";
+  if (id !== "auto") return aiGenerateWith(id, prompt, w, h, onStatus);
+  const chain = AI_AUTO_CHAIN.slice();
+  if (aiKeyFor("hf-flux")) chain.splice(1, 0, "hf-flux");
+  if (aiKeyFor("pol-flux")) chain.splice(2, 0, "pol-flux");
+  let lastErr = null;
+  for (let i = 0; i < chain.length; i++) {
+    const mid = chain[i];
+    try {
+      if (i > 0) onStatus(`auto: switched to ${AI_MODEL_NAMES[mid]}`);
+      return await aiGenerateWith(mid, prompt, w, h, onStatus);
+    } catch (e) {
+      lastErr = e;
+      const next = chain[i + 1];
+      if (next) {
+        onStatus(`auto: ${AI_MODEL_NAMES[mid]} unavailable (${String(e.message || e).slice(0, 90)}) — switching to ${AI_MODEL_NAMES[next]}…`);
+        setStatusBar("warn");
+      }
+    }
+  }
+  fail(`Every free model in the auto chain is unavailable right now. Last word: ${lastErr ? lastErr.message : "unknown"} — retry in a minute, the queues clear fast.`);
 }
 
 /* switcher UI: visibility, key row, notes — driven by the provider table */
@@ -528,6 +658,7 @@ function syncAiModelUI() {
       ? "AI models run free on AI Horde — no key needed."
       : "Procedural runs 100% offline — no network at all.";
   }
+  syncStudio();
 }
 
 async function genRowAI(prompt, frames, cellH, label) {
@@ -3590,6 +3721,10 @@ function wireSlicer() {
 
 function init() {
   renderParams();
+  wireStudio();
+  wireFlip();
+  wire3DLab();
+  syncStudio();
   wireExport();
   syncPixelMode();
   syncSlicerMode();
@@ -3853,7 +3988,7 @@ document.addEventListener("DOMContentLoaded", init);
       /* all settings already persist on change — this force-saves the full
        * snapshot (theme + aura + rgb) and confirms visually */
       try {
-        lsSet(LS_THEME, document.documentElement.getAttribute("data-theme") || "ember");
+        lsSet(LS_THEME, document.documentElement.getAttribute("data-theme") || "porcelain");
         saveAura(readAura());
         saveRGB(readRGB());
       } catch (e) {}
@@ -3864,7 +3999,7 @@ document.addEventListener("DOMContentLoaded", init);
       }
     });
 
-    applyTheme(lsGet(LS_THEME) || "ember", false);
+    applyTheme(lsGet(LS_THEME) || "porcelain", false);
     applyAura();
     applyRGB();
   }
@@ -4286,8 +4421,7 @@ function initV6() {
   });
 
   /* tool cards: standalone utilities — same category machinery as the
-   * tabs, but they live OUTSIDE the generation flow (his call: converter
-   * and slicer are tools, not "what are you making" types) */
+   * tabs, but they live OUTSIDE the generation flow */
   document.querySelectorAll(".tool-card").forEach(c => {
     c.onclick = () => {
       document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
@@ -4556,4 +4690,568 @@ if (document.readyState === "loading") {
     deferred.userChoice.then(function () { hide(); deferred = null; });
   });
   window.addEventListener("appinstalled", hide);
+})();
+
+/* ---------------- TEST BUILD: AI studio cards + 2D/3D flip ----------------
+ * The competitor flow (describe -> action cards -> style cards -> perspective
+ * -> frames) rebuilt on OUR pipeline: the cards drive the exact same
+ * #pStyle / #pView / #pFrames / state-checkbox inputs readParams() already
+ * reads, so generation, keying, slicing and exports are untouched. */
+const STUDIO_STYLES = [
+  { label: "Clean 2D", icon: "\u{1F7E6}", phrase: "flat 2D game sprite, absolutely no 3D, no 3D render, no volumetric lighting, solid flat colors, crisp edges" },
+  { label: "Pixel Retro", icon: "\u{1F47E}", phrase: "retro pixel art, visible square pixels, limited 16-color palette, 16-bit game sprite, absolutely no 3D, no smooth 3D shading" },
+  { label: "Pixel HD", icon: "\u{1F5A5}\u{FE0F}", phrase: "crisp high-detail pixel art, clean pixel clusters, rich harmonious palette, absolutely no 3D, no smooth shading" },
+  { label: "Anime Cel", icon: "\u{26E9}\u{FE0F}", phrase: "anime cel-shaded 2D, clean line art, flat cel colors, absolutely no 3D" },
+  { label: "Cartoon", icon: "\u{1F3AC}", phrase: "2D cartoon, flat colors, bold outlines, hand-drawn animation cel style, absolutely no 3D" },
+  { label: "Cartoon Smooth", icon: "\u{1F36D}", phrase: "smooth 2D cartoon, soft rounded shapes, flat colors, bold outlines, absolutely no 3D" },
+  { label: "Comic Bold", icon: "\u{1F4A5}", phrase: "bold comic book 2D, heavy ink outlines, flat vivid colors, absolutely no 3D" },
+  { label: "Dark Fantasy", icon: "\u{1F52E}", phrase: "dark fantasy 2D game art, flat painterly 2D illustration, moody lighting, absolutely no 3D render" },
+  { label: "Chibi Cute", icon: "\u{1F43B}", phrase: "chibi 2D, big head small body, cute proportions, flat colors, bold outlines, absolutely no 3D" },
+  { label: "Cyberpunk", icon: "\u{1F916}", phrase: "cyberpunk 2D game art, neon rim light, flat colors, dark backdrop mood, absolutely no 3D render" },
+  { label: "Watercolor", icon: "\u{1F3A8}", phrase: "2D watercolor illustration, soft pigment edges, readable game sprite silhouette, absolutely no 3D" },
+  { label: "Flat Minimal", icon: "\u{1F4D0}", phrase: "flat minimal 2D vector style, simple geometric shapes, solid colors, absolutely no 3D" },
+  { label: "Sketch Pencil", icon: "\u{270F}\u{FE0F}", phrase: "2D pencil sketch game art, hand-drawn graphite lines, light flat color wash, absolutely no 3D" }
+];
+function styleOptionsHtml() {
+  return STUDIO_STYLES.map(st => `<option value="${st.phrase}">${st.label.toLowerCase()}</option>`).join("");
+}
+
+function syncStudio() {
+  const panel = document.getElementById("studioPanel");
+  if (!panel) return;
+  const show = state.source === "ai" && state.category === "character";
+  panel.hidden = !show;
+  /* the cards replace the classic fields they mirror — hide the duplicates
+   * while the studio is up, restore them for procedural / other categories */
+  const dup = show ? "none" : "";
+  const hideDup = (el) => { if (el) el.style.display = dup; };
+  hideDup(document.querySelector("#pStyle")?.closest(".pfield"));
+  hideDup(document.querySelector("#pView")?.closest(".pfield"));
+  hideDup(document.querySelector("#pFrames")?.closest(".pfield"));
+  hideDup(document.getElementById("stateRow"));
+  hideDup(document.getElementById("stateCostNote")?.closest(".field-label"));
+  if (!show) return;
+  const sel = document.getElementById("pStyle");
+  panel.querySelectorAll("#styleGrid .pick-card").forEach(c =>
+    c.classList.toggle("active", !!sel && c.dataset.phrase === sel.value));
+  const view = document.getElementById("pView");
+  panel.querySelectorAll("#perspGrid .pick-card").forEach(c =>
+    c.classList.toggle("active", !!view && c.dataset.view === view.value));
+  panel.querySelectorAll("#actGrid .pick-card").forEach(c => {
+    const box = document.querySelector(`#stateRow input[data-state="${c.dataset.state}"]`);
+    c.classList.toggle("active", !!box && box.checked);
+  });
+  const fr = document.getElementById("pFrames");
+  const frVal = document.getElementById("frVal");
+  if (fr && frVal) frVal.textContent = fr.value;
+}
+
+function wireStudio() {
+  const grid = document.getElementById("styleGrid");
+  if (grid && !grid.children.length) {
+    grid.innerHTML = STUDIO_STYLES.map(st =>
+      `<button type="button" class="pick-card" data-phrase="${st.phrase}"><span class="pc-icon">${st.icon}</span><span class="pc-label">${st.label}</span></button>`).join("");
+  }
+  const panel = document.getElementById("studioPanel");
+  if (!panel || panel.dataset.wired) return;
+  panel.dataset.wired = "1";
+  panel.addEventListener("click", (e) => {
+    const card = e.target.closest(".pick-card");
+    if (card) {
+      if (card.dataset.phrase) {
+        const sel = document.getElementById("pStyle");
+        if (sel) sel.value = card.dataset.phrase;
+      } else if (card.dataset.view) {
+        const v = document.getElementById("pView");
+        if (v) v.value = card.dataset.view;
+      } else if (card.dataset.state) {
+        const box = document.querySelector(`#stateRow input[data-state="${card.dataset.state}"]`);
+        if (box) box.click();
+      }
+      syncStudio();
+      return;
+    }
+    if (e.target.id === "frMinus" || e.target.id === "frPlus") {
+      const fr = document.getElementById("pFrames");
+      if (fr) {
+        const d = e.target.id === "frPlus" ? 1 : -1;
+        fr.value = String(Math.min(12, Math.max(2, (parseInt(fr.value, 10) || 4) + d)));
+      }
+      syncStudio();
+    }
+    if (e.target.id === "procBtn") {
+      const tab = document.querySelector('.tool-card[data-cat="slicer"]');
+      if (tab) tab.click();
+      setTimeout(() => { const b = document.getElementById("slPick"); if (b) b.click(); }, 90);
+    }
+  });
+}
+
+/* the hub flip: 2D sprites now, 3D mesh next — same top bar, same rules */
+function applyDim(dim) {
+  const is3d = dim === "3d";
+  document.body.classList.toggle("dim-3d", is3d);
+  const lab3d = document.getElementById("lab3d");
+  if (lab3d) lab3d.hidden = !is3d;
+  const tool = document.getElementById("tool");
+  if (tool) tool.style.display = is3d ? "none" : "";
+  const mb = document.querySelector(".mobile-bar");
+  if (mb) mb.style.display = is3d ? "none" : "";
+  if (is3d && typeof ensureM3Viewer === "function") ensureM3Viewer();
+  const f2 = document.getElementById("flip2d"), f3 = document.getElementById("flip3d");
+  if (f2) f2.classList.toggle("active", !is3d);
+  if (f3) f3.classList.toggle("active", is3d);
+  try { localStorage.setItem("m4ster.dim", is3d ? "3d" : "2d"); } catch (e) {}
+}
+function wireFlip() {
+  const f2 = document.getElementById("flip2d"), f3 = document.getElementById("flip3d");
+  if (f2) f2.addEventListener("click", () => applyDim("2d"));
+  if (f3) f3.addEventListener("click", () => applyDim("3d"));
+  let saved = "2d";
+  try { saved = localStorage.getItem("m4ster.dim") || "2d"; } catch (e) {}
+  if (saved === "3d") applyDim("3d");
+}
+
+/* ============ 3D LAB — image → mesh on free HF Spaces (test build) ========
+ * Both providers proven end-to-end anonymously in the provider lab
+ * (~/workspace/framelab-provider-lab/results-3d-round1.json): no HF token,
+ * no cookies, real GLB out. Stable Fast 3D speaks Gradio 4 at the space
+ * root; InstantMesh speaks Gradio 5 under /gradio_api. Chain order inside
+ * each provider is mandatory — the spaces hold gr.State server-side per
+ * session_hash, and skipping a step fails server-side. */
+const M3_PROVIDERS = {
+  sf3d: { name: "Stable Fast 3D", host: "https://stabilityai-stable-fast-3d.hf.space", base: "" },
+  instantmesh: { name: "InstantMesh", host: "https://tencentarc-instantmesh.hf.space", base: "/gradio_api" },
+  trellis2: { name: "TRELLIS.2", host: "https://microsoft-trellis-2.hf.space", base: "/gradio_api" },
+  trellis: { name: "TRELLIS", host: "https://trellis-community-trellis.hf.space", base: "/gradio_api" }
+};
+const M3_TIMEOUT_MS = 4 * 60 * 1000; /* per provider, whole chain */
+
+function m3Session() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+/* optional BYO HF token (shared with the 2D HF key): ZeroGPU spaces give
+ * anonymous callers almost no GPU quota; a free token raises it. Sent only
+ * to the space hosts, only when the user pasted one. */
+function m3AuthHeaders() {
+  const t = (aiKeys().huggingface || "").trim();
+  return t ? { "Authorization": "Bearer " + t } : {};
+}
+function m3FileUrl(prov, fd) {
+  if (!fd) return null;
+  if (fd.url && /^https?:/.test(fd.url)) return fd.url;
+  if (fd.url) return prov.host + (fd.url.charAt(0) === "/" ? fd.url : prov.base + "/file=" + fd.url);
+  if (fd.path) return prov.host + prov.base + "/file=" + fd.path;
+  return null;
+}
+function m3TimeoutErr() {
+  return new Error("timed out after 4 minutes — the free GPU queue is backed up. Wait a bit and retry.");
+}
+/* fetch with a deadline; an abort becomes a clear timeout error */
+async function m3Fetch(url, opts, deadline) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), Math.max(1000, deadline - Date.now()));
+  try {
+    return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal }));
+  } catch (e) {
+    if (e && e.name === "AbortError") throw m3TimeoutErr();
+    throw e;
+  } finally { clearTimeout(timer); }
+}
+async function m3Upload(prov, file, deadline) {
+  const form = new FormData();
+  /* field name MUST be "files" — "files[]" silently returns [] */
+  form.append("files", file, file.name || "image.png");
+  const res = await m3Fetch(prov.host + prov.base + "/upload", { method: "POST", body: form, headers: m3AuthHeaders() }, deadline);
+  if (!res.ok) throw new Error("image upload failed (HTTP " + res.status + ")");
+  const paths = await res.json();
+  if (!Array.isArray(paths) || !paths[0]) throw new Error("image upload returned no file path");
+  return paths[0];
+}
+function m3FileData(prov, path, file) {
+  return {
+    path: path,
+    url: prov.host + prov.base + "/file=" + path,
+    orig_name: file.name || "image.png",
+    mime_type: file.type || "image/png",
+    is_stream: false
+  };
+}
+/* join the Gradio queue, then read the SSE stream until process_completed.
+ * Resolves with the call's output data array; throws loud on any failure. */
+async function m3Call(prov, session, fnIndex, data, deadline) {
+  const join = await m3Fetch(prov.host + prov.base + "/queue/join", {
+    method: "POST",
+    headers: Object.assign({ "Content-Type": "application/json" }, m3AuthHeaders()),
+    body: JSON.stringify({ fn_index: fnIndex, data: data, session_hash: session })
+  }, deadline);
+  if (!join.ok) throw new Error("couldn't join the free queue (HTTP " + join.status + ")");
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), Math.max(1000, deadline - Date.now()));
+  try {
+    const res = await fetch(prov.host + prov.base + "/queue/data?session_hash=" + encodeURIComponent(session), { signal: ctrl.signal, headers: m3AuthHeaders() });
+    if (!res.ok || !res.body) throw new Error("queue stream failed (HTTP " + res.status + ")");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buf += decoder.decode(chunk.value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (line.indexOf("data:") !== 0) continue;
+        let evt;
+        try { evt = JSON.parse(line.slice(5)); } catch (e) { continue; }
+        if (evt.msg === "process_completed") {
+          const out = evt.output || {};
+          if (evt.success === false || out.error || !out.data) {
+            throw new Error(String(out.error || evt.error || "the provider reported a failure"));
+          }
+          return out.data;
+        }
+        if (evt.msg === "process_error") {
+          throw new Error(String(evt.error || "the provider reported an error"));
+        }
+      }
+    }
+    throw new Error("the queue stream ended before the mesh finished");
+  } catch (e) {
+    if (e && e.name === "AbortError") throw m3TimeoutErr();
+    throw e;
+  } finally { clearTimeout(timer); }
+}
+async function m3FetchBlob(url, deadline) {
+  const res = await m3Fetch(url, { headers: m3AuthHeaders() }, deadline);
+  if (!res.ok) throw new Error("mesh download failed (HTTP " + res.status + ")");
+  return res.blob();
+}
+
+/* Stable Fast 3D: check bg → (remove bg) → run. fn 5 eats server-side state
+ * populated by the earlier steps, so the order cannot be shortcut. */
+async function m3RunSF3D(file, say) {
+  const prov = M3_PROVIDERS.sf3d, session = m3Session();
+  const deadline = Date.now() + M3_TIMEOUT_MS;
+  say("Stable Fast 3D — uploading your image…");
+  const fd = m3FileData(prov, await m3Upload(prov, file, deadline), file);
+  say("Stable Fast 3D — checking the background…");
+  const step1 = await m3Call(prov, session, 4, [fd, 0.85], deadline);
+  const btn = step1 && step1[0];
+  const btnVal = btn && typeof btn === "object" ? btn.value : btn;
+  if (btnVal === "Remove Background") {
+    say("Stable Fast 3D — removing the background…");
+    await m3Call(prov, session, 5, ["Remove Background", fd, null, 0.85, "None", -1, 1024], deadline);
+  }
+  say("Stable Fast 3D — building your mesh (usually ~10 seconds)…");
+  const step3 = await m3Call(prov, session, 5, ["Run", fd, null, 0.85, "None", -1, 1024], deadline);
+  const upd = step3 && step3[4];
+  const glbFd = upd && typeof upd === "object" && "value" in upd ? upd.value : upd;
+  const url = m3FileUrl(prov, glbFd);
+  if (!url) throw new Error("Stable Fast 3D finished but returned no mesh file");
+  say("Stable Fast 3D — downloading your mesh…");
+  return { glb: await m3FetchBlob(url, deadline), obj: null };
+}
+
+/* InstantMesh: preprocess → multiview → make3d. The raw multiview state
+ * serializes as null over the API, so make3d gets the returned show image
+ * (output[1] of generate_mvs) — the proven path from the lab round. */
+async function m3RunInstantMesh(file, say) {
+  const prov = M3_PROVIDERS.instantmesh, session = m3Session();
+  const deadline = Date.now() + M3_TIMEOUT_MS;
+  say("InstantMesh — uploading your image…");
+  const fd = m3FileData(prov, await m3Upload(prov, file, deadline), file);
+  say("InstantMesh — preparing the image…");
+  const pre = await m3Call(prov, session, 2, [fd, true], deadline);
+  const processed = pre && pre[0];
+  if (!processed) throw new Error("InstantMesh preprocessing returned no image");
+  say("InstantMesh — dreaming up six views of your subject…");
+  const mvs = await m3Call(prov, session, 3, [processed, 75, 42], deadline);
+  const showImg = mvs && mvs[1];
+  if (!showImg) throw new Error("InstantMesh returned no multiview image");
+  say("InstantMesh — building your mesh…");
+  const made = await m3Call(prov, session, 4, [showImg], deadline);
+  const objFd = made && made[0], glbFd = made && made[1];
+  const glbUrl = m3FileUrl(prov, glbFd);
+  if (!glbUrl) throw new Error("InstantMesh finished but returned no mesh file");
+  say("InstantMesh — downloading your mesh…");
+  const glb = await m3FetchBlob(glbUrl, deadline);
+  let obj = null;
+  const objUrl = m3FileUrl(prov, objFd);
+  if (objUrl) { try { obj = await m3FetchBlob(objUrl, deadline); } catch (e) { obj = null; } }
+  return { glb: glb, obj: obj };
+}
+
+/* TRELLIS.2 (Gradio 6): preprocess -> image_to_3d -> extract_glb.
+ * GPU stage is ZeroGPU: anonymous quota is tiny — the HF token tier is
+ * what makes this provider real; without one it fails loud with the
+ * space's own quota message and AUTO moves on. */
+async function m3RunTrellis2(file, say) {
+  const prov = M3_PROVIDERS.trellis2, session = m3Session();
+  const deadline = Date.now() + M3_TIMEOUT_MS * 2;
+  say("TRELLIS.2 — uploading your image…");
+  const fd = m3FileData(prov, await m3Upload(prov, file, deadline), file);
+  say("TRELLIS.2 — preparing the image…");
+  const pre = await m3Call(prov, session, 4, [fd], deadline);
+  const img = (pre && pre[0]) || fd;
+  say("TRELLIS.2 — generating the mesh (the heavy step — free GPUs take a while)…");
+  const gen = await m3Call(prov, session, 7, [img, 42, "1024", 7.5, 0.7, 12, 5.0, 7.5, 0.5, 12, 3.0, 1.0, 0.0, 12, 3.0], deadline);
+  const mstate = gen && gen[0];
+  if (!mstate) throw new Error("TRELLIS.2 finished but returned no mesh state");
+  say("TRELLIS.2 — extracting the GLB…");
+  const ext = await m3Call(prov, session, 9, [mstate, 300000, 2048], deadline);
+  const url = m3FileUrl(prov, ext && ext[0]);
+  if (!url) throw new Error("TRELLIS.2 finished but returned no mesh file");
+  say("TRELLIS.2 — downloading your mesh…");
+  return { glb: await m3FetchBlob(url, deadline), obj: null };
+}
+
+/* TRELLIS community mirror (Gradio 5): one call does generate + extract. */
+async function m3RunTrellis(file, say) {
+  const prov = M3_PROVIDERS.trellis, session = m3Session();
+  const deadline = Date.now() + M3_TIMEOUT_MS * 2;
+  say("TRELLIS — uploading your image…");
+  const fd = m3FileData(prov, await m3Upload(prov, file, deadline), file);
+  say("TRELLIS — generating the mesh + GLB (free GPUs take a while)…");
+  const out = await m3Call(prov, session, 11, [fd, [], null, 42, 7.5, 12, 3.0, 12, "stochastic", 0.95, 1024], deadline);
+  const glbFd = (out || []).find(x => x && typeof x === "object" && /\.glb($|\?)/i.test(x.path || x.url || ""));
+  const url = m3FileUrl(prov, glbFd);
+  if (!url) throw new Error("TRELLIS finished but returned no GLB file");
+  say("TRELLIS — downloading your mesh…");
+  return { glb: await m3FetchBlob(url, deadline), obj: null };
+}
+
+/* in-browser mesh preview: Google model-viewer, lazy-loaded only when
+ * the 3D lab is opened or a mesh lands — the 2D lab never pays for it */
+let m3ViewerTried = false;
+function ensureM3Viewer() {
+  if (m3ViewerTried) return;
+  m3ViewerTried = true;
+  const sc = document.createElement("script");
+  sc.type = "module";
+  sc.src = "https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js";
+  document.head.appendChild(sc);
+  setTimeout(() => {
+    if (!customElements.get("model-viewer")) {
+      const w = document.getElementById("m3ViewerWrap");
+      if (w) w.hidden = true; /* CDN blocked: downloads still work */
+    }
+  }, 9000);
+}
+
+function wire3DLab() {
+  const fileInput = document.getElementById("m3File");
+  if (!fileInput) return;
+  const drop = document.getElementById("m3Drop");
+  const thumb = document.getElementById("m3Thumb");
+  const dropText = document.getElementById("m3DropText");
+  const provSel = document.getElementById("m3Provider");
+  const go = document.getElementById("m3Go");
+  const status = document.getElementById("m3Status");
+  const result = document.getElementById("m3Result");
+  const glbLink = document.getElementById("m3Glb");
+  const objLink = document.getElementById("m3Obj");
+  const glbSize = document.getElementById("m3GlbSize");
+  const objSize = document.getElementById("m3ObjSize");
+  const resultNote = document.getElementById("m3ResultNote");
+  let file = null, running = false, objUrls = [];
+
+  const fmtSize = (n) => n >= 1048576 ? (n / 1048576).toFixed(2) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+  const shortErr = (e) => {
+    const m = e && e.message ? String(e.message) : String(e);
+    return m.length > 140 ? m.slice(0, 140) + "…" : m;
+  };
+  function say(t, isErr) {
+    status.textContent = t;
+    status.classList.toggle("err", !!isErr);
+  }
+  function setFile(f) {
+    if (!f) return;
+    if (!/^image\//.test(f.type || "")) { say("That's not an image — pick a PNG or JPG.", true); return; }
+    file = f;
+    thumb.src = URL.createObjectURL(f);
+    thumb.hidden = false;
+    dropText.innerHTML = "";
+    const strong = document.createElement("strong");
+    strong.textContent = f.name;
+    const span = document.createElement("span");
+    span.className = "dim";
+    span.textContent = fmtSize(f.size) + " — click or drop to change it";
+    dropText.appendChild(strong);
+    dropText.appendChild(document.createElement("br"));
+    dropText.appendChild(span);
+    go.disabled = running;
+    result.hidden = true;
+    say("Ready — hit GENERATE MESH. Free, as always.");
+  }
+  const tokenInput = document.getElementById("m3Token");
+  if (tokenInput) {
+    tokenInput.value = aiKeys().huggingface || "";
+    tokenInput.addEventListener("change", () => {
+      const k = aiKeys();
+      k.huggingface = tokenInput.value.trim();
+      try { localStorage.setItem(LS_AI_KEYS, JSON.stringify(k)); } catch (e) {}
+      say(k.huggingface ? "Token saved in your browser — the 3D providers will use it." : "Token cleared.");
+    });
+  }
+  const use2d = document.getElementById("m3Use2D");
+  if (use2d) use2d.addEventListener("click", () => {
+    const row = state.rows && state.rows[0];
+    const cv = row && row.frames && row.frames[0];
+    if (!cv) { say("No 2D sprite yet — make one on the 2D side first, then flip back and mesh it.", true); return; }
+    cv.toBlob((blob) => {
+      if (!blob) { say("Couldn't read that sprite — upload the image instead.", true); return; }
+      setFile(new File([blob], "framelab-sprite.png", { type: "image/png" }));
+    }, "image/png");
+  });
+  drop.addEventListener("click", () => fileInput.click());
+  drop.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener("change", () => setFile(fileInput.files && fileInput.files[0]));
+  ["dragover", "dragenter"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("drag"); }));
+  drop.addEventListener("drop", (e) => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) setFile(f);
+  });
+
+  async function runOne(id) {
+    if (id === "sf3d") return m3RunSF3D(file, say);
+    if (id === "instantmesh") return m3RunInstantMesh(file, say);
+    if (id === "trellis2") return m3RunTrellis2(file, say);
+    return m3RunTrellis(file, say);
+  }
+
+  go.addEventListener("click", async () => {
+    if (!file || running) return;
+    running = true;
+    go.disabled = true;
+    go.textContent = "WORKING…";
+    result.hidden = true;
+    objUrls.forEach((u) => URL.revokeObjectURL(u));
+    objUrls = [];
+    const mode = provSel.value;
+    const t0 = Date.now();
+    try {
+      let out, usedName;
+      if (mode === "auto") {
+        const chain = ["sf3d", "instantmesh", "trellis2", "trellis"];
+        let lastErr = null;
+        for (let ci = 0; ci < chain.length; ci++) {
+          const id = chain[ci];
+          try { out = await runOne(id); usedName = M3_PROVIDERS[id].name; lastErr = null; break; }
+          catch (e) {
+            lastErr = e;
+            const nx = chain[ci + 1];
+            if (nx) say(M3_PROVIDERS[id].name + " couldn't do it (" + shortErr(e) + ") — switching to " + M3_PROVIDERS[nx].name + ", same as the 2D hub does…");
+          }
+        }
+        if (!out) throw lastErr || new Error("no provider ran");
+      } else {
+        out = await runOne(mode);
+        usedName = M3_PROVIDERS[mode].name;
+      }
+      const secs = Math.max(1, Math.round((Date.now() - t0) / 1000));
+      const glbUrl = URL.createObjectURL(out.glb);
+      objUrls.push(glbUrl);
+      glbLink.href = glbUrl;
+      const vWrap = document.getElementById("m3ViewerWrap");
+      const viewer = document.getElementById("m3Viewer");
+      if (vWrap && viewer) { ensureM3Viewer(); viewer.src = glbUrl; vWrap.hidden = false; }
+      glbSize.textContent = "· " + fmtSize(out.glb.size);
+      if (out.obj) {
+        const objUrl = URL.createObjectURL(out.obj);
+        objUrls.push(objUrl);
+        objLink.href = objUrl;
+        objSize.textContent = "· " + fmtSize(out.obj.size);
+        objLink.hidden = false;
+      } else {
+        objLink.hidden = true;
+      }
+      resultNote.textContent = "Made by " + usedName + " in ~" + secs + "s, free. GLB drops straight into Unity / Unreal / Godot.";
+      result.hidden = false;
+      say("Done — your mesh is ready below. ⬇");
+    } catch (e) {
+      let em = shortErr(e);
+      if (!/[.!?]$/.test(em)) em += ".";
+      say((mode === "auto" ? "Every free 3D provider failed: " : "That provider failed: ") +
+        em + " No fake mesh, no charge — give the free GPUs a minute and try again.", true);
+    } finally {
+      running = false;
+      go.disabled = !file;
+      go.textContent = "GENERATE MESH";
+    }
+  });
+}
+
+/* ============ step wizard (test build, his design 2026-10-20) ============
+ * The 5 ctl-groups become pages inside ONE frame: clickable progress dots
+ * on top, Back / Next at the bottom, Generate only on the last step.
+ * Auto-off while pixelart / slicer mode owns the panel (body class watch —
+ * every entry point into those modes flips it). */
+(function () {
+  var aside = document.querySelector(".controls");
+  if (!aside) return;
+  var groups = Array.prototype.slice.call(aside.querySelectorAll(".ctl-group"));
+  var top = document.getElementById("wizTop");
+  var dotsEl = document.getElementById("wizDots");
+  var countEl = document.getElementById("wizCount");
+  var btns = document.getElementById("wizBtns");
+  var back = document.getElementById("wizBack");
+  var next = document.getElementById("wizNext");
+  if (!groups.length || !dotsEl || !back || !next) return;
+  var cur = 0, dots = [];
+  groups.forEach(function (_, i) {
+    var d = document.createElement("button");
+    d.type = "button";
+    d.className = "wiz-dot";
+    d.setAttribute("aria-label", "Go to step " + (i + 1));
+    d.addEventListener("click", function () { go(i); });
+    dotsEl.appendChild(d);
+    dots.push(d);
+  });
+  function wizardOn() {
+    return !(document.body.classList.contains("mode-pixelart") ||
+             document.body.classList.contains("mode-slicer"));
+  }
+  function render() {
+    var on = wizardOn();
+    aside.classList.toggle("wizard", on);
+    aside.classList.toggle("wiz-last", on && cur === groups.length - 1);
+    if (top) top.hidden = !on;
+    if (btns) btns.hidden = !on;
+    groups.forEach(function (g, i) { g.classList.toggle("wiz-on", !on || i === cur); });
+    dots.forEach(function (d, i) {
+      d.classList.toggle("now", i === cur);
+      d.classList.toggle("done", i < cur);
+    });
+    if (countEl) countEl.textContent = "Step " + (cur + 1) + " of " + groups.length;
+    back.disabled = cur === 0;
+    next.style.visibility = cur === groups.length - 1 ? "hidden" : "visible";
+  }
+  function go(i) {
+    cur = Math.max(0, Math.min(groups.length - 1, i));
+    render();
+  }
+  back.addEventListener("click", function () { go(cur - 1); });
+  next.addEventListener("click", function () { go(cur + 1); });
+  new MutationObserver(render).observe(document.body, {
+    attributes: true, attributeFilter: ["class"]
+  });
+  render();
+})();
+
+/* ============ test build: Fresh from the Lab — pop in as it scrolls into view ============ */
+(function () {
+  var el = document.getElementById("freshLab");
+  if (!el) return;
+  if (!("IntersectionObserver" in window)) { el.classList.add("in"); return; }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (en.isIntersecting) { el.classList.add("in"); io.disconnect(); }
+    });
+  }, { threshold: 0.12 });
+  io.observe(el);
 })();

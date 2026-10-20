@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="ember">
+<html lang="en" data-theme="porcelain">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -48,6 +48,10 @@
       <div class="tagline">For the gamers, by the gamers</div>
     </div>
   </button>
+  <div class="dim-flip" role="tablist" aria-label="Lab dimension">
+    <button class="flip-btn active" id="flip2d" type="button">2D · Sprites</button>
+    <button class="flip-btn" id="flip3d" type="button">3D · Mesh</button>
+  </div>
   <div class="topbar-right">
     <button class="icon-btn" id="customizeBtn" aria-label="Customize theme and aura" aria-haspopup="dialog" aria-expanded="false" title="Customize">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -138,6 +142,10 @@
 
   <!-- ============ LEFT: CONTROLS ============ -->
   <aside class="panel controls">
+    <div class="wiz-top" id="wizTop" hidden>
+      <div class="wiz-dots" id="wizDots" aria-label="Steps"></div>
+      <span class="wiz-count" id="wizCount"></span>
+    </div>
     <section class="ctl-group">
       <div class="ctl-head"><span class="ctl-num">1</span><div class="ctl-titles"><span class="ctl-step">Step 1</span><h3>What are you making?</h3></div></div>
       <div class="tabs" role="tablist">
@@ -157,11 +165,39 @@
 
     <div id="aiModelBox">
       <div class="field-label">AI model <span class="dim">(swap anytime)</span></div>
-      <select id="aiModel" class="ai-model-select" aria-label="AI image model">
-        <optgroup label="Free — no key needed">
+            <select id="aiModel" class="ai-model-select" aria-label="AI image model">
+        <optgroup label="Auto — free chain, self-switching">
+          <option value="auto">&#9889; Auto — free models, switches itself on limits</option>
+        </optgroup>
+        <optgroup label="Sprites &amp; flat 2D — free, no key">
+          <option value="horde-flat2d">AI Horde · Flat-2D Animerge — flat 2D, made for sprites</option>
+          <option value="horde-novaflat">AI Horde · Nova Flat XL — flat-shaded XL</option>
+          <option value="horde-pixel">AI Horde · AIO Pixel Art — pixel art specialist</option>
+        </optgroup>
+        <optgroup label="Anime &amp; cel — free, no key">
+          <option value="horde-rev">AI Horde · Rev Animated — anime &amp; animated</option>
+          <option value="horde-animagine">AI Horde · Animagine XL — modern anime</option>
+          <option value="horde-anything5">AI Horde · Anything v5 — anime all-rounder</option>
+          <option value="horde-anything">AI Horde · Anything Diffusion — anime classic</option>
+          <option value="horde-counterfeit">AI Horde · Counterfeit — anime, high quality</option>
+          <option value="horde-ghibli">AI Horde · Ghibli Diffusion — whimsical storybook</option>
+        </optgroup>
+        <optgroup label="SDXL quality — free, no key">
+          <option value="horde-juggernaut">AI Horde · Juggernaut XL — best all-rounder, slower</option>
+          <option value="horde-dreamshaper-xl">AI Horde · DreamShaper XL — versatile game art</option>
+          <option value="horde-dreamshaper">AI Horde · Dreamshaper — the classic all-rounder</option>
+          <option value="horde-albedo">AI Horde · AlbedoBase XL — sharp SDXL detail</option>
+          <option value="horde-sdxl">AI Horde · SDXL 1.0 — solid base model</option>
           <option value="horde-deliberate">AI Horde · Deliberate — better quality</option>
-          <option value="horde-juggernaut">AI Horde · Juggernaut XL — best free, slower</option>
-          <option value="horde-sd">AI Horde · Stable Diffusion — quick</option>
+          <option value="horde-absreality">AI Horde · AbsoluteReality — realistic</option>
+          <option value="horde-icbinp">AI Horde · ICBINP — photoreal</option>
+          <option value="horde-realvis">AI Horde · Realistic Vision — realistic characters</option>
+          <option value="horde-photon">AI Horde · Photon — clean renders, few workers</option>
+        </optgroup>
+        <optgroup label="Fast &amp; new — free, no key">
+          <option value="horde-flux">AI Horde · FLUX.1 Schnell — top quality, no key</option>
+          <option value="horde-zimage">AI Horde · Z-Image-Turbo — fast new model</option>
+          <option value="horde-sd">AI Horde · Stable Diffusion — quick classic</option>
         </optgroup>
         <optgroup label="Free key — paste once, saved in your browser">
           <option value="pol-flux">Pollinations · FLUX — top quality</option>
@@ -187,7 +223,31 @@
 
     <section class="ctl-group">
       <div class="ctl-head"><span class="ctl-num">3</span><div class="ctl-titles"><span class="ctl-step">Step 3</span><h3>Options</h3></div></div>
-      <div id="params"></div>
+            <div id="params"></div>
+      <div id="studioPanel" hidden>
+        <div class="field-label">Action <span class="dim">(tap to toggle — these are your animation rows)</span></div>
+        <div class="pick-grid act-grid" id="actGrid">
+          <button type="button" class="pick-card" data-state="idle"><span class="pc-icon">&#129485;</span><span class="pc-label">Idle</span></button>
+          <button type="button" class="pick-card" data-state="walk"><span class="pc-icon">&#128694;</span><span class="pc-label">Walk</span></button>
+          <button type="button" class="pick-card" data-state="run"><span class="pc-icon">&#127939;</span><span class="pc-label">Run</span></button>
+          <button type="button" class="pick-card" data-state="jump"><span class="pc-icon">&#11014;&#65038;</span><span class="pc-label">Jump</span></button>
+          <button type="button" class="pick-card" data-state="attack"><span class="pc-icon">&#9876;&#65038;</span><span class="pc-label">Attack</span></button>
+          <button type="button" class="pick-card" data-state="death"><span class="pc-icon">&#128128;</span><span class="pc-label">Die</span></button>
+        </div>
+        <div class="field-label">Visual style</div>
+        <div class="pick-grid style-grid" id="styleGrid"></div>
+        <div class="field-label">Perspective</div>
+        <div class="pick-grid persp-grid" id="perspGrid">
+          <button type="button" class="pick-card" data-view="side"><span class="pc-label">Side</span><span class="pc-sub">platformer</span></button>
+          <button type="button" class="pick-card" data-view="front"><span class="pc-label">Front</span><span class="pc-sub">face on</span></button>
+          <button type="button" class="pick-card" data-view="3/4 top-down"><span class="pc-label">Top 3/4</span><span class="pc-sub">face visible</span></button>
+          <button type="button" class="pick-card" data-view="top-down"><span class="pc-label">Zenith 90&deg;</span><span class="pc-sub">top down</span></button>
+        </div>
+        <div class="field-label">Frames per animation</div>
+        <div class="stepper"><button type="button" id="frMinus" aria-label="Fewer frames">&minus;</button><span id="frVal">4</span><button type="button" id="frPlus" aria-label="More frames">+</button></div>
+        <div class="field-label">Process the image <span class="dim">(made it in Gemini / ChatGPT / anywhere?)</span></div>
+        <button type="button" class="btn-ghost proc-btn" id="procBtn">Upload an image &rarr; slice &amp; clean it here</button>
+      </div>
     </section>
 
     <section class="ctl-group">
@@ -208,6 +268,10 @@
       </div>
     </section>
 
+    <div class="wiz-btns" id="wizBtns" hidden>
+      <button type="button" class="btn-ghost wiz-back" id="wizBack">&larr; Back</button>
+      <button type="button" class="wiz-next" id="wizNext">Next &rarr;</button>
+    </div>
     <button id="generate" class="generate">GENERATE SPRITE</button>
     <div class="gen-note">AI models run free on AI Horde (no key). Procedural runs 100% offline.</div>
   </aside>
@@ -299,6 +363,98 @@
   </section>
 </main>
 
+<!-- ============ test build: Fresh from the Lab (his order 2026-10-20) ============
+     Auto-scrolling showcase under the tool: newest hub drops, smooth marquee. -->
+<section class="fresh-lab" id="freshLab">
+  <hr class="rgb-sep">
+  <div class="fresh-head">
+    <h2>Fresh from the Lab</h2>
+    <p>The newest drops in the hub — fresh models, tools and lab wins land here first.</p>
+  </div>
+  <div class="fresh-marquee">
+    <div class="fresh-track">
+      <div class="fresh-set">
+        <div class="fresh-card"><span class="fresh-chip">3D Lab · just landed</span><div class="fresh-name">Stable Fast 3D</div><div class="fresh-note">Image → textured GLB in ~9 seconds. Free, no signup.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Nova Flat XL</div><div class="fresh-note">Flat-shaded XL style, made for clean sprite work.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Animagine XL</div><div class="fresh-note">Polished modern anime, straight into the hub roster.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">3D Lab · just landed</span><div class="fresh-name">InstantMesh</div><div class="fresh-note">Image → mesh with OBJ + GLB export.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Anything v5</div><div class="fresh-note">Anime all-rounder joins the no-key lineup.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Dreamshaper</div><div class="fresh-note">The classic all-rounder — now in the AUTO chain.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Z-Image-Turbo</div><div class="fresh-note">Fast new-wave model, no key needed.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">AbsoluteReality</div><div class="fresh-note">Realistic characters, free on the Horde.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">Tool</span><div class="fresh-name">Pixel Converter</div><div class="fresh-note">Any image → pixel art, in the new Tools section.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">Tool</span><div class="fresh-name">Sprite Slicer</div><div class="fresh-note">Sheets → frames, moved to Tools where it belongs.</div></div>
+      </div>
+      <div class="fresh-set" aria-hidden="true">
+        <div class="fresh-card"><span class="fresh-chip">3D Lab · just landed</span><div class="fresh-name">Stable Fast 3D</div><div class="fresh-note">Image → textured GLB in ~9 seconds. Free, no signup.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Nova Flat XL</div><div class="fresh-note">Flat-shaded XL style, made for clean sprite work.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Animagine XL</div><div class="fresh-note">Polished modern anime, straight into the hub roster.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">3D Lab · just landed</span><div class="fresh-name">InstantMesh</div><div class="fresh-note">Image → mesh with OBJ + GLB export.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Anything v5</div><div class="fresh-note">Anime all-rounder joins the no-key lineup.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Dreamshaper</div><div class="fresh-note">The classic all-rounder — now in the AUTO chain.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Z-Image-Turbo</div><div class="fresh-note">Fast new-wave model, no key needed.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">AbsoluteReality</div><div class="fresh-note">Realistic characters, free on the Horde.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">Tool</span><div class="fresh-name">Pixel Converter</div><div class="fresh-note">Any image → pixel art, in the new Tools section.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">Tool</span><div class="fresh-name">Sprite Slicer</div><div class="fresh-note">Sheets → frames, moved to Tools where it belongs.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="lab3d" hidden>
+  <div class="lab3d-card">
+    <div class="lab3d-badge">LIVE &middot; FREE 3D &mdash; NO SIGNUP</div>
+    <h2>3D Lab <span class="dim">&mdash; image &rarr; mesh, same rules</span></h2>
+    <p class="lab3d-lede">The flip at the top is the whole idea: <strong>one hub</strong>. Drop in an image
+    and a free open model turns it into a real 3D mesh &mdash; a GLB that drops straight into
+    Unity / Unreal / Godot. No signup, no keys, and in AUTO mode the hub
+    <strong>switches provider itself</strong> if one fails &mdash; same deal as the 2D side.</p>
+
+    <div class="m3-drop" id="m3Drop" role="button" tabindex="0" aria-label="Choose an image to turn into a 3D mesh">
+      <input type="file" id="m3File" accept="image/*" hidden>
+      <img id="m3Thumb" class="m3-thumb" alt="Selected image preview" hidden>
+      <div class="m3-drop-text" id="m3DropText">
+        <strong>Drop an image here</strong> or click to pick one<br>
+        <span class="dim">PNG / JPG &mdash; one subject on a plain background works best</span>
+      </div>
+    </div>
+
+    <button type="button" class="btn-ghost m3-use2d" id="m3Use2D">&#127912; Use my 2D character &mdash; mesh the sprite I just made</button>
+
+    <div id="m3TokenRow">
+      <label class="m3-label" for="m3Token">Hugging Face token <span class="dim">(optional &mdash; only when the free GPU quota runs dry)</span></label>
+      <input id="m3Token" class="ai-model-select m3-select" type="password" autocomplete="off" spellcheck="false" placeholder="paste your free HF token (optional)">
+      <p class="ai-key-hint">The 3D spaces run on shared free GPUs (ZeroGPU). Anonymous runs work while quota lasts; a free token raises YOUR quota and is the fix the spaces themselves suggest. Get one at <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> (Read token). Saved only in your browser &mdash; shared with the 2D HF model key.</p>
+    </div>
+
+    <label class="m3-label" for="m3Provider">Provider</label>
+    <select id="m3Provider" class="ai-model-select m3-select">
+      <option value="auto">AUTO &mdash; recommended (tries each free provider in turn)</option>
+      <option value="sf3d">Stable Fast 3D &mdash; Stability AI &middot; fast, textured GLB</option>
+      <option value="instantmesh">InstantMesh &mdash; Tencent ARC &middot; dense mesh, GLB + OBJ</option>
+      <option value="trellis2">TRELLIS.2 &mdash; Microsoft &middot; newest, high detail</option>
+      <option value="trellis">TRELLIS &mdash; community mirror &middot; reliable classic</option>
+    </select>
+
+    <button id="m3Go" class="generate m3-go" type="button" disabled>GENERATE MESH</button>
+    <div id="m3Status" class="m3-status" role="status" aria-live="polite">Pick an image to start &mdash; it&rsquo;s free.</div>
+
+    <div id="m3Result" class="m3-result" hidden>
+      <div id="m3ViewerWrap" class="m3-viewer-wrap" hidden>
+        <model-viewer id="m3Viewer" camera-controls auto-rotate shadow-intensity="0.6"
+          alt="Your generated 3D mesh — drag to orbit"></model-viewer>
+        <p class="m3-viewer-cap dim">Drag to orbit &middot; scroll to zoom</p>
+      </div>
+      <a id="m3Glb" class="m3-dl" href="#" download="framelab-mesh.glb">&#11015; Download GLB <span id="m3GlbSize" class="m3-dl-size"></span></a>
+      <a id="m3Obj" class="m3-dl m3-dl-alt" href="#" download="framelab-mesh.obj" hidden>&#11015; Download OBJ <span id="m3ObjSize" class="m3-dl-size"></span></a>
+      <p class="lab3d-note" id="m3ResultNote"></p>
+    </div>
+
+    <p class="lab3d-note">Runs on free community GPUs (Hugging Face Spaces) &mdash; queues happen.
+    AUTO rides them out by switching. More 3D models join the hub as they prove themselves here.</p>
+  </div>
+</section>
+
 <!-- phone-only sticky generate bar: thumb-reachable, always visible -->
 <div class="mobile-bar">
   <button id="generateMobile" class="generate">GENERATE SPRITE</button>
@@ -343,5 +499,29 @@
 </footer>
 
 <script src="js/app.js"></script>
+<script>
+/* SW update rescue: the v1 worker was cache-first, so a page it controls
+ * keeps serving the previous build even after a fix deploys. Register with
+ * updateViaCache:"none", force an update check, and when a new worker takes
+ * control reload ONCE (session-guarded) so the fresh build lands in the
+ * same visit instead of one visit late. */
+(function () {
+  if (!("serviceWorker" in navigator)) return;
+  var hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange", function () {
+    if (!hadController) return;
+    try {
+      if (sessionStorage.getItem("swReloaded")) return;
+      sessionStorage.setItem("swReloaded", "1");
+    } catch (e) {}
+    location.reload();
+  });
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" })
+      .then(function (reg) { if (reg) reg.update(); })
+      .catch(function () {});
+  });
+})();
+</script>
 </body>
 </html>

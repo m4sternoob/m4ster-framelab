@@ -1198,7 +1198,7 @@ body.mode-slicer .mobile-bar { display: none !important; }
 .ctl-group .field-label:first-child { margin-top: 0; }
 
 /* category tabs: chunky 3×2 grid */
-.controls .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.controls .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .controls .tab {
   min-height: 46px; padding: 10px 6px; border-radius: 11px;
   font-size: 13.5px; font-weight: 700; text-align: center;
@@ -1300,7 +1300,7 @@ body.mode-slicer .mobile-bar { display: none !important; }
 }
 
 /* v6.16b — options form grid: label over field, pairs side by side */
-.pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; margin-top: 12px; }
+.pgrid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 12px 10px; margin-top: 12px; }
 .pfield > label {
   display: block; font-size: 11px; font-weight: 700;
   letter-spacing: .09em; text-transform: uppercase;
@@ -1315,12 +1315,15 @@ body.mode-slicer .mobile-bar { display: none !important; }
   flex: 0 0 42px; width: 42px; min-height: 42px; padding: 0;
   display: grid; place-items: center; font-size: 16px; border-radius: 10px;
 }
-.states-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.states-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .states-grid label.chk { justify-content: center; margin: 0; }
 
 /* v6.16c — narrow-field fixes: palette select + facing seg were squeezed */
 .pfield select, .pfield input[type="number"] { font-size: 13.5px; padding: 8px 6px 8px 10px; }
 .pfield .seg-btn { white-space: nowrap; font-size: 12.5px; }
+/* facing seg text ("→ right") clipped at desktop column widths — the
+   #params button padding (14px) outranks .pfield .seg-btn, so say it here */
+#params .pfield .seg-btn { padding: 8px 6px; font-size: 12px; }
 .pal-row .mini-btn { flex-basis: 38px; width: 38px; }
 
 /* v6.16d — steps, unmistakably: eyebrow label + a rail line joining them */
@@ -1330,13 +1333,172 @@ body.mode-slicer .mobile-bar { display: none !important; }
   letter-spacing: .18em; text-transform: uppercase; color: var(--violet);
 }
 .ctl-group { position: relative; }
-.ctl-group:not(:last-of-type)::before {
-  content: ""; position: absolute; left: 25px; top: 46px; bottom: -15px;
+/* step rail (his 2026-10-20 call: keep the line, move it LEFT): one
+   continuous line down the left edge of the step cards, Step 1 → Step 5.
+   It sits at left:6px — in the card's border strip, left of ALL content
+   (content starts at the 14px padding) — so it never crosses a button. */
+.ctl-group::before {
+  content: ""; position: absolute; left: 6px; top: -2px; bottom: -16px;
   width: 2px; border-radius: 2px;
-  background: linear-gradient(to bottom, var(--violet), transparent);
-  opacity: .45;
+  background: var(--violet);
+  opacity: .4;
 }
+.ctl-group:first-of-type::before { top: 12px; }
+.ctl-group:last-of-type::before { bottom: 12px; }
 .controls > .generate { position: relative; z-index: 1; }
+
+/* ================= TEST BUILD: dim flip + studio cards + 3D hub ============ */
+.dim-flip {
+  display: flex; gap: 4px; padding: 4px; border-radius: 999px;
+  background: var(--panel); border: 1px solid var(--line);
+}
+.flip-btn {
+  min-height: 38px; padding: 0 16px; border-radius: 999px; border: 0;
+  background: transparent; color: var(--dim); font: 700 13px var(--font);
+  cursor: pointer; transition: all .18s ease; white-space: nowrap;
+}
+.flip-btn:hover { color: var(--text); transform: translateY(-1px); }
+.flip-btn.active { background: linear-gradient(180deg, var(--violet), var(--violet-deep)); color: #fff; }
+.test-pill { border-color: #ffb020; color: #ffb020; }
+#studioPanel { margin-top: 14px; }
+.pick-grid { display: grid; gap: 7px; margin: 4px 0 9px; }
+.act-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.style-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.persp-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pick-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-width: 0; min-height: 54px; padding: 6px 4px; border-radius: 12px; cursor: pointer;
+  background: var(--field, rgba(255,255,255,.03)); border: 1px solid var(--line);
+  color: var(--dim); font: 600 10.5px var(--font); transition: all .15s ease;
+}
+.pick-card:hover { transform: translateY(-2px); border-color: var(--violet); color: var(--text); }
+.pick-card.active { border-color: var(--violet); color: var(--text); background: rgba(139,92,246,.16); box-shadow: 0 0 0 1px var(--violet) inset; }
+.pc-icon { font-size: 17px; line-height: 1; }
+/* uniform card rows in the two big studio grids — wrapping labels were
+   making each row a different height and Step 3 sprawl past 1300px */
+.act-grid .pick-card, .style-grid .pick-card { height: 62px; }
+.pc-label { max-width: 100%; overflow-wrap: break-word; text-align: center; }
+.pc-sub { font-size: 10px; color: var(--dim); font-weight: 500; }
+.stepper {
+  display: flex; align-items: center; justify-content: space-between;
+  border: 1px solid var(--line); border-radius: 12px; padding: 6px; margin: 6px 0 12px;
+}
+.stepper button {
+  width: 44px; height: 40px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--text); font-size: 18px; cursor: pointer;
+}
+.stepper button:hover { border-color: var(--violet); }
+.stepper span { font: 800 17px var(--font); }
+.proc-btn { width: 100%; min-height: 46px; }
+#preview { background: repeating-conic-gradient(rgba(255,255,255,.06) 0% 25%, rgba(255,255,255,.015) 0% 50%) 0 0 / 22px 22px; }
+/* ---------- test build: Fresh from the Lab (auto-scroll showcase) ---------- */
+.fresh-lab { max-width: 1100px; margin: 30px auto 8px; padding: 0 18px;
+  opacity: 0; transform: translateY(16px) scale(.995); transition: opacity .6s ease, transform .6s ease; }
+.fresh-lab.in { opacity: 1; transform: none; }
+body.dim-3d .fresh-lab { display: none; }
+.fresh-head { padding: 18px 4px 12px; }
+.fresh-head h2 { font-size: 24px; margin: 0 0 4px; }
+.fresh-head p { color: var(--dim); margin: 0; font-size: 13.5px; }
+.fresh-marquee { overflow: hidden; padding: 6px 0 14px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.fresh-track { display: flex; gap: 14px; width: max-content; will-change: transform;
+  animation: marquee 46s linear infinite; }
+.fresh-marquee:hover .fresh-track, .fresh-marquee:active .fresh-track { animation-play-state: paused; }
+.fresh-set { display: flex; gap: 14px; }
+.fresh-card { min-width: 228px; max-width: 228px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--panel); padding: 13px 15px; }
+.fresh-chip { font: 700 9.5px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--violet); }
+.fresh-name { font-weight: 800; font-size: 16px; margin: 5px 0 3px; }
+.fresh-note { color: var(--dim); font-size: 12.5px; line-height: 1.45; }
+@media (prefers-reduced-motion: reduce) { .fresh-track { animation: none; } .fresh-lab { transition: none; opacity: 1; transform: none; } }
+#lab3d { max-width: 1100px; margin: 26px auto 60px; padding: 0 18px; }
+.lab3d-card { border: 1px solid var(--line); border-radius: 20px; padding: 30px; background: var(--panel); }
+.lab3d-badge { font: 700 10.5px var(--mono); letter-spacing: .16em; color: var(--violet); }
+.lab3d-card h2 { font-size: 30px; margin: 10px 0 8px; }
+.lab3d-lede { color: var(--dim); max-width: 62ch; line-height: 1.55; }
+.lab3d-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 20px 0; }
+.m3-card { border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.m3-name { font: 800 16px var(--font); }
+.m3-by { color: var(--dim); font-size: 12px; margin: 3px 0 10px; }
+.m3-chip { font: 700 10px var(--mono); letter-spacing: .12em; color: #ffb020; border: 1px solid #ffb020; border-radius: 999px; padding: 3px 9px; }
+.lab3d-note { color: var(--dim); line-height: 1.55; }
+/* --- 3D Lab working panel (test build) --- */
+.m3-drop {
+  border: 2px dashed var(--line); border-radius: 16px; padding: 22px;
+  text-align: center; cursor: pointer; margin: 20px 0 14px;
+  transition: border-color .15s ease, background .15s ease;
+}
+.m3-drop:hover, .m3-drop.drag, .m3-drop:focus-visible { border-color: var(--violet); background: color-mix(in srgb, var(--violet) 7%, transparent); outline: none; }
+.m3-thumb { max-width: 180px; max-height: 180px; border-radius: 12px; margin: 0 auto 10px; display: block; }
+.m3-thumb[hidden] { display: none; }
+.m3-drop-text { line-height: 1.55; color: var(--text); }
+.m3-label { font: 700 11px var(--mono); letter-spacing: .12em; color: var(--dim); display: block; margin: 8px 0 6px; }
+.m3-select { width: 100%; }
+.m3-go { margin-top: 14px; }
+.m3-status { margin-top: 14px; font-size: 13.5px; line-height: 1.55; color: var(--text); min-height: 21px; }
+.m3-status.err { color: var(--danger); font-weight: 600; }
+.m3-result { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.m3-result[hidden] { display: none; }
+.m3-dl {
+  display: block; text-align: center; padding: 13px 20px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--violet), var(--violet-soft));
+  color: var(--on-accent); font-weight: 800; text-decoration: none;
+}
+.m3-dl:hover { filter: brightness(1.07); }
+.m3-dl-alt { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+.m3-dl-size { font-weight: 600; opacity: .85; font-size: 12.5px; }
+/* ============ step wizard (his design, 2026-10-20) ============
+ * The 5 steps live in ONE frame as pages: dots on top (clickable, filled =
+ * current), one step visible at a time, Back / Next at the bottom, Generate
+ * waits on the last step. Kills the 2400px skyscraper frame he flagged
+ * ("left one very long, right one very square"). Auto-off in pixelart /
+ * slicer modes — those keep their stacked layout. */
+.wiz-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.wiz-dots { display: flex; gap: 9px; }
+.wiz-dot {
+  width: 11px; height: 11px; border-radius: 50%; padding: 0; cursor: pointer;
+  border: 2px solid color-mix(in srgb, var(--text) 40%, transparent);
+  background: transparent; transition: all .15s ease;
+}
+.wiz-dot:hover { transform: scale(1.25); }
+.wiz-dot.done { background: color-mix(in srgb, var(--text) 35%, transparent); }
+/* current step = WHITE, never the theme accent (his call, 2026-10-20);
+   the soft text-colored ring keeps it visible on the light Porcelain too */
+.wiz-dot.now {
+  background: #fff; border-color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 22%, transparent), 0 0 12px rgba(255, 255, 255, .45);
+}
+.wiz-count {
+  font: 700 10.5px var(--mono); letter-spacing: .14em;
+  text-transform: uppercase; color: var(--dim);
+}
+.wiz-btns { display: flex; gap: 8px; margin-top: 4px; }
+.wiz-back { flex: 0 0 auto; width: auto; min-height: 46px; padding: 10px 18px; border-radius: 12px; }
+.wiz-back[disabled] { opacity: .35; cursor: default; }
+.wiz-next {
+  flex: 1; min-height: 46px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--violet); color: var(--on-accent);
+  background: linear-gradient(180deg, var(--violet), var(--violet-deep));
+  font: 700 14px var(--font);
+}
+.controls.wizard .ctl-group {
+  display: none; border: 0; background: transparent;
+  padding: 4px 2px; margin-bottom: 6px;
+}
+.controls.wizard .ctl-group::before { display: none; }
+.controls.wizard .ctl-group.wiz-on { display: block; animation: wizIn .18s ease; }
+.controls.wizard #generate, .controls.wizard .gen-note { display: none; }
+.controls.wizard.wiz-last #generate { display: block; }
+.controls.wizard.wiz-last .gen-note { display: block; }
+@keyframes wizIn { from { opacity: 0; transform: translateY(6px); } }
+@media (max-width: 900px) {
+  .ctl-group::before { left: 5px; }
+  .dim-flip { order: 3; }
+  .act-grid, .style-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .persp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pick-card { min-height: 58px; font-size: 10.5px; }
+}
 
 /* ============ TOOLS strip: utilities live outside the generation flow ==== */
 .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -1353,3 +1515,30 @@ body.mode-slicer .mobile-bar { display: none !important; }
 .tool-text b { font-size: 15.5px; }
 .tool-text span { color: var(--dim); font-size: 12.5px; }
 @media (max-width: 640px) { .tools-grid { grid-template-columns: 1fr; } }
+
+/* ============ TEST BUILD: mobile topbar — stack, never pile up ============ */
+@media (max-width: 700px) {
+  .topbar { flex-wrap: wrap; row-gap: 8px; padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top)); }
+  .brand { order: 1; gap: 8px; }
+  .monogram { width: 34px; height: 34px; }
+  .brand-name { font-size: 16px; }
+  .tagline { display: none; }
+  .topbar-right { order: 2; margin-left: auto; gap: 8px; }
+  .topbar-right .pill { display: none; }
+  .test-pill { display: none; }
+  .gh-link { padding: 7px 10px; font-size: 12px; }
+  .dim-flip { order: 3; width: 100%; }
+  .flip-btn { flex: 1; min-height: 40px; }
+}
+
+/* ============ v7.0 3D lab additions: token row, 2D bridge, viewer ======== */
+.m3-use2d { width: 100%; min-height: 44px; margin: 4px 0 14px; }
+#m3TokenRow { margin-bottom: 14px; }
+#m3TokenRow .ai-key-hint { margin-top: 6px; }
+.m3-viewer-wrap { margin-bottom: 14px; }
+.m3-viewer-wrap model-viewer {
+  width: 100%; height: 320px; border-radius: 14px;
+  border: 1px solid var(--line); background:
+  repeating-conic-gradient(rgba(255,255,255,.05) 0% 25%, rgba(255,255,255,.015) 0% 50%) 0 0 / 22px 22px;
+}
+.m3-viewer-cap { text-align: center; font-size: 11.5px; margin-top: 6px; }

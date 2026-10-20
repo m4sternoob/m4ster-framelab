@@ -10,6 +10,28 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v7.0 — THE HUB
+
+FrameLab is now the hub it was always meant to be: one site, a **2D ⇄ 3D
+flip** in the top bar, and free open models on both sides.
+
+- **2D side** — everything from v6.17 plus the AI Studio (action, style
+  and perspective cards that drive the generator), a step wizard with
+  progress dots, and **AUTO mode**: if a model hits a limit the hub
+  switches to the next free one itself.
+- **3D Lab (new)** — image → real 3D mesh. Drop an image (or use
+  *“Use my 2D character”* to mesh the sprite you just made), pick a
+  provider, get a **GLB** that drops straight into Unity / Unreal /
+  Godot — previewed in the browser before you download. Providers:
+  Stable Fast 3D, InstantMesh, TRELLIS.2 and TRELLIS, all free on
+  Hugging Face Spaces; AUTO walks the whole chain when one fails. The
+  spaces run on shared free GPUs (ZeroGPU), so an *optional* free
+  Hugging Face token raises your quota — stored only in your browser,
+  same as every other key here. Still no signup for FrameLab itself,
+  no paywall, ever.
+- Carries forward: the v6.17 Tools section (Pixel Converter + Sprite
+  Slicer), the v6.17.1 slicer wiring fix, the mobile topbar wrap.
+
 ## v6.17.1 — slicer wiring fix
 
 A bare-id selector in the slicer's control wiring (`$("slMargin")` for

@@ -1,5 +1,5 @@
 /* m4ster FrameLab service worker — offline-first cache */
-var CACHE = "framelab-v1";
+var CACHE = "framelab-v2";
 var ASSETS = [
   "/", "/index.html",
   "/css/style.css", "/js/app.js",
