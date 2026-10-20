@@ -427,6 +427,19 @@ textarea#prompt:focus { outline: none; border-color: var(--violet); }
 .export-box .btn.ghost { color: var(--dim); }
 .export-note { color: var(--dim); font-size: 11px; line-height: 1.6; }
 
+/* simple layout: secondary exports fold away under one summary row */
+.more-exports { display: flex; flex-direction: column; gap: 8px; }
+.more-exports summary {
+  cursor: pointer; list-style: none; text-align: center;
+  padding: 9px 12px; border-radius: 12px; font-size: 12.5px; font-weight: 600;
+  color: var(--dim); border: 1px dashed color-mix(in srgb, var(--line) 80%, transparent);
+  transition: color .2s ease, border-color .2s ease, transform .15s ease;
+}
+.more-exports summary::-webkit-details-marker { display: none; }
+.more-exports summary::after { content: " ▾"; }
+.more-exports[open ] summary::after { content: " ▴"; }
+.more-exports summary:hover { color: var(--text); border-color: var(--acc); transform: translateY(-1px); }
+
 .foot {
   padding: 16px 20px;
   padding-bottom: calc(16px + env(safe-area-inset-bottom));

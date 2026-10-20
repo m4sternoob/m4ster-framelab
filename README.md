@@ -10,6 +10,17 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.12 — transparent, honest, simpler
+
+AI still keying rebuilt: the background flood now runs with a drift cap that
+adapts to the backdrop, so soft renders no longer lose the character and
+gradient backdrops no longer stay glued on (no more whole-picture bobbing) —
+and a largest-blob pass strips watermarks and stray marks from the frame. If
+a still genuinely can't be separated, the app says so instead of shipping
+scraps. State checkboxes are sticky: only the states you check get generated,
+and the picks survive tab hops. Export box simplified — bundle, Godot and
+Unity up front, the rest under "More exports".
+
 ## v6.11 — bigger procedural library
 
 The offline generator grows: a **ghost** archetype (floating sheet body,

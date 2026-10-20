@@ -44,6 +44,7 @@ const state = {
   source: "ai",            // ai | procedural
   aiModel: "pol-sana",     // provider id from the model switcher (AI_PROVIDERS)
   aiStyle: "still",        // character AI: "still" (one drawing, animated in-house) | "strip"
+  charStash: null,         // user's character-panel picks (states/frames/style…), kept across re-renders
   key: { r: 255, g: 0, b: 255 },
   rows: [],                // [{ name, frames:[canvas], order:[idx], fps, loop }]
   originals: [],           // untouched extracted frames, parallel to rows
@@ -115,7 +116,11 @@ const STATE_FPS = { idle: 6, walk: 8, run: 10, jump: 8, attack: 10 };
 function renderParams() {
   const cat = state.category;
   const box = $("#params");
-  const d = CATEGORY_DEFAULTS[cat];
+  /* the user's own picks survive re-renders (tab hops, gallery opens) —
+   * defaults only fill a panel the user hasn't touched yet */
+  const d = (cat === "character" && state.charStash)
+    ? { ...CATEGORY_DEFAULTS[cat], ...state.charStash }
+    : CATEGORY_DEFAULTS[cat];
 
   if (cat === "character") {
     box.innerHTML = `
@@ -638,20 +643,54 @@ async function genRowAI(prompt, frames, cellH, label) {
   return c;
 }
 
-/* flood keying for AI stills: region-grow from every border pixel, eating
- * anything within a small per-step colour distance of a background
- * neighbour. Models rarely honour the exact key colour (magenta comes back
- * dusty pink, or cream with a vignette) — a growing flood eats flat and
- * gradually-shaded backgrounds alike and stops at the subject's hard edges,
- * where a global colour key would leave the whole backdrop attached. */
-function floodKey(src, tol = 24) {
+/* sample the background colour that is actually there (corners average).
+ * Models drift from the textbook key colour — magenta comes back dusty
+ * pink, grey-blue, cream — so keying anchors to the sampled colour. */
+function sampleKeyColor(canvas) {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const w = canvas.width, h = canvas.height;
+  const s = Math.max(2, Math.min(12, (Math.min(w, h) / 20) | 0));
+  const pts = [[0, 0], [w - s, 0], [0, h - s], [w - s, h - s]];
+  let r = 0, g = 0, b = 0, n = 0;
+  for (const [x, y] of pts) {
+    const d = ctx.getImageData(x, y, s, s).data;
+    for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+  }
+  return { r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n) };
+}
+
+/* flood keying for AI stills: region-grow from every border pixel. A pixel
+ * joins the background only if BOTH hold: it is close to the background
+ * pixel it grew from (small per-step step — this eats gradients and
+ * vignettes), AND it is still within a capped total distance of the
+ * sampled background colour. The cap is what stops the flood leaking
+ * through a soft painterly edge and eating the whole character — with
+ * chain-similarity alone, a washed-out render loses everything but its
+ * outlines. The cap adapts: it is loosened by how far the background
+ * colour itself drifts between the image corners (a flat backdrop keeps
+ * the cap tight; a vignette earns headroom). */
+function floodKey(src, tol = 12) {
   const w = src.width, h = src.height;
   const ctx = src.getContext("2d", { willReadFrequently: true });
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
+  const bgc = sampleKeyColor(src);
+  const cornerCols = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]].map(([x, y]) => {
+    const i = (y * w + x) * 4;
+    return [d[i], d[i + 1], d[i + 2]];
+  });
+  let spread = 0;
+  for (const a of cornerCols) for (const b of cornerCols) {
+    spread = Math.max(spread, Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]));
+  }
+  const cap = spread + 190;
+  const withinCap = i => {
+    const a = i * 4;
+    return Math.abs(d[a] - bgc.r) + Math.abs(d[a + 1] - bgc.g) + Math.abs(d[a + 2] - bgc.b) <= cap;
+  };
   const bg = new Uint8Array(w * h);
   const stack = [];
-  const push = i => { if (!bg[i]) { bg[i] = 1; stack.push(i); } };
+  const push = i => { if (!bg[i] && withinCap(i)) { bg[i] = 1; stack.push(i); } };
   for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
   for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
   const near = (i, j) => {
@@ -670,6 +709,67 @@ function floodKey(src, tol = 24) {
   const out = makeCanvas(w, h);
   out.getContext("2d").putImageData(img, 0, 0);
   return out;
+}
+
+/* keep only the largest connected blob of a keyed still, clear the rest.
+ * Models ignore "one character" often enough (mini sprite sheets, stray
+ * marks, the Pollinations watermark in a corner) — extraction merges their
+ * bounding boxes into the cell, so without this pass the junk rides along
+ * inside every frame. */
+function keepLargestBlob(canvas) {
+  const w = canvas.width, h = canvas.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const label = new Int32Array(w * h).fill(-1);
+  let best = -1, bestSize = 0, next = 0;
+  const stack = [];
+  for (let start = 0; start < w * h; start++) {
+    if (label[start] !== -1 || d[start * 4 + 3] <= 12) continue;
+    let size = 0;
+    label[start] = next;
+    stack.push(start);
+    while (stack.length) {
+      const cur = stack.pop();
+      size++;
+      const cx = cur % w, cy = (cur / w) | 0;
+      if (cx > 0)     { const n = cur - 1; if (label[n] === -1 && d[n * 4 + 3] > 12) { label[n] = next; stack.push(n); } }
+      if (cx < w - 1) { const n = cur + 1; if (label[n] === -1 && d[n * 4 + 3] > 12) { label[n] = next; stack.push(n); } }
+      if (cy > 0)     { const n = cur - w; if (label[n] === -1 && d[n * 4 + 3] > 12) { label[n] = next; stack.push(n); } }
+      if (cy < h - 1) { const n = cur + w; if (label[n] === -1 && d[n * 4 + 3] > 12) { label[n] = next; stack.push(n); } }
+    }
+    if (size > bestSize) { bestSize = size; best = next; }
+    next++;
+  }
+  if (best < 0) return canvas;
+  for (let i = 0; i < w * h; i++) if (label[i] !== best) d[i * 4 + 3] = 0;
+  const out = makeCanvas(w, h);
+  out.getContext("2d").putImageData(img, 0, 0);
+  return out;
+}
+
+/* fraction of pixels keying cleared (sampled). Near zero = the backdrop
+ * is still fully attached and the "sprite" would be a bobbing rectangle */
+function clearedFrac(canvas) {
+  const w = canvas.width, h = canvas.height;
+  const d = canvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+  let clear = 0, n = 0;
+  for (let i = 3; i < d.length; i += 16) { n++; if (d[i] <= 12) clear++; }
+  return n ? clear / n : 0;
+}
+
+/* did keying eat the subject? the middle of the frame should still hold a
+ * solid share of opaque pixels — a standing character lives there */
+function hollowCenter(canvas) {
+  const w = canvas.width, h = canvas.height;
+  const d = canvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+  const x0 = (w * 0.3) | 0, x1 = (w * 0.7) | 0, y0 = (h * 0.25) | 0, y1 = (h * 0.8) | 0;
+  let opaque = 0, total = 0;
+  for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) {
+    total++;
+    if (d[(y * w + x) * 4 + 3] > 12) opaque++;
+  }
+  return total === 0 || opaque / total < 0.03;
 }
 
 /* ---------------- alpha cleanup: chroma key + despill ----------------
@@ -2614,13 +2714,24 @@ async function runPipeline() {
         showStage(rawStill, `still: raw ${bmp.width}×${bmp.height} — one drawing, every row comes from this`);
         setStep("row", "done");
         setStep("alpha", "active", "flood keying the background…");
-        const keyedStill = floodKey(rawStill);
+        let keyedStill = floodKey(rawStill);
+        if (hollowCenter(keyedStill) || clearedFrac(keyedStill) < 0.08) {
+          // two ways keying fails: it leaked into the subject (hollow
+          // middle) or it removed almost nothing (backdrop still glued on,
+          // frames would bob as one rectangle). Retry with the flat
+          // selected key colour; if that fails both checks too, the still
+          // genuinely can't be separated — say so, don't ship scraps.
+          stageMsg("first keying pass didn't separate cleanly — retrying with the flat key colour…", "warn");
+          const alt = chromaKey(rawStill, state.key);
+          if (!hollowCenter(alt) && clearedFrac(alt) >= 0.08) keyedStill = alt;
+          else fail("Couldn't separate this character from its background — it would animate as a whole picture, not a sprite. Pick AI Horde · Deliberate or Pollinations · FLUX (harder edges), or use the AI strip mode.");
+        }
         showStage(keyedStill, "still: background keyed out");
         setStep("alpha", "done");
         checkKeyCoverage(keyedStill);
         setStep("extract", "active", "lifting the character out…");
         const stillFrame = extractFramesRobust(keyedStill, 1, { align: "bottom" }).frames[0];
-        stillCell = trimToContent(stillFrame, 0.16);
+        stillCell = trimToContent(keepLargestBlob(stillFrame), 0.16);
         setStep("extract", "done", "one clean still — animating it in-house");
       }
       for (const sname of p.states) {
@@ -3612,6 +3723,19 @@ function init() {
       try { localStorage.setItem(LS_AI_KEYS, JSON.stringify(keys)); } catch (e) {}
     });
   }
+  /* character panel picks are stashed on every change so a tab hop or a
+   * gallery open never silently resets the states the user checked */
+  const paramsBox = $("#params");
+  if (paramsBox) paramsBox.addEventListener("change", () => {
+    if (state.category !== "character" || !paramsBox.querySelector("#pFrames")) return;
+    state.charStash = {
+      states: [...paramsBox.querySelectorAll("#stateRow input:checked")].map(i => i.dataset.state),
+      frames: clampInt(paramsBox.querySelector("#pFrames").value, 2, 12, 4),
+      archetype: paramsBox.querySelector("#pArch") ? paramsBox.querySelector("#pArch").value : "biped",
+      palette: paramsBox.querySelector("#pPal") ? paramsBox.querySelector("#pPal").value : "classic"
+    };
+  });
+
   /* v6.9: character animation style (still vs strip) */
   try {
     if (localStorage.getItem("m4ster.aiStyle") === "strip") state.aiStyle = "strip";
