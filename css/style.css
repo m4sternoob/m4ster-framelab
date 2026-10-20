@@ -1337,3 +1337,19 @@ body.mode-slicer .mobile-bar { display: none !important; }
   opacity: .45;
 }
 .controls > .generate { position: relative; z-index: 1; }
+
+/* ============ TOOLS strip: utilities live outside the generation flow ==== */
+.tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tool-card {
+  display: flex; align-items: center; gap: 14px; text-align: left;
+  padding: 16px 18px; border-radius: 16px; cursor: pointer; font: inherit;
+  border: 1px solid var(--line); background: var(--panel); color: var(--text);
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.tool-card svg { width: 34px; height: 34px; flex: none; color: var(--violet); }
+.tool-card:hover { transform: translateY(-2px); border-color: var(--violet); }
+.tool-card.active { border-color: var(--violet); box-shadow: 0 0 0 1px var(--violet) inset; background: color-mix(in srgb, var(--violet) 10%, var(--panel)); }
+.tool-text { display: flex; flex-direction: column; gap: 2px; }
+.tool-text b { font-size: 15.5px; }
+.tool-text span { color: var(--dim); font-size: 12.5px; }
+@media (max-width: 640px) { .tools-grid { grid-template-columns: 1fr; } }

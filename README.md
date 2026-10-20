@@ -10,6 +10,13 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.17 — tools are tools
+
+Pixel Art and Slicer are utilities, not generation types — they're out of
+Step 1 ("What are you making?" is Character / Tile / Effect / UI only) and
+into their own **Tools** section under the category cards: Pixel Converter
+and Sprite Slicer, one tap each, same machinery underneath.
+
 ## v6.16 — the lab, redesigned as steps
 
 Frontend only — the pipeline is untouched. The controls now read as a

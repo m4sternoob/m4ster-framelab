@@ -3597,6 +3597,7 @@ function init() {
   document.querySelectorAll(".tab").forEach(t => {
     t.onclick = () => {
       document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+      document.querySelectorAll(".tool-card").forEach(x => x.classList.remove("active"));
       t.classList.add("active");
       state.category = t.dataset.cat;
       cancelAnimationFrame(slicerRAF);
@@ -4280,6 +4281,24 @@ function initV6() {
       const cat = c.dataset.cat;
       const tab = document.querySelector(`.tab[data-cat="${cat}"]`);
       if (tab) tab.click();
+      document.getElementById("tool").scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+  });
+
+  /* tool cards: standalone utilities — same category machinery as the
+   * tabs, but they live OUTSIDE the generation flow (his call: converter
+   * and slicer are tools, not "what are you making" types) */
+  document.querySelectorAll(".tool-card").forEach(c => {
+    c.onclick = () => {
+      document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+      document.querySelectorAll(".tool-card").forEach(x => x.classList.remove("active"));
+      c.classList.add("active");
+      state.category = c.dataset.cat;
+      cancelAnimationFrame(slicerRAF);
+      renderParams();
+      syncPixelMode();
+      syncSlicerMode();
+      syncAiModelUI();
       document.getElementById("tool").scrollIntoView({ behavior: "smooth", block: "start" });
     };
   });
