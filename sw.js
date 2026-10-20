@@ -1,10 +1,10 @@
 /* m4ster FrameLab service worker — offline-first cache */
-var CACHE = "framelab-v2";
+var CACHE = "framelab-v3";
 var ASSETS = [
   "/", "/index.html",
   "/css/style.css", "/js/app.js",
   "/manifest.json",
-  "/icons/icon-192.png", "/icons/icon-512.png", "/icons/maskable-512.png",
+  "/icons/icon-192.png", "/icons/icon-512.png", "/icons/maskable-512.png", "/icons/apple-touch-icon.png",
   "/logo-mf.svg"
 ];
 self.addEventListener("install", function (e) {
