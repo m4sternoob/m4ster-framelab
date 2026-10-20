@@ -43,6 +43,7 @@ const state = {
   category: "character",
   source: "ai",            // ai | procedural
   aiModel: "pol-sana",     // provider id from the model switcher (AI_PROVIDERS)
+  aiStyle: "still",        // character AI: "still" (one drawing, animated in-house) | "strip"
   key: { r: 255, g: 0, b: 255 },
   rows: [],                // [{ name, frames:[canvas], order:[idx], fps, loop }]
   originals: [],           // untouched extracted frames, parallel to rows
@@ -118,7 +119,7 @@ function renderParams() {
 
   if (cat === "character") {
     box.innerHTML = `
-      <div class="field-label">Animation states <span class="dim">(one AI call per state)</span></div><div class="row" id="stateRow">
+      <div class="field-label">Animation states <span class="dim" id="stateCostNote">(one AI call per state)</span></div><div class="row" id="stateRow">
         ${["idle", "walk", "run", "jump", "attack"].map(s =>
           `<label class="chk"><input type="checkbox" data-state="${s}" ${d.states.includes(s) ? "checked" : ""}>${s}</label>`).join("")}
       </div><div class="row"><span class="dim">frames/state</span><input type="number" class="num" id="pFrames" min="2" max="12" value="${d.frames}"><span class="dim">style</span><select id="pStyle" class="grow"><option value="flat 2D game sprite, absolutely no 3D, no 3D render, no volumetric lighting, solid flat colors, crisp edges">clean 2D</option><option value="retro pixel art, visible square pixels, limited 16-color palette, 16-bit game sprite, absolutely no 3D, no smooth 3D shading">pixel art</option><option value="2D cartoon, flat colors, bold outlines, hand-drawn animation cel style, absolutely no 3D">cartoon</option><option value="dark fantasy 2D game art, flat painterly 2D illustration, moody lighting, absolutely no 3D render">dark fantasy</option></select></div><div class="row"><span class="dim">view</span><select id="pView"><option value="side">side</option><option value="front">front</option></select><span class="dim">facing</span><div class="seg" id="pFlipSeg" style="grid-template-columns:repeat(2,minmax(0,1fr));flex:1"><button type="button" class="seg-btn${state.flipX ? "" : " active"}" data-flip="0" title="face right">&#8594; right</button><button type="button" class="seg-btn${state.flipX ? " active" : ""}" data-flip="1" title="face left">&#8592; left</button></div></div><div class="row"><span class="dim">archetype</span><select id="pArch" class="grow">
@@ -436,7 +437,9 @@ function fitSize(w, h, maxSide, maxPixels) {
 async function blobToBitmap(blob) { return createImageBitmap(blob); }
 
 async function hordeGenerate(prompt, w, h, model, onStatus) {
-  const size = fitSize(w, h, 1024, 1024 * 1024);
+  /* anonymous Horde jobs are capped at 512×512 worth of pixels total —
+   * ask for more and the submit is refused outright (HTTP 403) */
+  const size = fitSize(w, h, 1024, 512 * 512);
   const headers = {
     "Content-Type": "application/json",
     "apikey": "0000000000",
@@ -451,7 +454,10 @@ async function hordeGenerate(prompt, w, h, model, onStatus) {
         params: {
           width: size.w, height: size.h, steps: 25,
           sampler_name: "k_euler_a", cfg_scale: 7,
-          seed: String((Math.random() * 1e9) | 0)
+          seed: String((Math.random() * 1e9) | 0),
+          negative_prompt: "gradient, vignette, border, frame, backdrop, scenery, " +
+            "splash shape, decorative background, floor, shadow, watermark, text, " +
+            "3d render, photorealistic, blurry, multiple characters"
         },
         models: [model], nsfw: false, r2: false
       })
@@ -599,6 +605,18 @@ function syncAiModelUI() {
     keyRow.hidden = true;
   }
   note.textContent = p.note || "";
+  const styleRow = document.getElementById("aiStyleRow");
+  if (styleRow) {
+    styleRow.hidden = !(state.source === "ai" && state.category === "character");
+    styleRow.querySelectorAll(".seg-btn").forEach(b =>
+      b.classList.toggle("active", b.dataset.style === state.aiStyle));
+  }
+  const costNote = document.getElementById("stateCostNote");
+  if (costNote) {
+    costNote.textContent = state.source === "ai" && state.aiStyle === "still"
+      ? "(one AI call total — states animated in-house)"
+      : "(one AI call per state)";
+  }
   const genNote = document.querySelector(".gen-note");
   if (genNote) {
     genNote.textContent = state.source === "ai"
@@ -618,6 +636,40 @@ async function genRowAI(prompt, frames, cellH, label) {
   const c = makeCanvas(bmp.width, bmp.height);
   c.getContext("2d").drawImage(bmp, 0, 0);
   return c;
+}
+
+/* flood keying for AI stills: region-grow from every border pixel, eating
+ * anything within a small per-step colour distance of a background
+ * neighbour. Models rarely honour the exact key colour (magenta comes back
+ * dusty pink, or cream with a vignette) — a growing flood eats flat and
+ * gradually-shaded backgrounds alike and stops at the subject's hard edges,
+ * where a global colour key would leave the whole backdrop attached. */
+function floodKey(src, tol = 24) {
+  const w = src.width, h = src.height;
+  const ctx = src.getContext("2d", { willReadFrequently: true });
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const bg = new Uint8Array(w * h);
+  const stack = [];
+  const push = i => { if (!bg[i]) { bg[i] = 1; stack.push(i); } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+  const near = (i, j) => {
+    const a = i * 4, b = j * 4;
+    return Math.abs(d[a] - d[b]) + Math.abs(d[a + 1] - d[b + 1]) + Math.abs(d[a + 2] - d[b + 2]) <= tol;
+  };
+  while (stack.length) {
+    const cur = stack.pop();
+    const cx = cur % w, cy = (cur / w) | 0;
+    if (cx > 0)     { const n = cur - 1; if (!bg[n] && near(cur, n)) push(n); }
+    if (cx < w - 1) { const n = cur + 1; if (!bg[n] && near(cur, n)) push(n); }
+    if (cy > 0)     { const n = cur - w; if (!bg[n] && near(cur, n)) push(n); }
+    if (cy < h - 1) { const n = cur + w; if (!bg[n] && near(cur, n)) push(n); }
+  }
+  for (let i = 0; i < w * h; i++) if (bg[i]) d[i * 4 + 3] = 0;
+  const out = makeCanvas(w, h);
+  out.getContext("2d").putImageData(img, 0, 0);
+  return out;
 }
 
 /* ---------------- alpha cleanup: chroma key + despill ----------------
@@ -1830,6 +1882,104 @@ async function genTileAI(prompt, size) {
   return out;
 }
 
+/* ---------------- v6.9: one still in, motion out ----------------
+ * Asking an image model for a whole pose strip is how characters end up
+ * sliced across frames. So in still mode the model draws exactly ONE
+ * character; every animation row is then derived from that single drawing
+ * with deterministic transforms — the character can never be cut, merged,
+ * or redesigned between frames. Breathe (idle) is the same trick the
+ * procedural engine uses: squash & stretch anchored at the feet. */
+
+function buildStillPrompt(p) {
+  const key = keyName();
+  const flatBg = `solid flat single-color ${key} background filling the ENTIRE image edge to edge, ` +
+    `absolutely no gradient, no shading, no vignette, no border, no frame, no scenery, ` +
+    `no floor, no backdrop details, no decorative shape or splash behind the character — ` +
+    `the character stands directly on the plain background`;
+  return `2D game character sprite, ${describe("brave knight")}, ${p.style} style, ${(p.archetype || "biped")} body plan, ` +
+    `ONE single character only, standing in a relaxed neutral pose, ${p.view} view, ` +
+    `full body visible, feet on the same ground line, generous empty space on all sides, ` +
+    `clean flat colors, bold readable silhouette, ` +
+    flatBg + `, no shadows, no outline glow, no text, no watermark, game asset`;
+}
+
+/* crop a keyed canvas to its visible content, then re-pad evenly so motion
+ * (lunges, falls) has headroom inside the cell */
+function trimToContent(src, padFrac) {
+  const w = src.width, h = src.height;
+  const px = src.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+  let x0 = w, x1 = -1, y0 = h, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (px[(y * w + x) * 4 + 3] > 12) {
+      if (x < x0) x0 = x; if (x > x1) x1 = x;
+      if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+  }
+  if (x1 < 0) fail("the AI still came back empty after keying — try another model or prompt.");
+  const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
+  const padX = Math.round(cw * padFrac), padY = Math.round(ch * padFrac);
+  const out = makeCanvas(cw + padX * 2, ch + padY * 2);
+  out.getContext("2d").drawImage(src, x0, y0, cw, ch, padX, padY, cw, ch);
+  return out;
+}
+
+/* derive one animation row from the single still. Anchor is the feet
+ * (bottom-center): squash, bob, lunge and fall all pivot there, so the
+ * ground line never drifts. */
+function animateStill(frame, sname, count) {
+  /* a falling body sweeps sideways by its own height — give the death row
+   * a square cell so the fall never clips at the frame edge */
+  if (sname === "death" && frame.width < frame.height) {
+    const S = frame.height;
+    const sq = makeCanvas(S, S);
+    sq.getContext("2d").drawImage(frame, (S - frame.width) / 2, S - frame.height);
+    frame = sq;
+  }
+  const W = frame.width, H = frame.height, TAU = Math.PI * 2;
+  const frames = [];
+  for (let i = 0; i < count; i++) {
+    const t = count === 1 ? 0 : i / count;
+    const ph = t * TAU;
+    let sx = 1, sy = 1, dx = 0, dy = 0, rot = 0;
+    if (sname === "walk") {
+      dy = -H * 0.035 * Math.abs(Math.sin(ph));
+      rot = 0.035 * Math.sin(ph);
+      sy = 1 + 0.012 * Math.sin(2 * ph);
+    } else if (sname === "run") {
+      dy = -H * 0.06 * Math.abs(Math.sin(ph));
+      rot = 0.06 + 0.04 * Math.sin(ph);
+      sy = 1 + 0.02 * Math.sin(2 * ph);
+    } else if (sname === "jump") {
+      const a = Math.sin(Math.PI * t);
+      dy = -H * 0.20 * a;
+      sy = 1 + 0.08 * a; sx = 1 - 0.04 * a;
+    } else if (sname === "attack") {
+      const a = Math.sin(Math.PI * Math.min(1, t * 1.35));
+      dx = W * 0.14 * a; rot = 0.07 * a; sy = 1 - 0.03 * a;
+    } else if (sname === "hurt") {
+      const decay = 1 - t;
+      dx = W * 0.03 * Math.sin(ph * 3) * decay;
+      rot = 0.05 * Math.sin(ph * 3) * decay;
+    } else if (sname === "death") {
+      const a = t * t;
+      rot = -1.45 * a; dy = H * 0.16 * a;
+      sx = 1 - 0.10 * a; sy = 1 - 0.25 * a;
+    } else { /* idle + anything else: breathe */
+      sy = 1 + 0.028 * Math.sin(ph);
+      sx = 1 - 0.012 * Math.sin(ph);
+      dy = -H * 0.006 * (0.5 - 0.5 * Math.cos(ph));
+    }
+    const c = makeCanvas(W, H);
+    const ctx = c.getContext("2d");
+    ctx.translate(W / 2 + dx, H + dy);
+    ctx.rotate(rot);
+    ctx.scale(sx, sy);
+    ctx.drawImage(frame, -W / 2, -H);
+    frames.push(c);
+  }
+  return frames;
+}
+
 function pushRow(name, frames, extra = {}) {
   const row = Object.assign(
     { name, frames, order: frames.map((_, i) => i), fps: 8, loop: true },
@@ -1860,7 +2010,45 @@ async function runPipeline() {
 
     if (cat === "character") {
       if (!p.states.length) fail("select at least one animation state.");
+      /* v6.9 still mode: ONE AI drawing up front, every state row derived
+       * from it below — the model never gets to slice a pose strip. */
+      const stillMode = state.source === "ai" && state.aiStyle === "still";
+      let stillCell = null;
+      if (stillMode) {
+        const sPrompt = buildStillPrompt(p);
+        showPromptPeek(sPrompt);
+        stageMsg(`prompt [still]: ${sPrompt}`);
+        setStep("prompt", "done");
+        setStep("row", "active", "drawing ONE character still…");
+        const bmp = await aiGenerateImage(sPrompt, 1024, 1024, (msg) => {
+          setStep("row", "active", `still — ${msg}`);
+        });
+        const rawStill = makeCanvas(bmp.width, bmp.height);
+        rawStill.getContext("2d").drawImage(bmp, 0, 0);
+        showStage(rawStill, `still: raw ${bmp.width}×${bmp.height} — one drawing, every row comes from this`);
+        setStep("row", "done");
+        setStep("alpha", "active", "flood keying the background…");
+        const keyedStill = floodKey(rawStill);
+        showStage(keyedStill, "still: background keyed out");
+        setStep("alpha", "done");
+        checkKeyCoverage(keyedStill);
+        setStep("extract", "active", "lifting the character out…");
+        const stillFrame = extractFramesRobust(keyedStill, 1, { align: "bottom" }).frames[0];
+        stillCell = trimToContent(stillFrame, 0.16);
+        setStep("extract", "done", "one clean still — animating it in-house");
+      }
       for (const sname of p.states) {
+        if (stillMode) {
+          setStep("row", "active", `animating [${sname}] from the still…`);
+          const frames = animateStill(stillCell, sname, p.frames);
+          pushRow(sname, frames, {
+            fps: STATE_FPS[sname] || 8,
+            loop: !["death", "jump", "attack", "hurt"].includes(sname),
+            stillAnimated: true
+          });
+          setStep("row", "done", `[${sname}] animated from the still`);
+          continue;
+        }
         const prompt = buildPrompt(cat, p, sname, state.strict);
         showPromptPeek(prompt);
         stageMsg(`prompt [${sname}]: ${prompt}`);
@@ -2802,6 +2990,7 @@ function init() {
       renderParams();
       syncPixelMode();
       syncSlicerMode();
+      syncAiModelUI();
     };
   });
 
@@ -2837,6 +3026,17 @@ function init() {
       try { localStorage.setItem(LS_AI_KEYS, JSON.stringify(keys)); } catch (e) {}
     });
   }
+  /* v6.9: character animation style (still vs strip) */
+  try {
+    if (localStorage.getItem("m4ster.aiStyle") === "strip") state.aiStyle = "strip";
+  } catch (e) {}
+  document.querySelectorAll("#aiStyleSeg .seg-btn").forEach(b => {
+    b.onclick = () => {
+      state.aiStyle = b.dataset.style;
+      try { localStorage.setItem("m4ster.aiStyle", state.aiStyle); } catch (e) {}
+      syncAiModelUI();
+    };
+  });
   syncAiModelUI();
 
   document.querySelectorAll("#keyRow .key").forEach(k => {

@@ -10,6 +10,27 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.9 — Still + Alive: one drawing in, every animation out
+
+Asking an image model for a whole pose strip is how characters end up
+sliced across frames. So character generation now defaults to **Still +
+Alive**: the model draws exactly ONE character, and FrameLab derives every
+animation row from that single drawing with deterministic transforms
+anchored at the feet — breathe (squash & stretch) for idle, bob + rock for
+walk/run, an arc for jump, a lunge for attack, a decaying shake for hurt,
+and a full fall for death. The character can never be cut, merged, or
+redesigned between frames, and the whole run costs ONE AI call.
+
+Background removal for stills uses **flood keying** — region-growing from
+the image borders — because models rarely honour the exact key colour
+(magenta comes back dusty pink, or cream with a vignette). The classic
+multi-pose strip flow is still available as "AI strip" in the same panel.
+
+Also fixed: anonymous AI Horde jobs are capped at 512×512 pixels total —
+requests are now fitted under that cap instead of being refused (403),
+and Horde calls carry a negative prompt against vignettes, borders, and
+decorative backdrops.
+
 ## v6.8 — AI model switcher
 
 Swap the image model like you swap models in a chat app. Every provider

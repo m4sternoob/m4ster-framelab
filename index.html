@@ -178,6 +178,14 @@
         <p class="ai-key-hint" id="aiKeyHint"></p>
       </div>
       <p class="ai-model-note" id="aiModelNote"></p>
+      <div id="aiStyleRow" hidden>
+        <div class="field-label">Character animation</div>
+        <div class="seg" id="aiStyleSeg" style="grid-template-columns: repeat(2, 1fr);">
+          <button class="seg-btn active" data-style="still">Still + Alive</button>
+          <button class="seg-btn" data-style="strip">AI strip</button>
+        </div>
+        <p class="ai-model-note">Still + Alive: the AI draws ONE character and FrameLab animates it — poses can never be sliced in half. AI strip: the classic multi-pose sheet, cut afterwards.</p>
+      </div>
     </div>
 
     <div class="field-label" id="keyLabel">Background key <span class="dim">(stripped from the sprite)</span></div>
