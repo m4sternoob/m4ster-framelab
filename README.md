@@ -10,6 +10,16 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.11 — bigger procedural library
+
+The offline generator grows: a **ghost** archetype (floating sheet body,
+rippling wavy hem, drift-based motion for every state, glowing-eye variant),
+two new palettes (**royal**, **shadow**), two new tile patterns (**lava** —
+animated, its cracks burn brighter on frame two — and **snow**), and two
+new effects (**heal** and **portal**). Procedural mode now covers
+6 archetypes, 6 palettes, 10 tile patterns, 11 effects and 8 UI kinds —
+still 100% offline, still deterministic per seed.
+
 ## v6.10 — one-click engine packs
 
 Two new export buttons, each a single ZIP built in the browser:

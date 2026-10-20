@@ -123,10 +123,10 @@ function renderParams() {
         ${["idle", "walk", "run", "jump", "attack"].map(s =>
           `<label class="chk"><input type="checkbox" data-state="${s}" ${d.states.includes(s) ? "checked" : ""}>${s}</label>`).join("")}
       </div><div class="row"><span class="dim">frames/state</span><input type="number" class="num" id="pFrames" min="2" max="12" value="${d.frames}"><span class="dim">style</span><select id="pStyle" class="grow"><option value="flat 2D game sprite, absolutely no 3D, no 3D render, no volumetric lighting, solid flat colors, crisp edges">clean 2D</option><option value="retro pixel art, visible square pixels, limited 16-color palette, 16-bit game sprite, absolutely no 3D, no smooth 3D shading">pixel art</option><option value="2D cartoon, flat colors, bold outlines, hand-drawn animation cel style, absolutely no 3D">cartoon</option><option value="dark fantasy 2D game art, flat painterly 2D illustration, moody lighting, absolutely no 3D render">dark fantasy</option></select></div><div class="row"><span class="dim">view</span><select id="pView"><option value="side">side</option><option value="front">front</option></select><span class="dim">facing</span><div class="seg" id="pFlipSeg" style="grid-template-columns:repeat(2,minmax(0,1fr));flex:1"><button type="button" class="seg-btn${state.flipX ? "" : " active"}" data-flip="0" title="face right">&#8594; right</button><button type="button" class="seg-btn${state.flipX ? " active" : ""}" data-flip="1" title="face left">&#8592; left</button></div></div><div class="row"><span class="dim">archetype</span><select id="pArch" class="grow">
-          ${[["biped", "biped"], ["quadruped", "quadruped"], ["flyer", "flyer / bird"], ["slime", "slime"], ["robot", "robot"]]
+          ${[["biped", "biped"], ["quadruped", "quadruped"], ["flyer", "flyer / bird"], ["slime", "slime"], ["robot", "robot"], ["ghost", "ghost"]]
             .map(([v, lbl]) => `<option value="${v}" ${v === d.archetype ? "selected" : ""}>${lbl}</option>`).join("")}
         </select><span class="dim">palette</span><select id="pPal">
-          ${["classic", "ember", "frost", "toxic"].map(pl => `<option ${pl === d.palette ? "selected" : ""}>${pl}</option>`).join("")}
+          ${["classic", "ember", "frost", "toxic", "royal", "shadow"].map(pl => `<option ${pl === d.palette ? "selected" : ""}>${pl}</option>`).join("")}
         </select><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div>`;
   } else if (cat === "tile") {
     box.innerHTML = `
@@ -163,7 +163,7 @@ function renderParams() {
   } else {
     box.innerHTML = `
       <div class="field-label">Effect</div><div class="row"><select id="pType" class="grow">
-          ${["explosion", "fire", "smoke", "sparkle", "ring", "slash", "particles", "power-up", "magic"]
+          ${["explosion", "fire", "smoke", "sparkle", "ring", "slash", "particles", "power-up", "magic", "heal", "portal"]
             .map(t => `<option ${t === d.type ? "selected" : ""}>${t}</option>`).join("")}
         </select><span class="dim">frames</span><input type="number" class="num" id="pFrames" min="4" max="16" value="${d.frames}"><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div>`;
   }
@@ -1655,6 +1655,8 @@ const PROC_PALETTES = {
   ember:   { skin: ["#f0b489", "#d99668", "#b57a4e", "#8f5c38"], hue: 12,  accent: 48 },
   frost:   { skin: ["#f6d7b8", "#e8b98f", "#cfa06f", "#a87f52"], hue: 200, accent: 185 },
   toxic:   { skin: ["#cfe8a8", "#a8d47e", "#7fb85a", "#5c9440"], hue: 95,  accent: 300 },
+  royal:   { skin: ["#f2c69b", "#e0a878", "#c98a5b", "#a96f45"], hue: 265, accent: 45 },
+  shadow:  { skin: ["#b8bcc4", "#9aa0ab", "#7c828e", "#5f646e"], hue: 230, accent: 350 },
 };
 
 function procPalette(name, rng) {
@@ -1678,6 +1680,7 @@ function procCharacter(p, stateName, seedNum) {
   if (arch === "flyer")     return procFlyer(p, stateName, seedNum);
   if (arch === "slime")     return procSlime(p, stateName, seedNum);
   if (arch === "robot")     return procRobot(p, stateName, seedNum);
+  if (arch === "ghost")     return procGhost(p, stateName, seedNum);
   return procBiped(p, stateName, seedNum);
 }
 
@@ -1890,6 +1893,64 @@ function procSlime(p, stateName, seedNum) {
   return strip;
 }
 
+/* ghost: floating sheet body, wavy hem, never touches the ground.
+ * Every state is a drift — bob, sway, stretch — instead of steps. */
+function procGhost(p, stateName, seedNum) {
+  const rng = mulberry32(seedNum + stateName.length * 7919 + 607);
+  const pal = procPalette(p.palette, rng);
+  const count = p.frames, W = 36, H = 40, S = 4;
+  const body = "#e9edf5", shade = "#c3ccd9";
+  const glow = pal.accent;
+  const eyeStyle = (rng() * 2) | 0; // 0 round dark, 1 glowing
+  const strip = makeCanvas(W * count * S, H * S);
+  for (let f = 0; f < count; f++) {
+    const cell = makeCanvas(W, H);
+    const ctx = cell.getContext("2d");
+    const ph = (f / count) * Math.PI * 2;
+    let yOff = Math.round(Math.sin(ph) * 2), xOff = 0, stretch = 0, lean = 0;
+    if (stateName === "walk")       { yOff = -2 + Math.round(Math.sin(ph) * 2); xOff = Math.round(Math.sin(ph) * 1); }
+    else if (stateName === "run")   { yOff = -3 + Math.round(Math.sin(ph * 2) * 1); lean = 2; }
+    else if (stateName === "jump")  { const k = f / Math.max(1, count - 1), air = Math.sin(k * Math.PI); yOff = -Math.round(air * 7); stretch = Math.round(air * 3); }
+    else if (stateName === "attack") { const k = f / Math.max(1, count - 1); xOff = Math.round(Math.sin(k * Math.PI) * 6); }
+    const cx = 18 + xOff, top = 6 + yOff, bw = 22, bh = 24 + stretch;
+    // sheet body: dome rows narrowing at the top, straight sides
+    px(ctx, cx - bw / 2 + 6 + lean, top, bw - 12, 4, body);
+    px(ctx, cx - bw / 2 + 3 + lean, top + 4, bw - 6, 4, body);
+    px(ctx, cx - bw / 2, top + 8, bw, bh - 8, body);
+    px(ctx, cx - bw / 2, top + 8, 4, bh - 8, shade); // left shading
+    // wavy hem: three scallops, phase-shifted per frame so it ripples
+    for (let sIdx = 0; sIdx < 3; sIdx++) {
+      const hx = cx - bw / 2 + 1 + sIdx * 7;
+      const dip = 2 + Math.round(Math.sin(ph + sIdx * 2.1) * 1.5);
+      px(ctx, hx, top + bh, 6, dip, body);
+      px(ctx, hx, top + bh, 2, dip, shade);
+    }
+    // stub arms — out to the sides, forward on attack
+    const armY = top + 13;
+    if (stateName === "attack") {
+      px(ctx, cx + bw / 2 - 1, armY, 7, 3, body);
+      px(ctx, cx - bw / 2 - 6, armY + 2, 7, 3, body);
+    } else {
+      px(ctx, cx - bw / 2 - 4, armY + Math.round(Math.sin(ph) * 1), 5, 3, body);
+      px(ctx, cx + bw / 2 - 1, armY - Math.round(Math.sin(ph) * 1), 5, 3, body);
+    }
+    // face
+    const ey = top + 11, ex = cx + lean;
+    if (eyeStyle === 1) {
+      px(ctx, ex - 7, ey, 4, 5, glow); px(ctx, ex + 3, ey, 4, 5, glow);
+    } else {
+      px(ctx, ex - 7, ey, 4, 5, "#232733"); px(ctx, ex + 3, ey, 4, 5, "#232733");
+    }
+    if (stateName === "attack") px(ctx, ex - 2, ey + 8, 5, 6, "#232733"); // open wail mouth
+    else px(ctx, ex - 1, ey + 8, 3, 4, "#232733");
+    selectiveOutline(cell, "#141414");
+    const sctx = strip.getContext("2d");
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(cell, 0, 0, W, H, f * W * S, 0, W * S, H * S);
+  }
+  return strip;
+}
+
 /* robot: blocky, rigid servo angles (quantized to 15°), blinking visor. */
 function procRobot(p, stateName, seedNum) {
   const rng = mulberry32(seedNum + stateName.length * 7919 + 404);
@@ -1958,11 +2019,11 @@ function wrapped(ctx, s, fn) {
   }
 }
 
-const TILE_PATTERNS = ["grass", "sand", "stone", "brick", "wood", "metal", "water", "dungeon"];
+const TILE_PATTERNS = ["grass", "sand", "stone", "brick", "wood", "metal", "water", "dungeon", "lava", "snow"];
 
 /* returns an ARRAY of canvases (water shimmers: 2 frames, everything else 1) */
 function procTile(pattern, size, seedNum) {
-  const frames = pattern === "water" ? 2 : 1;
+  const frames = (pattern === "water" || pattern === "lava") ? 2 : 1;
   const out = [];
   for (let fr = 0; fr < frames; fr++) {
     const rng = mulberry32(seedNum + fr * 131);
@@ -2048,6 +2109,29 @@ function procTile(pattern, size, seedNum) {
           const x = (R(0, S) + fr * 8) % S, y = R(0, S);
           px(ctx, x, y, 3, 1, "#7dd3fc"); px(ctx, x + 1, y - 1, 1, 1, "#e0f2fe");
         }
+      });
+    } else if (pattern === "lava") {
+      px(ctx, 0, 0, S, S, "#2e2320");
+      wrapped(ctx, S, () => {
+        for (let i = 0; i < 10; i++) px(ctx, R(0, S), R(0, S), R(2, 5), R(2, 4), "#241a17"); // basalt blotches
+        // glowing cracks: short random walks; frame 2 burns brighter
+        const hot = fr === 1 ? "#ffd23f" : "#ff7b1c";
+        for (let i = 0; i < 4; i++) {
+          let x = R(0, S), y = R(0, S);
+          for (let k = 0; k < 9; k++) {
+            px(ctx, x, y, 2, 1, "#ff9a3c");
+            px(ctx, x, y, 1, 1, hot);
+            x += R(-3, 3); y += R(-2, 2);
+          }
+        }
+        for (let i = 0; i < 6; i++) px(ctx, R(0, S), R(0, S), 1, 1, "#57443a");
+      });
+    } else if (pattern === "snow") {
+      px(ctx, 0, 0, S, S, "#e8eef5");
+      wrapped(ctx, S, () => {
+        for (let i = 0; i < 7; i++) px(ctx, R(0, S), R(0, S), R(3, 6), R(1, 2), "#f7fafc"); // soft drifts
+        for (let i = 0; i < 9; i++) px(ctx, R(0, S), R(0, S), R(2, 4), 1, "#ccd9e6");          // shadowed dips
+        for (let i = 0; i < 12; i++) px(ctx, R(0, S), R(0, S), 1, 1, "#ffffff");               // sparkle
       });
     } else { // dungeon
       px(ctx, 0, 0, S, S, "#3b404d");
@@ -2314,6 +2398,44 @@ function procEffect(type, frames, seedNum) {
       ctx.strokeStyle = "#7dd3fc"; ctx.lineWidth = 3;         // motion trail
       ctx.globalAlpha = 0.5;
       ctx.beginPath(); ctx.arc(cx, cy, 20, (ang - 60) * Math.PI / 180, (ang - 10) * Math.PI / 180); ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else if (type === "heal") {
+      // rising plus-signs + motes, breathing alpha: fade in, float up, fade out
+      const glowA = Math.sin(t * Math.PI);
+      for (let i = 0; i < 5; i++) {
+        const x = cx + (rng() - 0.5) * 30, y = cy + 16 - t * 30 - rng() * 8;
+        const s = 2 + ((rng() * 2) | 0);
+        ctx.fillStyle = rng() > 0.4 ? "#3ddc84" : "#baffd9";
+        ctx.globalAlpha = 0.35 + glowA * 0.65;
+        ctx.fillRect(x - s, y - 1, s * 2 + 1, 2);
+        ctx.fillRect(x - 1, y - s, 2, s * 2 + 1);
+      }
+      for (let i = 0; i < 12; i++) {
+        const x = cx + (rng() - 0.5) * 36, y = cy + 18 - t * 34 - rng() * 6;
+        ctx.fillStyle = "#eafff3";
+        ctx.globalAlpha = glowA * (0.4 + rng() * 0.5);
+        ctx.fillRect(x, y, 2, 2);
+      }
+      ctx.globalAlpha = 1;
+    } else if (type === "portal") {
+      // two dot-rings rotating opposite ways, swelling then settling
+      const swell = Math.sin(Math.min(1, t * 1.15) * Math.PI);
+      for (let ringI = 0; ringI < 2; ringI++) {
+        const radius = 7 + ringI * 6 + swell * 4;
+        const dots = 14 + ringI * 6;
+        const dir = ringI === 0 ? 1 : -1;
+        for (let i = 0; i < dots; i++) {
+          const a = (i / dots) * Math.PI * 2 + dir * t * Math.PI * 3 + ringI;
+          const x = cx + Math.cos(a) * radius, y = cy + Math.sin(a) * radius * 0.92;
+          ctx.fillStyle = ringI === 0 ? "#c084fc" : "#7df9ff";
+          ctx.globalAlpha = 0.55 + swell * 0.45;
+          const sz = ringI === 0 ? 3 : 2;
+          ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+        }
+      }
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(cx - 1, cy - 1, 2, 2);
       ctx.globalAlpha = 1;
     } else { // magic
       for (let i = 0; i < 30; i++) {
