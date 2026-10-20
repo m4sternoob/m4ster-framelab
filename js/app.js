@@ -42,6 +42,7 @@ function colorDist(r1, g1, b1, r2, g2, b2) {
 const state = {
   category: "character",
   source: "ai",            // ai | procedural
+  aiModel: "pol-sana",     // provider id from the model switcher (AI_PROVIDERS)
   key: { r: 255, g: 0, b: 255 },
   rows: [],                // [{ name, frames:[canvas], order:[idx], fps, loop }]
   originals: [],           // untouched extracted frames, parallel to rows
@@ -361,16 +362,259 @@ function pollinationsLegacyURL(prompt, w, h, seed) {
     `?width=${w}&height=${h}&seed=${seed}&nologo=true&model=flux`;
 }
 
+/* ---------------- AI model switcher (v6.8) ----------------
+ * Every provider honours one contract: prompt + size in, one image bitmap
+ * out. Each entry declares what it needs up front — no key, a free key, or a
+ * paid key — and a provider that can't run fails loudly with instructions
+ * instead of quietly swapping in a weaker model behind the user's back.
+ * Keys live only in this browser's localStorage; they are never uploaded
+ * anywhere except the provider the user picked. */
+
+const AI_PROVIDERS = {
+  "pol-sana": {
+    note: "Free, no key. Fast — good for quick drafts.",
+    keyField: null
+  },
+  "horde-deliberate": {
+    note: "Free, no key. Community GPUs — usually 20–60s, much better detail than Sana.",
+    keyField: null, hordeModel: "Deliberate"
+  },
+  "horde-juggernaut": {
+    note: "Free, no key. Best free quality — can sit in the queue 1–3 min.",
+    keyField: null, hordeModel: "Juggernaut XL"
+  },
+  "horde-sd": {
+    note: "Free, no key. The Horde's quickest model.",
+    keyField: null, hordeModel: "stable_diffusion"
+  },
+  "pol-flux": {
+    note: "Real FLUX quality.",
+    keyField: "pollinations", keyLabel: "Pollinations key",
+    keyHint: `Free key: sign in at <a href="https://enter.pollinations.ai" target="_blank" rel="noopener">enter.pollinations.ai</a>, create a key, paste it here. Saved only in your browser.`
+  },
+  "hf-flux": {
+    note: "FLUX.1 schnell through Hugging Face — fast FLUX renders.",
+    keyField: "huggingface", keyLabel: "Hugging Face token",
+    keyHint: `Free token: <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> → New token (Read) → paste here. Saved only in your browser.`
+  },
+  "openrouter": {
+    note: "Gemini Flash Image through OpenRouter. NOT free — roughly a cent per image, charged to your own OpenRouter key.",
+    keyField: "openrouter", keyLabel: "OpenRouter key",
+    keyHint: `Key: <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Saved only in your browser; images are billed to that key.`
+  }
+};
+
+const LS_AI_MODEL = "m4ster.aiModel";
+const LS_AI_KEYS = "m4ster.aiKeys";
+
+function aiKeys() {
+  try { return JSON.parse(localStorage.getItem(LS_AI_KEYS) || "{}"); }
+  catch (e) { return {}; }
+}
+function aiKeyFor(providerId) {
+  const p = AI_PROVIDERS[providerId];
+  if (!p || !p.keyField) return "";
+  return (aiKeys()[p.keyField] || "").trim();
+}
+function needKey(providerId) {
+  const p = AI_PROVIDERS[providerId];
+  const key = aiKeyFor(providerId);
+  if (!key) {
+    fail(`This model needs your ${p.keyLabel} — paste it under "AI model" first (it's free to get, see the hint there). Nothing was generated.`);
+  }
+  return key;
+}
+
+/* fit a requested size into a provider's box: sides are multiples of 64,
+ * neither side above maxSide, total area near maxPixels */
+function fitSize(w, h, maxSide, maxPixels) {
+  let scale = Math.min(1, maxSide / Math.max(w, h), Math.sqrt(maxPixels / (w * h)));
+  const r64 = n => Math.max(64, Math.round((n * scale) / 64) * 64);
+  return { w: r64(w), h: r64(h) };
+}
+
+async function blobToBitmap(blob) { return createImageBitmap(blob); }
+
+async function hordeGenerate(prompt, w, h, model, onStatus) {
+  const size = fitSize(w, h, 1024, 1024 * 1024);
+  const headers = {
+    "Content-Type": "application/json",
+    "apikey": "0000000000",
+    "Client-Agent": "m4ster-framelab:6.8:web"
+  };
+  let jobId = null;
+  try {
+    const res = await fetch("https://stablehorde.net/api/v2/generate/async", {
+      method: "POST", headers,
+      body: JSON.stringify({
+        prompt,
+        params: {
+          width: size.w, height: size.h, steps: 25,
+          sampler_name: "k_euler_a", cfg_scale: 7,
+          seed: String((Math.random() * 1e9) | 0)
+        },
+        models: [model], nsfw: false, r2: false
+      })
+    });
+    if (!res.ok) fail(`AI Horde rejected the job (HTTP ${res.status}). The free queue may be full — wait a bit and retry.`);
+    jobId = (await res.json()).id;
+  } catch (e) {
+    if (e && /^AI Horde/.test(e.message)) throw e;
+    fail("AI Horde is unreachable right now (network). Retry in a moment, or pick another model.");
+  }
+  const deadline = Date.now() + 5 * 60 * 1000;
+  while (Date.now() < deadline) {
+    await sleep(5000);
+    let chk;
+    try {
+      const r = await fetch(`https://stablehorde.net/api/v2/generate/check/${jobId}`, { headers });
+      chk = await r.json();
+    } catch (e) { continue; } // transient poll miss — keep waiting
+    if (chk.faulted) fail("AI Horde dropped the job (a worker failed mid-render). Retry — the queue usually clears fast.");
+    if (!chk.done) {
+      if (onStatus) onStatus(`AI Horde · ${model} — queued, ~${Math.max(1, chk.wait_time | 0)}s left…`);
+      continue;
+    }
+    const fin = await fetch(`https://stablehorde.net/api/v2/generate/status/${jobId}`, { headers });
+    const data = await fin.json();
+    const gen = data.generations && data.generations[0];
+    if (!gen || !gen.img) fail("AI Horde finished but returned no image. Retry once — if it repeats, pick another model.");
+    if (/^https?:/.test(gen.img)) {
+      const imgRes = await fetch(gen.img, { mode: "cors" });
+      return blobToBitmap(await imgRes.blob());
+    }
+    const bin = atob(gen.img);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return blobToBitmap(new Blob([bytes], { type: "image/webp" }));
+  }
+  fail("AI Horde took over 5 minutes in the free queue — timed out. Retry, or pick a faster model (Sana / Stable Diffusion).");
+}
+
+async function hfGenerate(prompt, w, h, token, onStatus) {
+  const size = fitSize(w, h, 1024, 1024 * 1024);
+  const url = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell";
+  const opts = {
+    method: "POST",
+    headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+    body: JSON.stringify({ inputs: prompt, parameters: { width: size.w, height: size.h } })
+  };
+  let res = await fetch(url, opts);
+  if (res.status === 503) {
+    let wait = 15;
+    try { const j = await res.json(); wait = Math.min(30, Math.ceil(j.estimated_time || 15)); } catch (e) {}
+    if (onStatus) onStatus(`Hugging Face — model warming up, ~${wait}s…`);
+    await sleep(wait * 1000);
+    res = await fetch(url, opts);
+  }
+  if (res.status === 401 || res.status === 403) {
+    fail("Hugging Face rejected that token. Check the token under \"AI model\" (needs Read access) and retry.");
+  }
+  if (!res.ok) fail(`Hugging Face image request failed (HTTP ${res.status}). Free tokens have tight rate limits — wait a minute and retry.`);
+  return blobToBitmap(await res.blob());
+}
+
+async function polFluxGenerate(prompt, w, h, key, onStatus) {
+  const seed = (Math.random() * 1e9) | 0;
+  const url = "https://gen.pollinations.ai/image/" + encodeURIComponent(prompt) +
+    `?width=${w}&height=${h}&seed=${seed}&nologo=true&model=flux&key=${encodeURIComponent(key)}`;
+  let res;
+  try { res = await fetch(url, { mode: "cors" }); }
+  catch (e) { fail("Pollinations FLUX is unreachable right now (network). Retry in a moment."); }
+  if (res.status === 401 || res.status === 403) {
+    fail("Pollinations rejected that key. Check the key under \"AI model\" (from enter.pollinations.ai) and retry.");
+  }
+  if (!res.ok) fail(`Pollinations FLUX request failed (HTTP ${res.status}). Retry in a moment.`);
+  return blobToBitmap(await res.blob());
+}
+
+async function openRouterGenerate(prompt, w, h, key, onStatus) {
+  let res;
+  try {
+    res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + key,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://m4ster-framelab.vercel.app",
+        "X-Title": "m4ster FrameLab"
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-image",
+        modalities: ["image", "text"],
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+  } catch (e) { fail("OpenRouter is unreachable right now (network). Retry in a moment."); }
+  if (res.status === 401 || res.status === 403) {
+    fail("OpenRouter rejected that key. Check the key under \"AI model\" and retry.");
+  }
+  if (res.status === 402) {
+    fail("OpenRouter says that key has no credit. Image models there are pay-per-image — add credit or pick a free model.");
+  }
+  if (!res.ok) fail(`OpenRouter request failed (HTTP ${res.status}). Retry in a moment.`);
+  const data = await res.json();
+  const msg = data.choices && data.choices[0] && data.choices[0].message;
+  const img = msg && msg.images && msg.images[0] && msg.images[0].image_url && msg.images[0].image_url.url;
+  if (!img) fail("OpenRouter answered without an image. Retry once — if it repeats, pick another model.");
+  const imgRes = await fetch(img);
+  return blobToBitmap(await imgRes.blob());
+}
+
+/* the one door every AI image comes through */
+async function aiGenerateImage(prompt, w, h, onStatus) {
+  const id = AI_PROVIDERS[state.aiModel] ? state.aiModel : "pol-sana";
+  const p = AI_PROVIDERS[id];
+  if (id === "pol-sana") {
+    const seed = (Math.random() * 1e9) | 0;
+    return fetchImageBitmap(pollinationsLegacyURL(prompt, w, h, seed), (n, total) => {
+      if (n > 1 && onStatus) onStatus(`Pollinations · Sana — retry ${n}/${total}…`);
+    });
+  }
+  if (p.hordeModel) return hordeGenerate(prompt, w, h, p.hordeModel, onStatus);
+  if (id === "pol-flux") return polFluxGenerate(prompt, w, h, needKey(id), onStatus);
+  if (id === "hf-flux") return hfGenerate(prompt, w, h, needKey(id), onStatus);
+  if (id === "openrouter") return openRouterGenerate(prompt, w, h, needKey(id), onStatus);
+  fail("Unknown AI model selected — pick one from the list.");
+}
+
+/* switcher UI: visibility, key row, notes — driven by the provider table */
+function syncAiModelUI() {
+  const sel = document.getElementById("aiModel");
+  const box = document.getElementById("aiModelBox");
+  if (!sel || !box) return;
+  box.hidden = state.source !== "ai";
+  sel.value = AI_PROVIDERS[state.aiModel] ? state.aiModel : "pol-sana";
+  const p = AI_PROVIDERS[sel.value];
+  const keyRow = document.getElementById("aiKeyRow");
+  const keyInput = document.getElementById("aiKey");
+  const hint = document.getElementById("aiKeyHint");
+  const note = document.getElementById("aiModelNote");
+  if (p.keyField) {
+    keyRow.hidden = false;
+    keyInput.placeholder = `paste your ${p.keyLabel}`;
+    keyInput.value = aiKeys()[p.keyField] || "";
+    hint.innerHTML = p.keyHint;
+  } else {
+    keyRow.hidden = true;
+  }
+  note.textContent = p.note || "";
+  const genNote = document.querySelector(".gen-note");
+  if (genNote) {
+    genNote.textContent = state.source === "ai"
+      ? "AI source: model picked above. Procedural runs 100% offline."
+      : "Procedural runs 100% offline — no network at all.";
+  }
+}
+
 async function genRowAI(prompt, frames, cellH, label) {
   // Wide strip: one cell per frame. Keep the strip >=1024px wide so frames
   // carry usable detail (the model returns blurry mush at small sizes).
   const h = cellH || 384;
   const w = Math.min(2048, Math.max(1024, h * frames));
-  const seed = (Math.random() * 1e9) | 0;
-  const url = pollinationsURL(prompt, w, h, seed);
-  const bmp = await fetchImageBitmap(url, (n, total) => {
-    if (n > 1) setStep("row", "active", `row gen [${label}] — retry ${n}/${total}…`);
-  }, pollinationsLegacyURL(prompt, w, h, seed));
+  const bmp = await aiGenerateImage(prompt, w, h, (msg) => {
+    setStep("row", "active", `row gen [${label}] — ${msg}`);
+  });
   const c = makeCanvas(bmp.width, bmp.height);
   c.getContext("2d").drawImage(bmp, 0, 0);
   return c;
@@ -1574,10 +1818,9 @@ function procEffect(type, frames, seedNum) {
 /* ================= pipeline runner ================= */
 
 async function genTileAI(prompt, size) {
-  const seed = (Math.random() * 1e9) | 0;
-  const bmp = await fetchImageBitmap(pollinationsURL(prompt, 512, 512, seed), (n, total) => {
-    if (n > 1) setStep("row", "active", `tile gen — retry ${n}/${total}…`);
-  }, pollinationsLegacyURL(prompt, 512, 512, seed));
+  const bmp = await aiGenerateImage(prompt, 512, 512, (msg) => {
+    setStep("row", "active", `tile gen — ${msg}`);
+  });
   const full = makeCanvas(bmp.width, bmp.height);
   full.getContext("2d").drawImage(bmp, 0, 0);
   const out = makeCanvas(size, size);
@@ -2567,8 +2810,34 @@ function init() {
       document.querySelectorAll("#sourceSeg .seg-btn").forEach(x => x.classList.remove("active"));
       b.classList.add("active");
       state.source = b.dataset.src;
+      syncAiModelUI();
     };
   });
+
+  /* v6.8: AI model switcher wiring */
+  try {
+    const savedModel = localStorage.getItem(LS_AI_MODEL);
+    if (savedModel && AI_PROVIDERS[savedModel]) state.aiModel = savedModel;
+  } catch (e) {}
+  const aiSel = document.getElementById("aiModel");
+  if (aiSel) {
+    aiSel.addEventListener("change", () => {
+      state.aiModel = aiSel.value;
+      try { localStorage.setItem(LS_AI_MODEL, state.aiModel); } catch (e) {}
+      syncAiModelUI();
+    });
+  }
+  const aiKeyInput = document.getElementById("aiKey");
+  if (aiKeyInput) {
+    aiKeyInput.addEventListener("input", () => {
+      const p = AI_PROVIDERS[state.aiModel];
+      if (!p || !p.keyField) return;
+      const keys = aiKeys();
+      keys[p.keyField] = aiKeyInput.value.trim();
+      try { localStorage.setItem(LS_AI_KEYS, JSON.stringify(keys)); } catch (e) {}
+    });
+  }
+  syncAiModelUI();
 
   document.querySelectorAll("#keyRow .key").forEach(k => {
     k.onclick = () => {
@@ -2587,6 +2856,7 @@ function init() {
     // one-click escape hatch: drop to the offline generator and re-run
     state.source = "procedural";
     document.querySelectorAll("#sourceSeg .seg-btn").forEach(x => x.classList.toggle("active", x.dataset.src === "procedural"));
+    syncAiModelUI();
     state.strict = false;
     hideRetry();
     runPipeline();

@@ -388,6 +388,28 @@ textarea#prompt:focus { outline: none; border-color: var(--violet); }
   border: 1px solid var(--line); border-radius: 10px; image-rendering: pixelated;
   display: block;
 }
+/* ---------- v6.8: AI model switcher ---------- */
+#aiModelBox { margin-top: 2px; }
+.ai-model-select {
+  width: 100%; background: var(--ink); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; font-size: 13px; font-family: var(--sans); min-height: 42px;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.ai-model-select:hover, .ai-model-select:focus-visible {
+  border-color: var(--violet); box-shadow: 0 0 0 3px var(--glow); outline: none;
+}
+#aiKeyRow { margin-top: 8px; }
+#aiKey {
+  width: 100%; background: var(--ink); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; font-size: 13px; font-family: var(--mono); min-height: 42px;
+}
+#aiKey:focus-visible { border-color: var(--violet); box-shadow: 0 0 0 3px var(--glow); outline: none; }
+.ai-key-hint { font-size: 11px; color: var(--dim); margin: 6px 0 0; line-height: 1.5; }
+.ai-key-hint a { color: var(--violet); }
+.ai-model-note { font-size: 11px; color: var(--dim); margin: 6px 0 0; line-height: 1.5; min-height: 14px; }
+
 .preview-controls { display: flex; gap: 8px; margin-top: 10px; }
 .preview-controls select {
   background: var(--ink); color: var(--text); border: 1px solid var(--line);

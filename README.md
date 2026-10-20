@@ -10,6 +10,25 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v6.8 — AI model switcher
+
+Swap the image model like you swap models in a chat app. Every provider
+honours one contract — prompt + size in, one image out — and declares what
+it needs up front; a model that can't run says so instead of quietly
+downgrading you.
+
+- **Free, no key** — Pollinations · Sana (fast drafts), AI Horde ·
+  Deliberate / Juggernaut XL / Stable Diffusion (community GPUs, real
+  model choice, queue-based)
+- **Free key, paste once** — Pollinations · FLUX (key from
+  enter.pollinations.ai), Hugging Face · FLUX.1 schnell (free HF token)
+- **Your key, pay per image** — OpenRouter · Gemini Flash Image
+  (~1¢/image, billed to your own key, labelled in the UI)
+
+Keys are stored only in your browser's localStorage and are sent only to
+the provider you picked. NVIDIA NIM was evaluated and skipped: its image
+endpoint sends no CORS headers, so a browser app can't call it directly.
+
 ## v6.6 — dedicated sprite Slicer
 
 The sheet slicer is now a first-class lane, not a buried panel — Unity
@@ -167,7 +186,8 @@ Every generation walks six visible steps in the UI:
 
 1. **Prompt** — one prompt per animation state, asking for a horizontal
    row-strip of poses on a flat chroma background, one pose per invisible slot.
-2. **Row gen** — the image source. **AI** uses Pollinations (free, no auth);
+2. **Row gen** — the image source. **AI** uses whichever model is picked
+   in the model switcher (Pollinations, AI Horde, Hugging Face, OpenRouter);
    **Procedural** is a seeded offline pixel-art generator; **Upload** accepts
    your own strip (any image in, frames out).
 3. **Alpha cleanup** — chroma key with a color-distance threshold, plus

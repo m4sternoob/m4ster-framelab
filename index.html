@@ -155,6 +155,31 @@
       <button class="seg-btn" data-src="procedural">Procedural <span class="offline">offline</span></button>
     </div>
 
+    <div id="aiModelBox">
+      <div class="field-label">AI model <span class="dim">(swap anytime)</span></div>
+      <select id="aiModel" class="ai-model-select" aria-label="AI image model">
+        <optgroup label="Free — no key needed">
+          <option value="pol-sana">Pollinations · Sana — fast</option>
+          <option value="horde-deliberate">AI Horde · Deliberate — better quality</option>
+          <option value="horde-juggernaut">AI Horde · Juggernaut XL — best free, slower</option>
+          <option value="horde-sd">AI Horde · Stable Diffusion — quick</option>
+        </optgroup>
+        <optgroup label="Free key — paste once, saved in your browser">
+          <option value="pol-flux">Pollinations · FLUX — top quality</option>
+          <option value="hf-flux">Hugging Face · FLUX.1 schnell — fast FLUX</option>
+        </optgroup>
+        <optgroup label="Your key — pay per image">
+          <option value="openrouter">OpenRouter · Gemini Flash Image — ~1¢/img</option>
+        </optgroup>
+      </select>
+      <div id="aiKeyRow" hidden>
+        <input id="aiKey" type="password" autocomplete="off" spellcheck="false"
+               placeholder="paste your key here">
+        <p class="ai-key-hint" id="aiKeyHint"></p>
+      </div>
+      <p class="ai-model-note" id="aiModelNote"></p>
+    </div>
+
     <div class="field-label" id="keyLabel">Background key <span class="dim">(stripped from the sprite)</span></div>
     <div class="keys" id="keyRow">
       <button class="key active" data-key="255,0,255" style="--kc:#ff00ff" title="Magenta"></button>
