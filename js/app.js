@@ -4350,7 +4350,7 @@ document.addEventListener("DOMContentLoaded", init);
   }
 
   function readAura() {
-    var d = { enabled: true, intensity: 70 };
+    var d = { enabled: true, intensity: 72 };
     try {
       var raw = lsGet(LS_AURA);
       if (raw) {
@@ -4381,7 +4381,7 @@ document.addEventListener("DOMContentLoaded", init);
   /* ---------- v6.8: RGB separators (m4ster standard) ---------- */
   var LS_RGB = "m4ster.rgb";
   function readRGB() {
-    var d = { enabled: true, speed: 6, breathe: false, rainbow: false };
+    var d = { enabled: true, speed: 7, breathe: false, rainbow: false };
     try {
       var raw = lsGet(LS_RGB);
       if (raw) {
@@ -4485,7 +4485,7 @@ document.addEventListener("DOMContentLoaded", init);
       }
     });
 
-    applyTheme(lsGet(LS_THEME) || "porcelain", false);
+    applyTheme(lsGet(LS_THEME) || "forest", false);
     applyAura();
     applyRGB();
   }
