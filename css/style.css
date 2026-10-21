@@ -2223,3 +2223,9 @@ body:not(.dim-3d) #labSkills { display: none !important; }
 }
 #m3BridgePop { width: 262px; }
 .panel, .gcard, .cat-card, .tool-card { background: rgba(21,18,35,.78); }
+
+/* presets frame hugs its content (2026-10-21, his "why is motion tab
+ * so long" — the section is a full-width block but only 5 chips wide;
+ * the MML outline exposed the empty box). Visuals unchanged: the box
+ * was transparent; the chips keep their left edge. */
+#presets { width: fit-content; max-width: 94vw; }

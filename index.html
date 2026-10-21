@@ -146,10 +146,10 @@
 <div data-mml-zone="lab" id="mmlZone"></div>
 
 <!-- ============ THE LAB (tool — stepper kept for the build view) ============ -->
-<main class="layout page-section" id="tool" data-mml="lab2d">
+<main class="layout page-section" id="tool">
 
   <!-- ============ LEFT: CONTROLS ============ -->
-  <aside class="panel controls">
+  <aside class="panel controls" data-mml="wizard">
     <button id="toolBack" class="tool-back" type="button" hidden>&larr; Back to generator</button>
     <div class="wiz-top" id="wizTop" hidden>
       <div class="wiz-dots" id="wizDots" aria-label="Steps"></div>
@@ -288,7 +288,7 @@
   </aside>
 
   <!-- ============ RIGHT: PIPELINE + OUTPUT ============ -->
-  <section class="panel stage-panel">
+  <section class="panel stage-panel" data-mml="status">
     <ol class="stepper" id="stepper">
       <li data-step="prompt"><span class="dot"></span>Prompt</li>
       <li data-step="row"><span class="dot"></span>Row gen</li>
@@ -797,7 +797,7 @@
   <span>m4ster FrameLab · MIT open source · runs 100% in your browser · free forever, no login, no paywall · AI generation sends your prompt (2D) or image (3D) to the free provider you pick — everything else never leaves your machine</span>
 </footer>
 
-<script>window.MML_DEFAULT={"desktop":{"pos":{"lab3d":{"x":2,"y":-120,"r":0,"s":0.775315},"animate":{"x":5,"y":-165,"r":0,"s":0.797124},"print":{"x":6,"y":-419,"r":0,"s":0.641545},"skills":{"x":-1,"y":-627,"r":0,"s":0.828342},"assets":{"x":2,"y":-2558,"r":0,"s":0.660929}},"pinned":[],"custom":[],"alive":["hero","cats","tools","gallery","presets","lab2d","viz","lab3d","animate","print","skills","assets"]}};</script>
+<script>window.MML_DEFAULT={"desktop":{"pos":{"cats":{"x":21,"y":742,"r":0,"s":0.890551},"gallery":{"x":0,"y":0,"r":0,"s":0.79989},"presets":{"x":331,"y":200,"r":0,"s":0.906762},"lab2d":{"x":-55,"y":7,"r":0,"s":0.665565},"viz":{"x":10,"y":-561,"r":0,"s":0.690211},"lab3d":{"x":2,"y":-120,"r":0,"s":0.775315},"animate":{"x":5,"y":-165,"r":0,"s":0.797124},"print":{"x":6,"y":-419,"r":0,"s":0.641545},"skills":{"x":4,"y":-558,"r":0,"s":0.828342},"assets":{"x":4,"y":-2457,"r":0,"s":0.660929}},"pinned":[],"custom":[],"alive":["hero","cats","tools","gallery","presets","lab2d","viz","lab3d","animate","print","skills","assets"]}};</script>
 <script src="js/app.js"></script>
 <script>
 /* SW update rescue: the v1 worker was cache-first, so a page it controls
