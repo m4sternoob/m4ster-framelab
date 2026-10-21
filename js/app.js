@@ -7399,6 +7399,7 @@ document.addEventListener("DOMContentLoaded", function () {
       var hidPanel=b.closest('.panel[data-pos]');
       if(hidPanel&&hidPanel.getAttribute('data-pos')!=='0')return;
       b.style.position='relative';
+      b.classList.add('in');
       var h=document.createElement('div');
       h.className='mml-handle';
       h.innerHTML='<span class="mml-grip" title="Drag to move">\u22EE\u22EE</span><span></span><button class="mml-rotate-btn" type="button" title="Rotate">&#x21BB;</button><button class="mml-pin" type="button" title="Pin / unpin">&#x1F4CC;</button><button class="mml-del" type="button" title="Delete frame"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c0c8d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
@@ -7665,7 +7666,7 @@ document.addEventListener("DOMContentLoaded", function () {
     /* body.classList.toggle('mml-on',on); REMOVED - white screen */
     if(on){buildHandles();buildToolbar();seedHist();pokeToolbar();toast('Tools on — drag frames anywhere, pin to lock');
       $$('[data-mml-edit]').forEach(function(el){el.contentEditable='true'});}
-    else{dropHandles();dropToolbar();
+    else{save();dropHandles();dropToolbar();
       $$('[data-mml-edit]').forEach(function(el){el.removeAttribute('contenteditable')});}
     syncFab();
   }

@@ -2229,3 +2229,20 @@ body:not(.dim-3d) #labSkills { display: none !important; }
  * the MML outline exposed the empty box). Visuals unchanged: the box
  * was transparent; the chips keep their left edge. */
 #presets { width: fit-content; max-width: 94vw; }
+
+/* ===== Done-snap fix (2026-10-21, his bug report) =====
+ * The handle was an in-flow box (margin -14px auto): entering edit
+ * mode pushed every frame down by its height, and Done removed the
+ * handles so everything jumped back up — the "goes back to original
+ * place" bug. The handle is now an absolute overlay at the same
+ * visual spot: edit mode causes ZERO layout shift, so Done moves
+ * nothing. Reveal-animated frames also get their entrance settled
+ * while editing (no .55s transform transition fighting drags). */
+body.mml-editing .mml-handle {
+  position: absolute; top: 2px; left: 50%;
+  transform: translateX(-50%); margin: 0;
+}
+body.mml-editing [data-mml].reveal,
+body.mml-editing [data-mml].reveal-pop {
+  opacity: 1 !important; transition: none !important;
+}
