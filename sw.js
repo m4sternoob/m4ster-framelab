@@ -1,5 +1,8 @@
-/* m4ster FrameLab service worker — offline-first cache */
-var CACHE = "framelab-v3";
+/* m4ster FrameLab service worker — offline cache, network-first for code
+ * (test builds change often: a cache-first CSS/JS means visitors keep an
+ * old build forever — his 2026-10-20 screenshots showed a fixed bug
+ * because the old stylesheet was served from this cache). */
+var CACHE = "framelab-v4";
 var ASSETS = [
   "/", "/index.html",
   "/css/style.css", "/js/app.js",
@@ -17,11 +20,11 @@ self.addEventListener("activate", function (e) {
 });
 self.addEventListener("fetch", function (e) {
   if (e.request.method !== "GET") return;
-  e.respondWith(caches.match(e.request).then(function (hit) {
-    return hit || fetch(e.request).then(function (res) {
-      var copy = res.clone();
-      caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
-      return res;
-    }).catch(function () { return caches.match("/index.html"); });
+  e.respondWith(fetch(e.request).then(function (res) {
+    var copy = res.clone();
+    caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
+    return res;
+  }).catch(function () {
+    return caches.match(e.request).then(function (hit) { return hit || caches.match("/index.html"); });
   }));
 });

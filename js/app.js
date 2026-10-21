@@ -162,7 +162,7 @@ function renderParams() {
         <div class="pfield"><label for="pStates">Variants</label><div class="pal-row"><input type="number" id="pStates" min="1" max="4" value="${d.states}"><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div></div>
       </div><div class="dim" style="margin-top:8px">Variants = normal / hover / pressed style states, extracted left to right.</div>`;
   } else if (cat === "pixelart") {
-    const px = CATEGORY_DEFAULTS.pixelart;
+    const px = pxState();
     box.innerHTML = `
       <div class="field-label">Image &rarr; pixel art <span class="dim">(100% offline)</span></div><div class="row"><button type="button" class="btn-ghost" id="pxPick" style="text-align:center">Upload image</button><input type="file" id="pxFile" accept="image/*" hidden></div><div class="field-label">Output size</div><div class="px-dims" id="pxDims">
         ${[16, 32, 48, 64, 96, 128].map(s => `<button type="button" class="seg-btn${s === px.w ? " active" : ""}" data-px="${s}">${s}</button>`).join("")}
@@ -328,106 +328,110 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 const AI_PROVIDERS = {
   "auto": {
-    note: "Auto chain (Phase 1 trial order): Deliberate → Juggernaut XL → Dreamshaper → AlbedoBase XL → Stable Diffusion → Flat-2D Animerge (your FLUX keys slot in near the front if saved). If one hits a limit or fails, it switches to the next BY ITSELF. No key, no signup.",
-    keyField: null, auto: true
+    note: "Auto chain: Deliberate → Juggernaut XL → Dreamshaper → AlbedoBase XL → Stable Diffusion → Flat-2D Animerge (your FLUX keys slot in near the front if saved). Your live queue position shows while you wait; if the Horde QUEUE is the bottleneck it jumps to Space FLUX instead of hopping models. A free AI Horde key (below) gets priority — the anonymous line runs hundreds deep at peak.",
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue. Stored only in this browser's localStorage.`, auto: true
   },
   "horde-novaflat": {
     note: "Free, no key. Nova Flat XL — flat-shaded XL style, sprite-friendly.",
-    keyField: null, hordeModel: "Nova Flat XL"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Nova Flat XL"
   },
   "horde-animagine": {
     note: "Free, no key. Animagine XL — polished modern anime.",
-    keyField: null, hordeModel: "Animagine XL"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Animagine XL"
   },
   "horde-anything5": {
     note: "Free, no key. Anything v5 — anime all-rounder.",
-    keyField: null, hordeModel: "Anything v5"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Anything v5"
   },
   "horde-dreamshaper": {
     note: "Free, no key. Dreamshaper — the classic all-rounder (SD 1.5).",
-    keyField: null, hordeModel: "Dreamshaper"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Dreamshaper"
   },
   "horde-photon": {
     note: "Free, no key. Photon — clean realistic-leaning renders. Few workers — may queue a while.",
-    keyField: null, hordeModel: "Photon"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Photon"
   },
   "horde-absreality": {
     note: "Free, no key. AbsoluteReality — realistic characters.",
-    keyField: null, hordeModel: "AbsoluteReality"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "AbsoluteReality"
   },
   "horde-flux": {
     note: "Free, no key. FLUX.1 Schnell on community GPUs — top-tier quality, usually 30–90s in the queue.",
-    keyField: null, hordeModel: "Flux.1-Schnell fp8 (Compact)"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Flux.1-Schnell fp8 (Compact)"
   },
   "horde-dreamshaper-xl": {
     note: "Free, no key. DreamShaper XL — versatile, great for game art.",
-    keyField: null, hordeModel: "DreamShaper XL"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "DreamShaper XL"
   },
   "horde-albedo": {
     note: "Free, no key. AlbedoBase XL — sharp, detailed SDXL renders.",
-    keyField: null, hordeModel: "AlbedoBase XL (SDXL)"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "AlbedoBase XL (SDXL)"
   },
   "horde-rev": {
     note: "Free, no key. Rev Animated — anime and animated-style characters.",
-    keyField: null, hordeModel: "Rev Animated"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Rev Animated"
   },
   "horde-flat2d": {
     note: "Free, no key. Flat-2D Animerge — flat 2D style, made for sprites.",
-    keyField: null, hordeModel: "Flat-2D Animerge"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Flat-2D Animerge"
   },
   "horde-pixel": {
     note: "Free, no key. AIO Pixel Art — the pixel-art specialist.",
-    keyField: null, hordeModel: "AIO Pixel Art"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "AIO Pixel Art"
   },
   "horde-counterfeit": {
     note: "Free, no key. Counterfeit — polished anime renders.",
-    keyField: null, hordeModel: "Counterfeit"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Counterfeit"
   },
   "horde-realvis": {
     note: "Free, no key. Realistic Vision — realistic characters and portraits.",
-    keyField: null, hordeModel: "Realistic Vision"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Realistic Vision"
   },
   "horde-icbinp": {
     note: "Free, no key. ICBINP — photoreal people and scenes.",
-    keyField: null, hordeModel: "ICBINP - I Can't Believe It's Not Photography"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "ICBINP - I Can't Believe It's Not Photography"
   },
   "horde-anything": {
     note: "Free, no key. Anything Diffusion — the anime classic.",
-    keyField: null, hordeModel: "Anything Diffusion"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Anything Diffusion"
   },
   "horde-zimage": {
     note: "Free, no key. Z-Image-Turbo — new, fast, crisp.",
-    keyField: null, hordeModel: "Z-Image-Turbo"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Z-Image-Turbo"
   },
   "horde-sdxl": {
     note: "Free, no key. SDXL 1.0 — the solid base model.",
-    keyField: null, hordeModel: "SDXL 1.0"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "SDXL 1.0"
   },
   "horde-ghibli": {
     note: "Free, no key. Ghibli Diffusion — soft storybook look.",
-    keyField: null, hordeModel: "Ghibli Diffusion"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Ghibli Diffusion"
   },
   "horde-deliberate": {
-    note: "Free, no key. Community GPUs — usually 20–60s. The default.",
-    keyField: null, hordeModel: "Deliberate"
+    note: "Free. The default. The anonymous queue can crawl at peak (hundreds deep) — a free Horde key gets priority.",
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Deliberate"
   },
   "horde-juggernaut": {
     note: "Free, no key. Best free quality — can sit in the queue 1–3 min.",
-    keyField: null, hordeModel: "Juggernaut XL"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "Juggernaut XL"
   },
   "horde-sd": {
     note: "Free, no key. The Horde's quickest model.",
-    keyField: null, hordeModel: "stable_diffusion"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Stored only in this browser's localStorage.`, hordeModel: "stable_diffusion"
   },
   "pol-flux": {
     note: "Real FLUX quality.",
     keyField: "pollinations", keyLabel: "Pollinations key",
-    keyHint: `Free key: sign in at <a href="https://enter.pollinations.ai" target="_blank" rel="noopener">enter.pollinations.ai</a>, create a key, paste it here. Stored only in this browser's localStorage — sent only to Pollinations when you generate.`
+    keyHint: `Free key: sign in at <a href="https://enter.pollinations.ai" target="_blank" rel="noopener">enter.pollinations.ai</a>, create a key, paste it here. Stored only in this browser's localStorage.`
   },
   "hf-flux": {
     note: "FLUX.1 schnell through Hugging Face — fast FLUX renders.",
     keyField: "huggingface", keyLabel: "Hugging Face token",
-    keyHint: `Free token: <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> → New token (Read) → paste here. Stored only in this browser's localStorage — sent only to Hugging Face when you generate.`
+    keyHint: `Free token: <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> → New token (Read) → paste here. Stored only in this browser's localStorage.`
+  },
+  "space-flux": {
+    note: "Free, no key. FLUX.1-schnell on the official Black Forest Labs Space — proven in the lab at ~5s per still with the flattest keyable backgrounds of any provider here. Runs on the shared free ZeroGPU pool (same pool as the 3D Lab); if you've saved a Hugging Face token for HF FLUX it automatically boosts this too.",
+    keyField: null
   }
 };
 
@@ -462,13 +466,13 @@ function fitSize(w, h, maxSide, maxPixels) {
 
 async function blobToBitmap(blob) { return createImageBitmap(blob); }
 
-async function hordeGenerate(prompt, w, h, model, onStatus) {
+async function hordeGenerate(prompt, w, h, model, onStatus, apiKey) {
   /* anonymous Horde jobs are capped at 512×512 worth of pixels total —
    * ask for more and the submit is refused outright (HTTP 403) */
   const size = fitSize(w, h, 1024, 512 * 512);
   const headers = {
     "Content-Type": "application/json",
-    "apikey": "0000000000",
+    "apikey": apiKey || "0000000000",
     "Client-Agent": "m4ster-framelab:6.8:web"
   };
   let jobId = null;
@@ -504,7 +508,10 @@ async function hordeGenerate(prompt, w, h, model, onStatus) {
     } catch (e) { continue; } // transient poll miss — keep waiting
     if (chk.faulted) fail("AI Horde dropped the job (a worker failed mid-render). Retry — the queue usually clears fast.");
     if (!chk.done) {
-      if (onStatus) onStatus(`AI Horde · ${model} — queued, ~${Math.max(1, chk.wait_time | 0)}s left…`);
+      if (onStatus) {
+        if (chk.queue_position > 0) onStatus(`AI Horde · ${model} — in queue, position ${chk.queue_position}…`);
+        else onStatus(`AI Horde · ${model} — rendering…`);
+      }
       continue;
     }
     const fin = await fetch(`https://stablehorde.net/api/v2/generate/status/${jobId}`, { headers });
@@ -520,7 +527,8 @@ async function hordeGenerate(prompt, w, h, model, onStatus) {
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return blobToBitmap(new Blob([bytes], { type: "image/webp" }));
   }
-  fail("AI Horde took over 5 minutes in the free queue — timed out. Retry, or pick Stable Diffusion (the Horde's quickest).");
+  if (apiKey) fail("AI Horde took over 5 minutes in the queue — timed out, even with your key. The Horde is slammed right now; retry in a few minutes.");
+  fail("AI Horde took over 5 minutes in the queue — timed out. The anonymous queue runs hundreds deep at peak; a free AI Horde key (paste it under \"AI model\") gets priority and usually clears in 1–2 minutes.");
 }
 
 async function hfGenerate(prompt, w, h, token, onStatus) {
@@ -560,12 +568,80 @@ async function polFluxGenerate(prompt, w, h, key, onStatus) {
   return blobToBitmap(await res.blob());
 }
 
+/* HF Space FLUX.1-schnell (Phase 2 Trial A, proven 2026-10-20): anonymous
+ * Gradio queue on the official BFL Space — fn 2 "infer", one session per
+ * run, SSE until process_completed. A saved HF token (the same one the
+ * hf-flux slot stores) is sent when present: it lifts the ZeroGPU quota. */
+async function spaceFluxGenerate(prompt, w, h, onStatus) {
+  const host = "https://black-forest-labs-flux-1-schnell.hf.space";
+  const clamp = n => Math.max(256, Math.min(1024, Math.round(n / 16) * 16));
+  const headers = { "Content-Type": "application/json" };
+  const token = (aiKeys()["huggingface"] || "").trim();
+  if (token) headers["Authorization"] = "Bearer " + token;
+  const session = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const deadline = Date.now() + 5 * 60 * 1000;
+  const timedFetch = async (url, opts) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), Math.max(1000, deadline - Date.now()));
+    try { return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal })); }
+    finally { clearTimeout(t); }
+  };
+  try {
+    if (onStatus) onStatus("Space FLUX — joining the free GPU queue…");
+    const join = await timedFetch(host + "/gradio_api/queue/join", {
+      method: "POST", headers,
+      body: JSON.stringify({ fn_index: 2, data: [prompt, 0, true, clamp(w), clamp(h), 4], session_hash: session })
+    });
+    if (!join.ok) fail(`Space FLUX couldn't take the job (HTTP ${join.status}). The free GPU pool may be drained — retry in a bit, or pick another model.`);
+    if (onStatus) onStatus("Space FLUX — generating (usually a few seconds)…");
+    const res = await timedFetch(host + "/gradio_api/queue/data?session_hash=" + encodeURIComponent(session), { headers });
+    if (!res.ok || !res.body) fail("Space FLUX queue stream failed. Retry in a moment.");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buf += decoder.decode(chunk.value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (line.indexOf("data:") !== 0) continue;
+        let evt;
+        try { evt = JSON.parse(line.slice(5)); } catch (e) { continue; }
+        if (evt.msg === "process_completed") {
+          const out = evt.output || {};
+          if (evt.success === false || !out.data || !out.data[0]) {
+            fail("Space FLUX reported a failure: " + String(out.error || evt.error || "unknown error"));
+          }
+          const fd = out.data[0];
+          const url = fd && fd.url ? fd.url : (fd && fd.path ? host + "/gradio_api/file=" + fd.path : null);
+          if (!url) fail("Space FLUX finished but returned no image. Retry once — if it repeats, pick another model.");
+          const imgRes = await timedFetch(url, { headers });
+          if (!imgRes.ok) fail("Space FLUX image download failed (HTTP " + imgRes.status + ").");
+          return blobToBitmap(await imgRes.blob());
+        }
+        if (evt.msg === "process_error") {
+          fail("Space FLUX reported an error: " + String(evt.error || "unknown error"));
+        }
+      }
+    }
+    fail("Space FLUX queue stream ended early. Retry in a moment.");
+  } catch (e) {
+    if (e && e.message && /^(Space FLUX|This model|Unknown AI)/.test(e.message)) throw e;
+    if (e && e.name === "AbortError") fail("Space FLUX took over 5 minutes in the free queue — timed out. Retry, or pick another model.");
+    fail("Space FLUX is unreachable right now (network). Retry in a moment, or pick another model.");
+  }
+}
+
 /* the one door every AI image comes through */
 async function aiGenerateWith(id, prompt, w, h, onStatus) {
   const p = AI_PROVIDERS[id];
-  if (p.hordeModel) return hordeGenerate(prompt, w, h, p.hordeModel, onStatus);
+  if (p.hordeModel) return hordeGenerate(prompt, w, h, p.hordeModel, onStatus, aiKeyFor(id));
   if (id === "pol-flux") return polFluxGenerate(prompt, w, h, needKey(id), onStatus);
   if (id === "hf-flux") return hfGenerate(prompt, w, h, needKey(id), onStatus);
+  if (id === "space-flux") return spaceFluxGenerate(prompt, w, h, onStatus);
   fail("Unknown AI model selected — pick one from the list.");
 }
 
@@ -589,7 +665,8 @@ const AI_MODEL_NAMES = {
   "horde-novaflat": "Nova Flat XL", "horde-animagine": "Animagine XL",
   "horde-anything5": "Anything v5", "horde-dreamshaper": "Dreamshaper",
   "horde-photon": "Photon", "horde-absreality": "AbsoluteReality",
-  "pol-flux": "Pollinations FLUX", "hf-flux": "HF FLUX.1"
+  "pol-flux": "Pollinations FLUX", "hf-flux": "HF FLUX.1",
+  "space-flux": "Space FLUX"
 };
 
 /* AUTO mode: walk the free chain; a limit, a refusal or a dead queue on one
@@ -602,6 +679,7 @@ async function aiGenerateImage(prompt, w, h, onStatus) {
   if (aiKeyFor("hf-flux")) chain.splice(1, 0, "hf-flux");
   if (aiKeyFor("pol-flux")) chain.splice(2, 0, "pol-flux");
   let lastErr = null;
+  let fluxDetour = false;
   for (let i = 0; i < chain.length; i++) {
     const mid = chain[i];
     try {
@@ -609,15 +687,344 @@ async function aiGenerateImage(prompt, w, h, onStatus) {
       return await aiGenerateWith(mid, prompt, w, h, onStatus);
     } catch (e) {
       lastErr = e;
+      const msg = String(e.message || e);
+      /* a Horde queue timeout means the QUEUE is the bottleneck, not the
+       * model — hopping to the next Horde model just re-queues behind the
+       * same anonymous line. Detour to Space FLUX once; if that also
+       * fails, stop loud and honest instead of cycling for half an hour. */
+      if (/took over 5 minutes/.test(msg) && mid.indexOf("horde-") === 0 && !fluxDetour) {
+        fluxDetour = true;
+        chain.splice(i + 1, chain.length - (i + 1), "space-flux");
+        onStatus("auto: the Horde queue is the bottleneck today — trying Space FLUX instead…");
+        setStatusBar("warn");
+        continue;
+      }
+      if (mid === "space-flux" && fluxDetour) break;
       const next = chain[i + 1];
       if (next) {
-        onStatus(`auto: ${AI_MODEL_NAMES[mid]} unavailable (${String(e.message || e).slice(0, 90)}) — switching to ${AI_MODEL_NAMES[next]}…`);
+        onStatus(`auto: ${AI_MODEL_NAMES[mid]} unavailable (${msg.slice(0, 90)}) — switching to ${AI_MODEL_NAMES[next]}…`);
         setStatusBar("warn");
       }
     }
   }
+  if (fluxDetour) fail("The free queues are slammed right now — Horde timed out in line and Space FLUX couldn't run either. A free AI Horde key (under \"AI model\") skips most of the Horde queue; otherwise give it a few minutes.");
   fail(`Every free model in the auto chain is unavailable right now. Last word: ${lastErr ? lastErr.message : "unknown"} — retry in a minute, the queues clear fast.`);
 }
+
+/* ===== Model Preference picker — Meshy copy (TEST build) =====
+ * Meshy's model dropdown is a rich popup: sections, one row per model
+ * with an icon, the model name, a small meta chip and a one-line
+ * description, checkmark on the current pick. Ours works the same on
+ * BOTH selects (2D #aiModel, 3D #m3Provider). The native <select>
+ * stays in the DOM as the single source of truth — picking a row sets
+ * select.value and dispatches a real change event, so every existing
+ * listener (state save, key row, notes, 3D description) keeps working.
+ * The popup is portaled to <body>: position:fixed inside the wizard's
+ * animated ancestors would render offset. */
+function mpParseOption(opt, groupLabel) {
+  const raw = opt.textContent.trim().replace(/^⚡\s*/, "");
+  const parts = raw.split(" — ");
+  const left = parts[0];
+  const desc = parts.slice(1).join(" — ");
+  const dot = left.split(" · ");
+  let source = "", name = left;
+  if (dot.length > 1) { source = dot[0]; name = dot.slice(1).join(" · "); }
+  let chip = "";
+  const M3_TIERS = { sf3d: "FAST", instantmesh: "BALANCED", trellis: "BALANCED", trellis2: "QUALITY", "hunyuan-mini": "FAST" };
+  if (M3_TIERS[opt.value]) chip = M3_TIERS[opt.value];
+  const tm = raw.match(/~?\s?(\d+(?:\.\d+)?s)\b/);
+  if (chip) { /* tier label wins */ }
+  else if (opt.value === "auto") chip = "AUTO";
+  else if (/free key/i.test(groupLabel || "")) chip = "FREE KEY";
+  else if (tm) chip = "~" + tm[1];
+  return { value: opt.value, name: name, source: source, desc: desc, chip: chip };
+}
+function mpSections(sel) {
+  const secs = [];
+  const pushOpt = (label, opt) => {
+    let s = secs.find((x) => x.label === label);
+    if (!s) { s = { label: label, rows: [] }; secs.push(s); }
+    s.rows.push(mpParseOption(opt, label));
+  };
+  Array.prototype.forEach.call(sel.children, (child) => {
+    if (child.tagName === "OPTGROUP") {
+      Array.prototype.forEach.call(child.children, (opt) => pushOpt(child.label, opt));
+    } else if (child.tagName === "OPTION") {
+      pushOpt(child.value === "auto" ? "Auto" : "Models", child);
+    }
+  });
+  return secs;
+}
+let mpOpenFor = null; // { btn, sel } while the popup is open
+function mpClose() {
+  const pop = document.getElementById("mpPop");
+  if (pop) pop.hidden = true;
+  if (mpOpenFor) mpOpenFor.btn.setAttribute("aria-expanded", "false");
+  mpOpenFor = null;
+}
+/* ===== My Assets — Meshy copy (TEST build) =====
+ * Meshy's Assets page: search, All / Images / Models / Animation
+ * filters, batch selection, thumbnail grid. Ours is filled with the
+ * visitor's OWN work from this session — 2D rows from state.rows and
+ * 3D meshes registered by the studio — because the hub has no
+ * accounts by design. Nothing is uploaded anywhere. */
+window.M3_ASSET_LIST = window.M3_ASSET_LIST || [];
+const assetsState = { filter: "all", query: "", batch: false, selected: new Set() };
+function assetsItems() {
+  const items = [];
+  if (typeof state !== "undefined" && state.rows) {
+    state.rows.forEach((r, i) => {
+      if (!r.frames || !r.frames[0]) return;
+      items.push({
+        id: "2d-" + i,
+        kind: r.frames.length > 1 ? "animation" : "image",
+        name: r.name || "Sprite",
+        thumb: null, canvas: r.frames[0],
+        frames: r.frames.length
+      });
+    });
+  }
+  window.M3_ASSET_LIST.forEach((m, i) => {
+    items.push({ id: "3d-" + i, kind: "model", name: m.name, thumb: m.thumb, url: m.url, objUrl: m.objUrl || null });
+  });
+  return items.reverse();
+}
+function assetsDownload(item) {
+  const a = document.createElement("a");
+  if (item.kind === "model") {
+    a.href = item.url;
+    a.download = "framelab-mesh.glb";
+  } else {
+    a.href = item.canvas.toDataURL("image/png");
+    a.download = (item.name || "sprite").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").toLowerCase() + ".png";
+  }
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+function renderAssets() {
+  const grid = document.getElementById("assetsGrid");
+  const empty = document.getElementById("assetsEmpty");
+  if (!grid) return;
+  const q = assetsState.query.toLowerCase();
+  const items = assetsItems().filter((it) =>
+    (assetsState.filter === "all" || it.kind === assetsState.filter) &&
+    (!q || it.name.toLowerCase().indexOf(q) >= 0));
+  grid.innerHTML = "";
+  items.slice(0, 30).forEach((it) => {
+    const card = document.createElement("div");
+    card.className = "asset-card" + (assetsState.selected.has(it.id) ? " picked" : "");
+    const img = document.createElement("img");
+    img.className = "asset-thumb";
+    img.alt = it.name;
+    if (it.kind === "model") {
+      if (it.thumb) img.src = it.thumb;
+      else { img.alt = "3D mesh"; }
+    } else {
+      try { img.src = it.canvas.toDataURL("image/png"); } catch (e) { /* tainted canvas — skip thumb */ }
+    }
+    card.appendChild(img);
+    if (it.kind === "model" && !it.thumb) {
+      const cube = document.createElement("div");
+      cube.className = "asset-cube";
+      cube.textContent = "▣";
+      card.appendChild(cube);
+    }
+    const meta = document.createElement("div");
+    meta.className = "asset-meta";
+    const nm = document.createElement("span");
+    nm.className = "asset-name";
+    nm.textContent = it.name;
+    const tag = document.createElement("span");
+    tag.className = "asset-tag";
+    tag.textContent = it.kind === "model" ? "Model" : it.kind === "animation" ? "Animation · " + it.frames + "f" : "Image";
+    meta.appendChild(nm);
+    meta.appendChild(tag);
+    card.appendChild(meta);
+    const dl = document.createElement("button");
+    dl.type = "button";
+    dl.className = "asset-dl";
+    dl.title = "Download";
+    dl.textContent = "⬇";
+    dl.addEventListener("click", (e) => { e.stopPropagation(); assetsDownload(it); });
+    card.appendChild(dl);
+    if (assetsState.batch) {
+      const cb = document.createElement("span");
+      cb.className = "asset-check";
+      cb.textContent = assetsState.selected.has(it.id) ? "✓" : "";
+      card.appendChild(cb);
+    }
+    card.addEventListener("click", () => {
+      if (assetsState.batch) {
+        if (assetsState.selected.has(it.id)) assetsState.selected.delete(it.id);
+        else assetsState.selected.add(it.id);
+        assetsSyncFoot();
+        renderAssets();
+        return;
+      }
+      const f = document.getElementById(it.kind === "model" ? "flip3d" : "flip2d");
+      if (f) f.click();
+      const target = document.getElementById(it.kind === "model" ? "lab3d" : "tool");
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    grid.appendChild(card);
+  });
+  if (empty) {
+    empty.hidden = items.length > 0;
+    if (items.length === 0 && assetsItems().length > 0) empty.textContent = "No assets match that filter.";
+    else if (items.length === 0) empty.textContent = "Nothing here yet — generate a sprite or a mesh and it shows up here.";
+  }
+  assetsSyncFoot();
+}
+function assetsSyncFoot() {
+  const foot = document.getElementById("assetsFoot");
+  const count = document.getElementById("assetsSelCount");
+  if (foot) foot.hidden = !(assetsState.batch && assetsState.selected.size > 0);
+  if (count) count.textContent = assetsState.selected.size + " selected";
+}
+function wireAssets() {
+  const grid = document.getElementById("assetsGrid");
+  if (!grid) return;
+  document.querySelectorAll(".assets-fbtn[data-f]").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".assets-fbtn[data-f]").forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+    assetsState.filter = b.getAttribute("data-f");
+    renderAssets();
+  }));
+  const search = document.getElementById("assetsSearch");
+  if (search) search.addEventListener("input", () => { assetsState.query = search.value.trim(); renderAssets(); });
+  const batch = document.getElementById("assetsBatch");
+  if (batch) batch.addEventListener("change", () => {
+    assetsState.batch = batch.checked;
+    if (!batch.checked) assetsState.selected.clear();
+    renderAssets();
+  });
+  const dlSel = document.getElementById("assetsDlSel");
+  if (dlSel) dlSel.addEventListener("click", () => {
+    assetsItems().filter((it) => assetsState.selected.has(it.id)).forEach((it, i) => {
+      setTimeout(() => assetsDownload(it), i * 350);
+    });
+  });
+  const clearSel = document.getElementById("assetsClearSel");
+  if (clearSel) clearSel.addEventListener("click", () => { assetsState.selected.clear(); renderAssets(); });
+  const up = document.getElementById("assetsUpload");
+  const up3d = document.getElementById("assetsUpload3d");
+  const glbFile = document.getElementById("assetsGlbFile");
+  if (up3d && glbFile) {
+    up3d.addEventListener("click", () => glbFile.click());
+    glbFile.addEventListener("change", () => {
+      const f = glbFile.files && glbFile.files[0];
+      if (f && window.M3_LOAD_GLB) window.M3_LOAD_GLB(URL.createObjectURL(f), f.name);
+      glbFile.value = "";
+    });
+  }
+  if (up) up.addEventListener("click", () => {
+    const f3 = document.getElementById("flip3d");
+    if (f3) f3.click();
+    const fi = document.getElementById("m3File");
+    if (fi) fi.click();
+  });
+  ["flip2d", "flip3d"].forEach((id) => {
+    const f = document.getElementById(id);
+    if (f) f.addEventListener("click", () => setTimeout(renderAssets, 60));
+  });
+  renderAssets();
+}
+window.renderAssets = renderAssets;
+
+function wireModelPicker(btnId, selId) {
+  const btn = document.getElementById(btnId);
+  const sel = document.getElementById(selId);
+  const pop = document.getElementById("mpPop");
+  if (!btn || !sel || !pop) return;
+  const nameEl = btn.querySelector(".mp-name");
+  const chipEl = btn.querySelector(".mp-chip");
+  function refreshTrigger() {
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt) return;
+    const r = mpParseOption(opt, "");
+    if (nameEl) nameEl.textContent = (r.source ? r.source + " · " : "") + r.name;
+    if (chipEl) { chipEl.textContent = r.chip || ""; chipEl.hidden = !r.chip; }
+  }
+  sel.addEventListener("change", refreshTrigger);
+  refreshTrigger();
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (mpOpenFor && mpOpenFor.sel === sel) { mpClose(); return; }
+    mpClose();
+    const list = pop.querySelector(".mp-list");
+    const titleEl = pop.querySelector(".mp-title");
+    if (titleEl) titleEl.textContent = btn.getAttribute("data-mp-title") || "Model Preference";
+    list.innerHTML = "";
+    mpSections(sel).forEach((sec) => {
+      const h = document.createElement("div");
+      h.className = "mp-sec";
+      h.textContent = sec.label;
+      list.appendChild(h);
+      sec.rows.forEach((r) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "mp-row" + (r.value === sel.value ? " sel" : "");
+        const ic = document.createElement("span");
+        ic.className = "mp-ic";
+        ic.textContent = r.value === "auto" ? "⚡" : r.source.indexOf("Horde") >= 0 ? "◆" : r.chip === "FREE KEY" ? "●" : "▲";
+        const main = document.createElement("span");
+        main.className = "mp-main";
+        const nm = document.createElement("span");
+        nm.className = "mp-rname";
+        nm.textContent = (r.source ? r.source + " · " : "") + r.name;
+        if (r.chip) {
+          const ch = document.createElement("span");
+          ch.className = "mp-rchip";
+          ch.textContent = r.chip;
+          nm.appendChild(ch);
+        }
+        main.appendChild(nm);
+        if (r.desc) {
+          const ds = document.createElement("span");
+          ds.className = "mp-rdesc";
+          ds.textContent = r.desc;
+          main.appendChild(ds);
+        }
+        const ck = document.createElement("span");
+        ck.className = "mp-check";
+        ck.textContent = r.value === sel.value ? "✓" : "";
+        row.appendChild(ic);
+        row.appendChild(main);
+        row.appendChild(ck);
+        row.addEventListener("click", () => {
+          sel.value = r.value;
+          sel.dispatchEvent(new Event("change", { bubbles: true }));
+          refreshTrigger();
+          mpClose();
+        });
+        list.appendChild(row);
+      });
+    });
+    pop.hidden = false;
+    mpOpenFor = { btn: btn, sel: sel };
+    btn.setAttribute("aria-expanded", "true");
+    const rect = btn.getBoundingClientRect();
+    const pw = Math.min(430, window.innerWidth - 16);
+    pop.style.width = pw + "px";
+    pop.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - pw - 8)) + "px";
+    const below = window.innerHeight - rect.bottom;
+    if (below < 340 && rect.top > below) {
+      pop.style.top = "auto";
+      pop.style.bottom = (window.innerHeight - rect.top + 8) + "px";
+    } else {
+      pop.style.bottom = "auto";
+      pop.style.top = (rect.bottom + 8) + "px";
+    }
+  });
+}
+document.addEventListener("click", (e) => {
+  const pop = document.getElementById("mpPop");
+  if (!pop || pop.hidden || !mpOpenFor) return;
+  if (!pop.contains(e.target) && e.target !== mpOpenFor.btn && !mpOpenFor.btn.contains(e.target)) mpClose();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") mpClose(); });
+window.addEventListener("resize", () => mpClose());
 
 /* switcher UI: visibility, key row, notes — driven by the provider table */
 function syncAiModelUI() {
@@ -735,6 +1142,55 @@ function floodKey(src, tol = 12) {
     if (cx < w - 1) { const n = cur + 1; if (!bg[n] && near(cur, n)) push(n); }
     if (cy > 0)     { const n = cur - w; if (!bg[n] && near(cur, n)) push(n); }
     if (cy < h - 1) { const n = cur + w; if (!bg[n] && near(cur, n)) push(n); }
+  }
+  /* pass 2 — the skirt: background-coloured pixels hugging the keyed
+   * region (gradient skirts, soft ground shadows) erode inward, three
+   * pixels deep. The cap still protects saturated character colours,
+   * and the shallow depth protects flat character whites — a white
+   * cape loses only its outermost shading, not its body. */
+  const cap2 = cap + 130;
+  const within2 = i => {
+    const a = i * 4;
+    return Math.abs(d[a] - bgc.r) + Math.abs(d[a + 1] - bgc.g) + Math.abs(d[a + 2] - bgc.b) <= cap2;
+  };
+  for (let pass = 0; pass < 3; pass++) {
+    const add = [];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (bg[i] || !within2(i)) continue;
+      if ((x > 0 && bg[i - 1]) || (x < w - 1 && bg[i + 1]) || (y > 0 && bg[i - w]) || (y < h - 1 && bg[i + w])) add.push(i);
+    }
+    if (!add.length) break;
+    for (const i of add) bg[i] = 1;
+  }
+  /* pass 3 — enclosed pockets: a cluster of background-coloured
+   * pixels that the real background cannot touch — every neighbour
+   * is subject-coloured, none touches the border — is backdrop
+   * trapped inside the silhouette (the white patch between a
+   * knight's legs). A white cape survives: its outer edge borders
+   * the keyed background all along, so it is never enclosed. */
+  {
+    const seen = new Uint8Array(w * h);
+    const stack3 = [];
+    for (let start = 0; start < w * h; start++) {
+      if (bg[start] || seen[start] || !within2(start)) continue;
+      const cluster = [];
+      let enclosed = true;
+      seen[start] = 1; stack3.push(start);
+      while (stack3.length) {
+        const cur = stack3.pop();
+        cluster.push(cur);
+        const cx = cur % w, cy = (cur / w) | 0;
+        if (cx === 0 || cy === 0 || cx === w - 1 || cy === h - 1) enclosed = false;
+        const ns = [cx > 0 ? cur - 1 : -1, cx < w - 1 ? cur + 1 : -1, cy > 0 ? cur - w : -1, cy < h - 1 ? cur + w : -1];
+        for (const n of ns) {
+          if (n < 0) continue;
+          if (bg[n]) { enclosed = false; continue; }
+          if (!seen[n] && within2(n)) { seen[n] = 1; stack3.push(n); }
+        }
+      }
+      if (enclosed && cluster.length < w * h * 0.12) for (const i of cluster) bg[i] = 1;
+    }
   }
   for (let i = 0; i < w * h; i++) if (bg[i]) d[i * 4 + 3] = 0;
   const out = makeCanvas(w, h);
@@ -2709,6 +3165,7 @@ function pushRow(name, frames, extra = {}) {
   );
   state.rows.push(row);
   state.originals.push(frames.slice());
+  if (window.renderAssets) renderAssets();
 }
 
 /* status bars (v6.15): the RGB separators change colour with the pipeline —
@@ -3062,6 +3519,25 @@ function pxColorLabel(n) {
   return n === 0 ? "full color" : n + " colors";
 }
 
+/* standalone tools own the panel: in the pixelart/slicer lanes the wizard
+ * framing drops — steps 1-2 hide, the options group carries the tool's own
+ * header (no step number), and a back button returns to the generator. */
+function syncToolChrome() {
+  const tool = state.category === "pixelart" ? "Pixel Converter"
+             : state.category === "slicer" ? "Sprite Slicer" : null;
+  document.querySelectorAll(".ctl-group").forEach(g => {
+    g.classList.toggle("tool-hidden", !!tool && g.id !== "ctlStep3");
+  });
+  const num = document.getElementById("ctlNum3");
+  const lbl = document.getElementById("ctlStepLbl3");
+  const ttl = document.getElementById("ctlTitle3");
+  if (num) num.textContent = tool ? "\u{1F9F0}" : "3";
+  if (lbl) lbl.textContent = tool ? "Standalone tool" : "Step 3";
+  if (ttl) ttl.textContent = tool || "Options";
+  const back = document.getElementById("toolBack");
+  if (back) back.hidden = !tool;
+}
+
 function syncPixelMode() {
   const on = state.category === "pixelart";
   const aside = document.querySelector("aside.controls");
@@ -3071,6 +3547,7 @@ function syncPixelMode() {
   document.body.classList.toggle("mode-pixelart", on);
   const side = $("#pixelSide");
   if (side) side.hidden = !(on && state.pixelart && state.pixelart.src);
+  syncToolChrome();
 }
 
 function pxRender() {
@@ -3391,6 +3868,7 @@ function syncSlicerMode() {
     if (grid) grid.hidden = true;
     if (head) head.hidden = true;
   }
+  syncToolChrome();
 }
 
 /* draw the sheet + live grid overlay on the stage canvas */
@@ -3729,6 +4207,12 @@ function init() {
   syncPixelMode();
   syncSlicerMode();
 
+  const toolBackBtn = document.getElementById("toolBack");
+  if (toolBackBtn) toolBackBtn.onclick = () => {
+    const t = document.querySelector('.tab[data-cat="character"]');
+    if (t) t.click();
+  };
+
   document.querySelectorAll(".tab").forEach(t => {
     t.onclick = () => {
       document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
@@ -3765,6 +4249,8 @@ function init() {
       syncAiModelUI();
     });
   }
+  wireModelPicker("aiModelBtn", "aiModel");
+  wireAssets();
   const aiKeyInput = document.getElementById("aiKey");
   if (aiKeyInput) {
     aiKeyInput.addEventListener("input", () => {
@@ -4797,7 +5283,6 @@ function applyDim(dim) {
   if (tool) tool.style.display = is3d ? "none" : "";
   const mb = document.querySelector(".mobile-bar");
   if (mb) mb.style.display = is3d ? "none" : "";
-  if (is3d && typeof ensureM3Viewer === "function") ensureM3Viewer();
   const f2 = document.getElementById("flip2d"), f3 = document.getElementById("flip3d");
   if (f2) f2.classList.toggle("active", !is3d);
   if (f3) f3.classList.toggle("active", is3d);
@@ -4813,29 +5298,34 @@ function wireFlip() {
 }
 
 /* ============ 3D LAB — image → mesh on free HF Spaces (test build) ========
- * Both providers proven end-to-end anonymously in the provider lab
- * (~/workspace/framelab-provider-lab/results-3d-round1.json): no HF token,
- * no cookies, real GLB out. Stable Fast 3D speaks Gradio 4 at the space
- * root; InstantMesh speaks Gradio 5 under /gradio_api. Chain order inside
- * each provider is mandatory — the spaces hold gr.State server-side per
- * session_hash, and skipping a step fails server-side. */
+ * The providers were proven end-to-end in the provider lab
+ * (~/workspace/framelab-provider-lab/results-3d-round1.json + round2):
+ * no HF token, no cookies, real GLB out. Stable Fast 3D speaks Gradio 4
+ * at the space root; InstantMesh and TRELLIS.2 speak Gradio 5/6 under
+ * /gradio_api. Chain order inside each provider is mandatory — the
+ * spaces hold gr.State server-side per session_hash, and skipping a step
+ * fails server-side. ZeroGPU quota errors are switch signals in AUTO:
+ * the free GPU budget is per-IP and shared, so a busy budget on one
+ * space says nothing about the next. An optional HF token (the SAME one
+ * the 2D side stores for HF FLUX — localStorage "m4ster.aiKeys", JSON
+ * property "huggingface", see aiKeyFor) lifts that quota: when saved, it
+ * rides every request below as an Authorization header. It is read once
+ * at run start into M3_TOKEN — never logged, never sent anywhere else. */
 const M3_PROVIDERS = {
   sf3d: { name: "Stable Fast 3D", host: "https://stabilityai-stable-fast-3d.hf.space", base: "" },
-  instantmesh: { name: "InstantMesh", host: "https://tencentarc-instantmesh.hf.space", base: "/gradio_api" },
   trellis2: { name: "TRELLIS.2", host: "https://microsoft-trellis-2.hf.space", base: "/gradio_api" },
-  trellis: { name: "TRELLIS", host: "https://trellis-community-trellis.hf.space", base: "/gradio_api" }
+  instantmesh: { name: "InstantMesh", host: "https://tencentarc-instantmesh.hf.space", base: "/gradio_api" },
+  trellis: { name: "TRELLIS (community)", host: "https://trellis-community-trellis.hf.space", base: "/gradio_api" },
+  "hunyuan-mini": { name: "Hunyuan3D-2 Mini Turbo", host: "https://tencent-hunyuan3d-2mini-turbo.hf.space", base: "" }
 };
 const M3_TIMEOUT_MS = 4 * 60 * 1000; /* per provider, whole chain */
+let M3_TOKEN = "";
+function m3AuthHeaders() {
+  return M3_TOKEN ? { "Authorization": "Bearer " + M3_TOKEN } : {};
+}
 
 function m3Session() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-/* optional BYO HF token (shared with the 2D HF key): ZeroGPU spaces give
- * anonymous callers almost no GPU quota; a free token raises it. Sent only
- * to the space hosts, only when the user pasted one. */
-function m3AuthHeaders() {
-  const t = (aiKeys().huggingface || "").trim();
-  return t ? { "Authorization": "Bearer " + t } : {};
 }
 function m3FileUrl(prov, fd) {
   if (!fd) return null;
@@ -4852,7 +5342,9 @@ async function m3Fetch(url, opts, deadline) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), Math.max(1000, deadline - Date.now()));
   try {
-    return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal }));
+    const o = Object.assign({}, opts, { signal: ctrl.signal });
+    if (M3_TOKEN) o.headers = Object.assign({}, opts.headers || {}, m3AuthHeaders());
+    return await fetch(url, o);
   } catch (e) {
     if (e && e.name === "AbortError") throw m3TimeoutErr();
     throw e;
@@ -4862,7 +5354,7 @@ async function m3Upload(prov, file, deadline) {
   const form = new FormData();
   /* field name MUST be "files" — "files[]" silently returns [] */
   form.append("files", file, file.name || "image.png");
-  const res = await m3Fetch(prov.host + prov.base + "/upload", { method: "POST", body: form, headers: m3AuthHeaders() }, deadline);
+  const res = await m3Fetch(prov.host + prov.base + "/upload", { method: "POST", body: form }, deadline);
   if (!res.ok) throw new Error("image upload failed (HTTP " + res.status + ")");
   const paths = await res.json();
   if (!Array.isArray(paths) || !paths[0]) throw new Error("image upload returned no file path");
@@ -4882,7 +5374,7 @@ function m3FileData(prov, path, file) {
 async function m3Call(prov, session, fnIndex, data, deadline) {
   const join = await m3Fetch(prov.host + prov.base + "/queue/join", {
     method: "POST",
-    headers: Object.assign({ "Content-Type": "application/json" }, m3AuthHeaders()),
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fn_index: fnIndex, data: data, session_hash: session })
   }, deadline);
   if (!join.ok) throw new Error("couldn't join the free queue (HTTP " + join.status + ")");
@@ -4924,7 +5416,7 @@ async function m3Call(prov, session, fnIndex, data, deadline) {
   } finally { clearTimeout(timer); }
 }
 async function m3FetchBlob(url, deadline) {
-  const res = await m3Fetch(url, { headers: m3AuthHeaders() }, deadline);
+  const res = await m3Fetch(url, {}, deadline);
   if (!res.ok) throw new Error("mesh download failed (HTTP " + res.status + ")");
   return res.blob();
 }
@@ -4983,70 +5475,116 @@ async function m3RunInstantMesh(file, say) {
   return { glb: glb, obj: obj };
 }
 
-/* TRELLIS.2 (Gradio 6): preprocess -> image_to_3d -> extract_glb.
- * GPU stage is ZeroGPU: anonymous quota is tiny — the HF token tier is
- * what makes this provider real; without one it fails loud with the
- * space's own quota message and AUTO moves on. */
+/* TRELLIS.2: start session → preprocess → image_to_3d → extract_glb.
+ * The 3D state stays server-side per session (extract_glb takes null for
+ * it). image_to_3d runs the UI defaults at Resolution "1024". File
+ * outputs may arrive wrapped as {value: FileData, __type__: "update"} —
+ * unwrap before use, same trap as SF3D's GLB output. */
 async function m3RunTrellis2(file, say) {
   const prov = M3_PROVIDERS.trellis2, session = m3Session();
-  const deadline = Date.now() + M3_TIMEOUT_MS * 2;
+  const deadline = Date.now() + M3_TIMEOUT_MS;
+  say("TRELLIS.2 — starting a session on the free GPU…");
+  await m3Call(prov, session, 2, [], deadline);
   say("TRELLIS.2 — uploading your image…");
   const fd = m3FileData(prov, await m3Upload(prov, file, deadline), file);
-  say("TRELLIS.2 — preparing the image…");
+  say("TRELLIS.2 — removing the background…");
   const pre = await m3Call(prov, session, 4, [fd], deadline);
-  const img = (pre && pre[0]) || fd;
-  say("TRELLIS.2 — generating the mesh (the heavy step — free GPUs take a while)…");
-  const gen = await m3Call(prov, session, 7, [img, 42, "1024", 7.5, 0.7, 12, 5.0, 7.5, 0.5, 12, 3.0, 1.0, 0.0, 12, 3.0], deadline);
-  const mstate = gen && gen[0];
-  if (!mstate) throw new Error("TRELLIS.2 finished but returned no mesh state");
-  say("TRELLIS.2 — extracting the GLB…");
-  const ext = await m3Call(prov, session, 9, [mstate, 300000, 2048], deadline);
-  const url = m3FileUrl(prov, ext && ext[0]);
+  const processed = pre && pre[0];
+  if (!processed) throw new Error("TRELLIS.2 preprocessing returned no image");
+  say("TRELLIS.2 — building your textured mesh (usually ~1 minute)…");
+  await m3Call(prov, session, 7, [processed, 0, "1024", 7.5, 0.7, 12, 5.0, 7.5, 0.5, 12, 3.0, 1.0, 0.0, 12, 3.0], deadline);
+  say("TRELLIS.2 — packing the GLB…");
+  const made = await m3Call(prov, session, 9, [null, 300000, (typeof window !== "undefined" && window.M3_TEXSIZE) || 2048], deadline);
+  const rawFd = made && made[0];
+  const glbFd = rawFd && typeof rawFd === "object" && "value" in rawFd ? rawFd.value : rawFd;
+  const url = m3FileUrl(prov, glbFd);
   if (!url) throw new Error("TRELLIS.2 finished but returned no mesh file");
   say("TRELLIS.2 — downloading your mesh…");
   return { glb: await m3FetchBlob(url, deadline), obj: null };
 }
 
-/* TRELLIS community mirror (Gradio 5): one call does generate + extract. */
+/* TRELLIS (community space, trellis-community/TRELLIS): start session →
+ * preprocess → ONE call, generate_and_extract_glb. The endpoint map was
+ * verified live against the space's /config on 2026-10-20 (RUNNING on
+ * ZeroGPU, Gradio 5.34): fn 4 start_session (fires on app load), fn 8
+ * preprocess_image (fires on image upload), fn 11 generate_and_extract_glb
+ * — inputs are the UI defaults read off that config, in order:
+ * [image, multi-image gallery, session state, seed, sparse-structure
+ * guidance, sparse steps, SLAT guidance, SLAT steps, multi-image
+ * algorithm, simplify, texture size]. The session state stays
+ * server-side per session_hash, so it goes in as null. The GLB lands in
+ * output[2] (the Model3D component); output[3] is the Download button —
+ * both may arrive {value: FileData, __type__: "update"} wrapped, the
+ * same trap as TRELLIS.2's output, so unwrap before use. */
 async function m3RunTrellis(file, say) {
   const prov = M3_PROVIDERS.trellis, session = m3Session();
-  const deadline = Date.now() + M3_TIMEOUT_MS * 2;
-  say("TRELLIS — uploading your image…");
+  const deadline = Date.now() + M3_TIMEOUT_MS;
+  say("TRELLIS (community) — starting a session on the free GPU…");
+  await m3Call(prov, session, 4, [], deadline);
+  say("TRELLIS (community) — uploading your image…");
   const fd = m3FileData(prov, await m3Upload(prov, file, deadline), file);
-  say("TRELLIS — generating the mesh + GLB (free GPUs take a while)…");
-  const out = await m3Call(prov, session, 11, [fd, [], null, 42, 7.5, 12, 3.0, 12, "stochastic", 0.95, 1024], deadline);
-  const glbFd = (out || []).find(x => x && typeof x === "object" && /\.glb($|\?)/i.test(x.path || x.url || ""));
+  say("TRELLIS (community) — removing the background…");
+  const pre = await m3Call(prov, session, 8, [fd], deadline);
+  const processed = pre && pre[0];
+  if (!processed) throw new Error("TRELLIS (community) preprocessing returned no image");
+  say("TRELLIS (community) — building your mesh (usually ~1 minute)…");
+  const made = await m3Call(prov, session, 11, [processed, [], null, 0, 7.5, 12, 3.0, 12, "stochastic", 0.95, 1024], deadline);
+  const unwrap = (v) => v && typeof v === "object" && "value" in v ? v.value : v;
+  const glbFd = unwrap(made && made[2]) || unwrap(made && made[3]);
   const url = m3FileUrl(prov, glbFd);
-  if (!url) throw new Error("TRELLIS finished but returned no GLB file");
-  say("TRELLIS — downloading your mesh…");
+  if (!url) throw new Error("TRELLIS (community) finished but returned no mesh file");
+  say("TRELLIS (community) — downloading your mesh…");
   return { glb: await m3FetchBlob(url, deadline), obj: null };
 }
 
-/* in-browser mesh preview: Google model-viewer, lazy-loaded only when
- * the 3D lab is opened or a mesh lands — the 2D lab never pays for it */
-let m3ViewerTried = false;
-function ensureM3Viewer() {
-  if (m3ViewerTried) return;
-  m3ViewerTried = true;
-  const sc = document.createElement("script");
-  sc.type = "module";
-  sc.src = "https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js";
-  document.head.appendChild(sc);
-  setTimeout(() => {
-    if (!customElements.get("model-viewer")) {
-      const w = document.getElementById("m3ViewerWrap");
-      if (w) w.hidden = true; /* CDN blocked: downloads still work */
-    }
-  }, 9000);
+/* Hunyuan3D-2 Mini Turbo: ONE call, shape_generation (fn 4). Gradio 4
+ * at the space root, like SF3D. The 13 inputs are the UI defaults for
+ * the distilled Turbo mode: [text prompt (null — image mode), image,
+ * four multiview slots (null — single image), steps 5, guidance 5.0,
+ * seed 1234, octree 256, remove background true, chunks 8000,
+ * randomize seed true]. SHAPE ONLY: the mesh comes out untextured —
+ * the space's own texture stage fails on its side (PyMeshLabException,
+ * lab round 3), so there is no second call to make. The GLB arrives in
+ * output[0], a bare FileData in the proven run — but the sibling 2.1
+ * space wrapped outputs as {value: FileData}, so unwrap defensively.
+ * Lab ops note: the first upload once timed out while the space was
+ * cold-starting; upload is a non-GPU path, so retry it ONCE on a
+ * network/timeout error before calling the provider failed. */
+async function m3RunHunyuanMini(file, say) {
+  const prov = M3_PROVIDERS["hunyuan-mini"], session = m3Session();
+  const deadline = Date.now() + M3_TIMEOUT_MS;
+  say("Hunyuan3D-2 Mini Turbo — uploading your image…");
+  let upPath;
+  try {
+    upPath = await m3Upload(prov, file, deadline);
+  } catch (e) {
+    const msg = e && e.message ? String(e.message) : String(e);
+    if (!(e instanceof TypeError) && !/timed out|network/i.test(msg)) throw e;
+    say("Hunyuan3D-2 Mini Turbo — the upload hit a snag (the space may be waking up) — retrying it once…");
+    upPath = await m3Upload(prov, file, deadline);
+  }
+  const fd = m3FileData(prov, upPath, file);
+  say("Hunyuan3D-2 Mini Turbo — building your mesh (usually ~15 seconds)…");
+  const made = await m3Call(prov, session, 4, [null, fd, null, null, null, null, 5, 5.0, 1234, 256, true, 8000, true], deadline);
+  const rawFd = made && made[0];
+  const glbFd = rawFd && typeof rawFd === "object" && "value" in rawFd ? rawFd.value : rawFd;
+  const url = m3FileUrl(prov, glbFd);
+  if (!url) throw new Error("Hunyuan3D-2 Mini Turbo finished but returned no mesh file");
+  say("Hunyuan3D-2 Mini Turbo — downloading your mesh…");
+  return { glb: await m3FetchBlob(url, deadline), obj: null };
 }
 
 function wire3DLab() {
   const fileInput = document.getElementById("m3File");
+  wireModelPicker("m3ModelBtn", "m3Provider");
   if (!fileInput) return;
   const drop = document.getElementById("m3Drop");
   const thumb = document.getElementById("m3Thumb");
   const dropText = document.getElementById("m3DropText");
   const provSel = document.getElementById("m3Provider");
+  const tokenInput = document.getElementById("m3Token");
+  const useChar = document.getElementById("m3UseChar");
+  const viewer = document.getElementById("m3Viewer");
   const go = document.getElementById("m3Go");
   const status = document.getElementById("m3Status");
   const result = document.getElementById("m3Result");
@@ -5062,14 +5600,20 @@ function wire3DLab() {
     const m = e && e.message ? String(e.message) : String(e);
     return m.length > 140 ? m.slice(0, 140) + "…" : m;
   };
+  /* ZeroGPU quota refusals ("quota" / "GPU duration" in the message) mean
+   * the shared free GPU budget is busy right now — a switch signal in
+   * AUTO, not a dead end. */
+  const isQuotaErr = (e) => /quota|gpu duration/i.test(e && e.message ? String(e.message) : String(e));
   function say(t, isErr) {
     status.textContent = t;
     status.classList.toggle("err", !!isErr);
   }
+  window.M3_SET_SOURCE = function (f) { setFile(f); };
   function setFile(f) {
     if (!f) return;
     if (!/^image\//.test(f.type || "")) { say("That's not an image — pick a PNG or JPG.", true); return; }
     file = f;
+    m3SrcName = f.name || "mesh";
     thumb.src = URL.createObjectURL(f);
     thumb.hidden = false;
     dropText.innerHTML = "";
@@ -5083,28 +5627,10 @@ function wire3DLab() {
     dropText.appendChild(span);
     go.disabled = running;
     result.hidden = true;
-    say("Ready — hit GENERATE MESH. Free, as always.");
+    hideGlbPreview();
+    m3StudioReset();
+    say("Ready — hit Generate. Free, as always.");
   }
-  const tokenInput = document.getElementById("m3Token");
-  if (tokenInput) {
-    tokenInput.value = aiKeys().huggingface || "";
-    tokenInput.addEventListener("change", () => {
-      const k = aiKeys();
-      k.huggingface = tokenInput.value.trim();
-      try { localStorage.setItem(LS_AI_KEYS, JSON.stringify(k)); } catch (e) {}
-      say(k.huggingface ? "Token saved in your browser — the 3D providers will use it." : "Token cleared.");
-    });
-  }
-  const use2d = document.getElementById("m3Use2D");
-  if (use2d) use2d.addEventListener("click", () => {
-    const row = state.rows && state.rows[0];
-    const cv = row && row.frames && row.frames[0];
-    if (!cv) { say("No 2D sprite yet — make one on the 2D side first, then flip back and mesh it.", true); return; }
-    cv.toBlob((blob) => {
-      if (!blob) { say("Couldn't read that sprite — upload the image instead.", true); return; }
-      setFile(new File([blob], "framelab-sprite.png", { type: "image/png" }));
-    }, "image/png");
-  });
   drop.addEventListener("click", () => fileInput.click());
   drop.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
@@ -5117,11 +5643,945 @@ function wire3DLab() {
     if (f) setFile(f);
   });
 
+  /* optional HF token — same storage, same shape, same save-on-type
+   * behavior as the 2D side's key field: localStorage "m4ster.aiKeys",
+   * JSON property "huggingface". One token serves both sides of the hub. */
+  if (tokenInput) {
+    tokenInput.value = aiKeys().huggingface || "";
+    tokenInput.addEventListener("input", () => {
+      const keys = aiKeys();
+      keys.huggingface = tokenInput.value.trim();
+      try { localStorage.setItem(LS_AI_KEYS, JSON.stringify(keys)); } catch (e) {}
+    });
+  }
+
+  /* bridge: the latest 2D result (state.rows[0].frames[0] — a canvas in
+   * this build) becomes the 3D panel's image, through the exact same
+   * setFile path as an upload, so thumbnail + Generate behave identically */
+  if (useChar) useChar.addEventListener("click", async () => {
+    const frame = state.rows && state.rows[0] && state.rows[0].frames && state.rows[0].frames[0];
+    if (!frame) {
+      say("No 2D character yet — generate a 2D character first (flip to 2D · Sprites, make one, then come back and use it here).", true);
+      return;
+    }
+    try {
+      let blob = null;
+      if (typeof frame.toBlob === "function") {
+        blob = await new Promise((res) => frame.toBlob(res, "image/png"));
+      }
+      if (!blob) {
+        const c = makeCanvas(frame.width, frame.height);
+        c.getContext("2d").drawImage(frame, 0, 0);
+        blob = await new Promise((res) => c.toBlob(res, "image/png"));
+      }
+      if (!blob) throw new Error("the frame could not be read");
+      setFile(new File([blob], "character.png", { type: "image/png" }));
+      say("Your 2D character is loaded — hit GENERATE MESH.");
+    } catch (e) {
+      say("Couldn't load your 2D character (" + shortErr(e) + ") — upload the image instead.", true);
+    }
+  });
+
+  /* ===== Meshy-style 3D Studio (TEST build) =====
+   * The stage is a real three.js engine scene: Lit / Clay / Wireframe
+   * render modes, real face/vertex stats parsed from the loaded GLB, a
+   * degenerate-triangle printability check, environment controls and
+   * camera presets. If the three.js CDN or WebGL fails, the preview
+   * falls back to <model-viewer> — and a preview failure never fails
+   * the generation itself; the download always stands. */
+  const M3_MODEL_DESCS = {
+    auto: "AUTO rides the whole roster: Stable Fast 3D first, then TRELLIS.2, InstantMesh, TRELLIS, Hunyuan Mini — switching itself if one fails.",
+    sf3d: "Stable Fast 3D — Stability AI. Fast, textured GLB, usually ~10 seconds.",
+    trellis2: "TRELLIS.2 — textured, highest detail of the roster, about a minute.",
+    instantmesh: "InstantMesh — Tencent ARC. Dense multi-view mesh, GLB + OBJ out.",
+    trellis: "TRELLIS (community) — the original Microsoft model, one single call.",
+    "hunyuan-mini": "Hunyuan3D-2 Mini Turbo — fastest shape (~15s). Shape only: the mesh comes out untextured."
+  };
+  let m3three = null;        // { THREE, scene, camera, renderer, controls, model, clayMat, wireMat, homePos, homeTarget, raf }
+  let m3Mode = "lit";
+  let m3ChanMode = null;
+  let m3SkipAssetReg = false;
+  let m3SrcName = "";
+
+  function m3FmtN(n) { return n.toLocaleString("en-US"); }
+
+  async function m3InitThree() {
+    if (m3three) return m3three;
+    const THREE = await import("three");
+    const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
+    const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+    const { RoomEnvironment } = await import("three/addons/environments/RoomEnvironment.js");
+    const wrap = document.getElementById("m3CanvasWrap");
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.domElement.className = "m3-three-canvas";
+    wrap.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 500);
+    camera.position.set(1.6, 1.1, 2.2);
+    const key = new THREE.DirectionalLight(0xffffff, 1.6);
+    key.position.set(2.5, 4, 2);
+    scene.add(key);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.6;
+    const gizmoScene = new THREE.Scene();
+    gizmoScene.add(new THREE.AxesHelper(1));
+    const gizmoCam = new THREE.PerspectiveCamera(38, 1, 0.1, 20);
+    m3three = { THREE, GLTFLoader, scene, camera, renderer, controls, key,
+      clayMat: new THREE.MeshStandardMaterial({ color: 0xb9b9be, roughness: 0.85, metalness: 0.0 }),
+      wireMat: new THREE.MeshBasicMaterial({ color: 0xa6f750, wireframe: true }),
+      normalMat: new THREE.MeshNormalMaterial(),
+      metalMat: new THREE.MeshStandardMaterial({ color: 0xdfe3e8, metalness: 1.0, roughness: 0.32 }),
+      greyMat: new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.15, roughness: 0.55 }),
+      goldMat: new THREE.MeshStandardMaterial({ color: 0xd9a441, metalness: 1.0, roughness: 0.3 }),
+      cyanMat: new THREE.MeshStandardMaterial({ color: 0x35c4d8, metalness: 0.55, roughness: 0.35 }),
+      gizmoScene, gizmoCam,
+      zoomGoal: 0, model: null, homePos: null, homeTarget: null, raf: 0, anim: null, animHome: null, maxDim: 1, baseMesh: null };
+    /* smooth wheel zoom: the wheel only moves a goal distance and the
+     * tick eases toward it — flood-proof against smooth-scroll wheels
+     * and trackpads, where OrbitControls' fixed 5%-per-event dolly
+     * teleports. Only the canvas itself is hijacked; popups and pinch
+     * behave natively. */
+    wrap.addEventListener("wheel", (e) => {
+      if (!m3three || !m3three.model || e.target !== renderer.domElement) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const c = m3three.controls;
+      const cur = m3three.camera.position.distanceTo(c.target);
+      if (!m3three.zoomGoal) m3three.zoomGoal = cur;
+      const step = Math.max(-1, Math.min(1, e.deltaY / 100));
+      m3three.zoomGoal = Math.max(c.minDistance, Math.min(c.maxDistance, m3three.zoomGoal * (1 + step * 0.14)));
+    }, { capture: true, passive: false });
+    const tick = () => {
+      m3three.raf = requestAnimationFrame(tick);
+      if (!wrap.offsetParent) return; // stage hidden — idle cheap
+      const w = wrap.clientWidth, h = wrap.clientHeight;
+      if (w && h && (renderer.domElement.width !== Math.round(w * renderer.getPixelRatio()) || camera.aspect !== w / h)) {
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      }
+      if (m3three.zoomGoal) {
+        const off = m3three.camera.position.clone().sub(m3three.controls.target);
+        const cur = off.length();
+        const nd = cur + (m3three.zoomGoal - cur) * 0.18;
+        if (Math.abs(m3three.zoomGoal - nd) < m3three.zoomGoal * 0.003) { off.setLength(m3three.zoomGoal); m3three.zoomGoal = 0; }
+        else off.setLength(nd);
+        m3three.camera.position.copy(m3three.controls.target).add(off);
+      }
+      controls.update();
+      m3AnimTick();
+      renderer.render(scene, camera);
+      if (m3three.model && w > 280 && h > 220) {
+        const gs = 84;
+        const dir = camera.position.clone().sub(controls.target).normalize();
+        gizmoCam.position.copy(dir.multiplyScalar(3.1));
+        gizmoCam.up.copy(camera.up);
+        gizmoCam.lookAt(0, 0, 0);
+        renderer.autoClear = false;
+        renderer.clearDepth();
+        renderer.setScissorTest(true);
+        renderer.setScissor(w - gs - 10, h - gs - 10, gs, gs);
+        renderer.setViewport(w - gs - 10, h - gs - 10, gs, gs);
+        renderer.render(gizmoScene, gizmoCam);
+        renderer.setScissorTest(false);
+        renderer.setViewport(0, 0, w, h);
+        renderer.autoClear = true;
+      }
+    };
+    tick();
+    return m3three;
+  }
+
+  function m3ApplyMode() {
+    if (!m3three) return;
+    const s = m3three;
+    if (m3ChanMode) {
+      s.scene.overrideMaterial = null;
+      m3ApplyChanMode();
+    } else {
+      m3RestoreMats();
+      const map = { clay: s.clayMat, wire: s.wireMat, normal: s.normalMat, metal: s.metalMat, grey: s.greyMat, gold: s.goldMat, cyan: s.cyanMat };
+      s.scene.overrideMaterial = map[m3Mode] || null;
+    }
+    ["Lit", "Clay", "Wire", "Normal"].forEach((m) => {
+      const b = document.getElementById("m3Mode" + m);
+      if (b) b.classList.toggle("active", !m3ChanMode && m3Mode === m.toLowerCase());
+    });
+    document.querySelectorAll("#m3RenderDock .m3-sphere").forEach((b) => {
+      const rm = b.getAttribute("data-rmode");
+      b.classList.toggle("active", m3ChanMode ? rm === m3ChanMode : rm === m3Mode);
+    });
+  }
+
+  function m3FrameModel() {
+    const s = m3three;
+    if (!s || !s.model) return;
+    const box = new s.THREE.Box3().setFromObject(s.model);
+    const center = box.getCenter(new s.THREE.Vector3());
+    const size = box.getSize(new s.THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    s.maxDim = maxDim;
+    s.model.position.sub(center); // center at origin
+    const dist = maxDim * 2.1;
+    s.homePos = new s.THREE.Vector3(dist * 0.62, dist * 0.42, dist * 0.78);
+    s.homeTarget = new s.THREE.Vector3(0, 0, 0);
+    s.camera.position.copy(s.homePos);
+    s.controls.target.copy(s.homeTarget);
+    s.camera.near = maxDim / 100;
+    s.camera.far = maxDim * 100;
+    s.camera.updateProjectionMatrix();
+    /* zoom stops — without them a fast wheel/pinch dollies the camera
+     * INSIDE the mesh (faces cull, the model "vanishes") or out past the
+     * far plane. Reproduced in the lab 2026-10-20: framed mesh 36.7%
+     * opaque -> 0% at both zoom extremes. */
+    s.controls.minDistance = maxDim * 0.45;
+    s.controls.maxDistance = maxDim * 7;
+    s.zoomGoal = 0;
+    s.controls.update();
+  }
+
+  function m3MeshStats(root, THREE) {
+    let verts = 0, faces = 0, degenerate = 0, openEdges = 0;
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), ab = new THREE.Vector3(), ac = new THREE.Vector3();
+    root.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return;
+      const g = o.geometry;
+      const pos = g.attributes && g.attributes.position;
+      if (!pos) return;
+      verts += pos.count;
+      const idx = g.index;
+      const triCount = idx ? idx.count / 3 : pos.count / 3;
+      faces += triCount;
+      const read = (i, out) => {
+        const vi = idx ? idx.getX(i) : i;
+        out.fromBufferAttribute(pos, vi);
+      };
+      const cap = Math.min(triCount, 400000);
+      for (let t = 0; t < cap; t++) {
+        read(t * 3, a); read(t * 3 + 1, b); read(t * 3 + 2, c);
+        ab.subVectors(b, a); ac.subVectors(c, a);
+        if (ab.cross(ac).lengthSq() < 1e-14) degenerate++;
+      }
+      if (triCount > cap) degenerate = Math.round(degenerate * (triCount / cap));
+      const edgeCount = new Map();
+      const ek = (p, q) => (p < q ? p + "_" + q : q + "_" + p);
+      const triN = Math.min(triCount, 400000);
+      for (let t = 0; t < triN; t++) {
+        const i0 = idx ? idx.getX(t * 3) : t * 3;
+        const i1 = idx ? idx.getX(t * 3 + 1) : t * 3 + 1;
+        const i2 = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
+        [ek(i0, i1), ek(i1, i2), ek(i2, i0)].forEach((k) => edgeCount.set(k, (edgeCount.get(k) || 0) + 1));
+      }
+      let oe = 0;
+      edgeCount.forEach((n) => { if (n === 1) oe++; });
+      if (triCount > triN) oe = Math.round(oe * (triCount / triN));
+      openEdges += oe;
+    });
+    return { verts, faces: Math.round(faces), degenerate, openEdges };
+  }
+
+  async function showGlbPreview(url) {
+    const empty = document.getElementById("m3StageEmpty");
+    if (empty) empty.hidden = true;
+    try {
+      const s = await m3InitThree();
+      const loader = new s.GLTFLoader();
+      const gltf = await loader.loadAsync(url);
+      if (s.model) { s.scene.remove(s.model); }
+      s.model = gltf.scene;
+      s.scene.add(s.model);
+      s.anim = null; s.animHome = null;
+      if (s.baseMesh) { s.scene.remove(s.baseMesh); s.baseMesh = null; }
+      m3ApplyMode();
+      m3FrameModel();
+      try {
+        s.renderer.render(s.scene, s.camera);
+        const snap = s.renderer.domElement.toDataURL("image/png");
+        fetch(url).then((r) => r.blob()).then((b) => {
+          if (!m3SkipAssetReg) {
+            window.M3_ASSET_LIST = window.M3_ASSET_LIST || [];
+            window.M3_ASSET_LIST.push({ name: (m3SrcName || "mesh").replace(/\.[a-z0-9]+$/i, "") + " — mesh", url: URL.createObjectURL(b), objUrl: null, thumb: snap });
+            if (window.renderAssets) renderAssets();
+          }
+          m3SkipAssetReg = false;
+        }).catch(() => {});
+      } catch (e) { /* snapshot is a bonus; the mesh itself already succeeded */ }
+      const st = m3MeshStats(s.model, s.THREE);
+      window.M3_LAST_STATS = st;
+      const statsEl = document.getElementById("m3Stats");
+      document.getElementById("m3StatFaces").textContent = m3FmtN(st.faces);
+      document.getElementById("m3StatVerts").textContent = m3FmtN(st.verts);
+      if (statsEl) statsEl.hidden = false;
+      const printEl = document.getElementById("m3Print");
+      const pv = document.getElementById("m3PrintVal");
+      if (st.degenerate > 0) { pv.innerHTML = '<span class="m3-print-badge">' + m3FmtN(st.degenerate) + '</span> degenerate tris'; }
+      else { pv.textContent = "✓ clean mesh"; }
+      if (printEl) printEl.hidden = false;
+      const po = document.getElementById("m3PrintOpen");
+      if (po) po.textContent = st.openEdges > 0 ? m3FmtN(st.openEdges) + " — shell not watertight" : "0 — watertight \u2713";
+      const pdg = document.getElementById("m3PrintDegen");
+      if (pdg) pdg.textContent = m3FmtN(st.degenerate);
+      m3WireBridge(url);
+      const expNameEl = document.getElementById("m3ExpName");
+      if (expNameEl) expNameEl.value = (m3SrcName || "framelab-mesh").replace(/\.[a-z0-9]+$/i, "");
+      if (viewer) viewer.hidden = true;
+    } catch (e) {
+      /* fallback: model-viewer */
+      try {
+        await import("https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js");
+        if (viewer) { viewer.src = url; viewer.hidden = false; }
+      } catch (e2) { if (viewer) viewer.hidden = true; }
+    }
+  }
+  function hideGlbPreview() {
+    if (m3three && m3three.model) { m3three.scene.remove(m3three.model); m3three.model = null; }
+    const statsEl = document.getElementById("m3Stats");
+    if (statsEl) statsEl.hidden = true;
+    const printEl = document.getElementById("m3Print");
+    if (printEl) printEl.hidden = true;
+    if (viewer) { viewer.hidden = true; viewer.removeAttribute("src"); }
+  }
+  function m3StudioReset() {
+    const empty = document.getElementById("m3StageEmpty");
+    if (empty) empty.hidden = false;
+  }
+
+  /* --- rail wiring --- */
+  if (provSel) provSel.addEventListener("change", () => {
+    const d = document.getElementById("m3ModelDesc");
+    if (d) d.textContent = M3_MODEL_DESCS[provSel.value] || "";
+    const cl = document.getElementById("m3CostLine");
+    if (cl) cl.textContent = provSel.value === "trellis2" ? "~1 min · Free" : provSel.value === "hunyuan-mini" ? "~15 sec · Free" : provSel.value === "sf3d" ? "~10 sec · Free" : "Free · no signup · no keys";
+  });
+
+  function m3FlipTo2D(message) {
+    const btn = document.querySelector('.flip-btn[data-dim="2d"]') || document.getElementById("flip2d");
+    if (btn) btn.click();
+    if (message) say(message);
+  }
+  /* mode tabs switch the rail's mode in place — they never teleport or
+   * scroll the user. The chain panel sits directly under the tabs and
+   * only exists in Text mode; the image-only inputs hide while it's up.
+   * The one-click chain does the 2D hop by itself when it runs. */
+  const tabImage = document.getElementById("m3TabImage");
+  const tabText = document.getElementById("m3TabText");
+  function m3SetMode(text) {
+    if (tabImage) { tabImage.classList.toggle("active", !text); tabImage.setAttribute("aria-selected", String(!text)); }
+    if (tabText) { tabText.classList.toggle("active", text); tabText.setAttribute("aria-selected", String(text)); }
+    const rail = document.querySelector(".m3-rail");
+    if (rail) rail.classList.toggle("text-mode", text);
+    if (text) {
+      const inp = document.getElementById("m3ChainInput");
+      if (inp) setTimeout(() => inp.focus({ preventScroll: true }), 60);
+      const cs = document.getElementById("m3ChainStatus");
+      if (cs && !cs.textContent) cs.textContent = "One click: the hub draws it, then builds the mesh itself.";
+    }
+  }
+  if (tabText) tabText.addEventListener("click", () => m3SetMode(true));
+  if (tabImage) tabImage.addEventListener("click", () => m3SetMode(false));
+  const hintGen = document.getElementById("m3HintGen");
+  if (hintGen) hintGen.addEventListener("click", () => m3FlipTo2D("Make the image on the 2D side first — then flip back and mesh it."));
+
+  const topoNote = document.getElementById("m3TopoNote");
+  const topoD = document.getElementById("m3TopoDetail");
+  const topoS = document.getElementById("m3TopoSmart");
+  function m3SetTopo(smart) {
+    window.M3_SMART_TOPO = smart;
+    if (topoD) topoD.classList.toggle("active", !smart);
+    if (topoS) topoS.classList.toggle("active", smart);
+    if (topoNote) topoNote.textContent = smart
+      ? "Smart Topology — cleaner, lighter mesh for games & mobile. AUTO leads with InstantMesh."
+      : "High Detail — full-density mesh from the model.";
+  }
+  if (topoD) topoD.addEventListener("click", () => m3SetTopo(false));
+  if (topoS) topoS.addEventListener("click", () => m3SetTopo(true));
+
+  const mvBtn = document.getElementById("m3MultiView");
+  if (mvBtn) mvBtn.addEventListener("click", () => {
+    const on = mvBtn.getAttribute("aria-checked") !== "true";
+    mvBtn.setAttribute("aria-checked", String(on));
+    mvBtn.classList.toggle("on", on);
+    window.M3_MULTIVIEW = on;
+    say(on ? "Multi-view ON — AUTO will lead with InstantMesh's multi-view pipeline." : "Multi-view OFF.");
+  });
+
+  document.querySelectorAll(".m3-res .m3-seg-btn").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".m3-res .m3-seg-btn").forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+    window.M3_TEXSIZE = parseInt(b.getAttribute("data-tex"), 10) || 2048;
+  }));
+  window.M3_TEXSIZE = 1024;
+
+  /* sample slots: the visitor's own recent 2D generations */
+  function m3FillSamples() {
+    const box = document.getElementById("m3Samples");
+    const row = document.getElementById("m3SamplesRow");
+    if (!box || !row || typeof state === "undefined" || !state.rows) return;
+    row.innerHTML = "";
+    let n = 0;
+    state.rows.forEach((r) => {
+      if (n >= 3 || !r.frames || !r.frames[0]) return;
+      const cv = r.frames[0];
+      const img = document.createElement("img");
+      try { img.src = cv.toDataURL("image/png"); } catch (e) { return; }
+      img.alt = "Your 2D generation";
+      img.className = "m3-sample";
+      img.title = "Use this image for 3D";
+      img.addEventListener("click", () => {
+        cv.toBlob((blob) => {
+          if (blob) setFile(new File([blob], "my-2d-generation.png", { type: "image/png" }));
+        }, "image/png");
+      });
+      row.appendChild(img);
+      n++;
+    });
+    box.hidden = n === 0;
+  }
+  const lab3dEl = document.getElementById("lab3d");
+  if (lab3dEl && "MutationObserver" in window) {
+    new MutationObserver(() => { if (!lab3dEl.hidden) m3FillSamples(); }).observe(lab3dEl, { attributes: true, attributeFilter: ["hidden"] });
+  }
+
+  /* --- stage wiring --- */
+  const preset = document.getElementById("m3ViewPreset");
+  if (preset) preset.addEventListener("change", () => {
+    if (!m3three || !m3three.model) return;
+    const s = m3three, v = preset.value;
+    if (v === "turntable") { s.controls.autoRotate = true; m3FrameModel(); }
+    else if (v === "top") {
+      const d = s.homePos ? s.homePos.length() : 3;
+      s.camera.position.set(0, d, 0.001); s.controls.target.set(0, 0, 0); s.controls.update();
+    } else if (v === "front") {
+      const d = s.homePos ? s.homePos.length() : 3;
+      s.camera.position.set(0, d * 0.18, d); s.controls.target.set(0, 0, 0); s.controls.update();
+    } else { s.controls.autoRotate = true; m3FrameModel(); }
+    const rot = document.getElementById("m3EnvRotate");
+    if (rot) { rot.classList.toggle("on", s.controls.autoRotate); rot.setAttribute("aria-checked", String(s.controls.autoRotate)); }
+  });
+  /* ===== P6: print-lab hooks — split, base, edit, scene export ===== */
+  async function m3ExportObject(rootObj, filename) {
+    const { GLTFExporter } = await import("three/addons/exporters/GLTFExporter.js");
+    const exporter = new GLTFExporter();
+    const buf = await exporter.parseAsync(rootObj, { binary: true });
+    const blob = new Blob([buf], { type: "model/gltf-binary" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 6000);
+  }
+  function m3FilteredGroup(keepFn) {
+    const s = m3three, THREE = s.THREE;
+    const grp = new THREE.Group();
+    const box = new THREE.Box3().setFromObject(s.model);
+    const midY = (box.min.y + box.max.y) / 2;
+    let meshIdx = -1;
+    const wp = new THREE.Vector3();
+    s.model.updateMatrixWorld(true);
+    s.model.traverse((o) => {
+      if (!o.isMesh) return;
+      meshIdx++;
+      const src = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry;
+      const pos = src.attributes.position;
+      const nor = src.attributes.normal;
+      const uv = src.attributes.uv;
+      const triCount = pos.count / 3;
+      const P = [], N = [], U = [];
+      const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), cen = new THREE.Vector3();
+      const q = new THREE.Quaternion();
+      o.getWorldQuaternion(q);
+      for (let t = 0; t < triCount; t++) {
+        a.fromBufferAttribute(pos, t * 3).applyMatrix4(o.matrixWorld);
+        b.fromBufferAttribute(pos, t * 3 + 1).applyMatrix4(o.matrixWorld);
+        c.fromBufferAttribute(pos, t * 3 + 2).applyMatrix4(o.matrixWorld);
+        cen.copy(a).add(b).add(c).multiplyScalar(1 / 3);
+        if (!keepFn(cen, midY, meshIdx)) continue;
+        [a, b, c].forEach((v) => P.push(v.x, v.y, v.z));
+        if (nor) {
+          for (let k = 0; k < 3; k++) {
+            wp.fromBufferAttribute(nor, t * 3 + k).applyQuaternion(q);
+            N.push(wp.x, wp.y, wp.z);
+          }
+        }
+        if (uv) {
+          for (let k = 0; k < 3; k++) U.push(uv.getX(t * 3 + k), uv.getY(t * 3 + k));
+        }
+      }
+      if (!P.length) return;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
+      if (N.length) g.setAttribute("normal", new THREE.Float32BufferAttribute(N, 3));
+      else g.computeVertexNormals();
+      if (U.length) g.setAttribute("uv", new THREE.Float32BufferAttribute(U, 2));
+      const mat = o.userData._om || o.material;
+      const mesh = new THREE.Mesh(g, Array.isArray(mat) ? mat[0] : mat);
+      grp.add(mesh);
+    });
+    return grp;
+  }
+  /* ===== format exports: OBJ + FBX from the loaded mesh =====
+   * The popup's OBJ option used to depend on the provider handing back
+   * an OBJ file (only InstantMesh does) and silently served the GLB
+   * otherwise; FBX did not exist at all. Both now export the mesh that
+   * is actually loaded in the viewer, baked to world space through
+   * m3FilteredGroup — every provider's mesh, every format. FBX is an
+   * ASCII 7.4 writer (geometry + material color; GLB keeps textures). */
+  function m3DownloadBlob(blob, filename) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 6000);
+  }
+  async function m3ExportOBJ(filename) {
+    if (!m3three || !m3three.model) return false;
+    const { OBJExporter } = await import("three/addons/exporters/OBJExporter.js");
+    const text = new OBJExporter().parse(m3FilteredGroup(() => true));
+    m3DownloadBlob(new Blob([text], { type: "text/plain" }), filename);
+    return true;
+  }
+  function m3FBXText(grp) {
+    const f6 = (n) => { const v = Math.abs(n) < 1e-9 ? 0 : n; return v.toFixed(6); };
+    const meshes = [];
+    grp.traverse((o) => { if (o.isMesh) meshes.push(o); });
+    let id = 200000000;
+    const nextId = () => (id += 137);
+    const geoBlocks = [], matBlocks = [], modelBlocks = [], conns = [];
+    meshes.forEach((m, mi) => {
+      const g = m.geometry;
+      const pos = g.attributes.position, nor = g.attributes.normal, uv = g.attributes.uv;
+      const vcount = pos.count;
+      const verts = [], pvi = [], nors = [], uvs = [];
+      for (let i = 0; i < vcount; i++) verts.push(f6(pos.getX(i)), f6(pos.getY(i)), f6(pos.getZ(i)));
+      for (let t = 0; t < vcount; t += 3) pvi.push(t, t + 1, -(t + 2) - 1);
+      if (nor) for (let i = 0; i < vcount; i++) nors.push(f6(nor.getX(i)), f6(nor.getY(i)), f6(nor.getZ(i)));
+      if (uv) for (let i = 0; i < vcount; i++) uvs.push(f6(uv.getX(i)), f6(uv.getY(i)));
+      const gid = nextId(), matId = nextId(), modId = nextId();
+      const name = "mesh" + mi;
+      let gb = "  Geometry: " + gid + ', "Geometry::' + name + '", "Mesh" {\n' +
+        "    Vertices: *" + verts.length + " {\n      a: " + verts.join(",") + "\n    }\n" +
+        "    PolygonVertexIndex: *" + pvi.length + " {\n      a: " + pvi.join(",") + "\n    }\n";
+      if (nors.length) gb += "    LayerElementNormal: 0 {\n      Version: 101\n      Name: \"\"\n" +
+        '      MappingInformationType: "ByPolygonVertex"\n      ReferenceInformationType: "Direct"\n' +
+        "      Normals: *" + nors.length + " {\n        a: " + nors.join(",") + "\n      }\n    }\n";
+      if (uvs.length) gb += "    LayerElementUV: 0 {\n      Version: 101\n      Name: \"map1\"\n" +
+        '      MappingInformationType: "ByPolygonVertex"\n      ReferenceInformationType: "Direct"\n' +
+        "      UV: *" + uvs.length + " {\n        a: " + uvs.join(",") + "\n      }\n    }\n";
+      gb += "    LayerElementMaterial: 0 {\n      Version: 101\n      Name: \"\"\n" +
+        '      MappingInformationType: "AllSame"\n      ReferenceInformationType: "IndexToDirect"\n' +
+        "      Materials: *1 {\n        a: 0\n      }\n    }\n    Layer: 0 {\n      Version: 100\n";
+      if (nors.length) gb += '      LayerElement: {\n        Type: "LayerElementNormal"\n        TypedIndex: 0\n      }\n';
+      gb += '      LayerElement: {\n        Type: "LayerElementMaterial"\n        TypedIndex: 0\n      }\n';
+      if (uvs.length) gb += '      LayerElement: {\n        Type: "LayerElementUV"\n        TypedIndex: 0\n      }\n';
+      gb += "    }\n  }";
+      geoBlocks.push(gb);
+      const col = (m.material && m.material.color) ? m.material.color : { r: 0.8, g: 0.8, b: 0.8 };
+      matBlocks.push("  Material: " + matId + ', "Material::' + name + '", "" {\n    Version: 102\n    ShadingModel: "phong"\n    MultiLayer: 0\n    Properties70: {\n' +
+        '      P: "DiffuseColor", "ColorRGB", "Color", "",' + f6(col.r) + "," + f6(col.g) + "," + f6(col.b) + "\n" +
+        '      P: "SpecularColor", "ColorRGB", "Color", "",0.200000,0.200000,0.200000\n' +
+        '      P: "ShininessExponent", "double", "Number", "",20.000000\n    }\n  }');
+      modelBlocks.push("  Model: " + modId + ', "Model::' + name + '", "Mesh" {\n    Version: 232\n    Properties70: {\n' +
+        '      P: "Lcl Translation", "Lcl Translation", "", "A",0,0,0\n' +
+        '      P: "Lcl Rotation", "Lcl Rotation", "", "A",0,0,0\n' +
+        '      P: "Lcl Scaling", "Lcl Scaling", "", "A",1,1,1\n    }\n    Shading: T\n    Culling: "CullingOff"\n  }');
+      conns.push('  C: "OO",' + gid + "," + modId + '\n  C: "OO",' + matId + "," + modId + '\n  C: "OO",' + modId + ",0");
+    });
+    const total = geoBlocks.length + matBlocks.length + modelBlocks.length;
+    return "; FBX 7.4.0 project file\n; Exported by m4ster FrameLab — geometry + color; use GLB for textures\n; ----------------------------------------------------\n" +
+      "FBXHeaderExtension: {\n  FBXHeaderVersion: 1003\n  FBXVersion: 7400\n  Creator: \"m4ster FrameLab\"\n}\n" +
+      "GlobalSettings: {\n  Version: 1000\n  Properties70: {\n" +
+      '    P: "UpAxis", "int", "Integer", "",2\n    P: "UpAxisSign", "int", "Integer", "",1\n' +
+      '    P: "FrontAxis", "int", "Integer", "",1\n    P: "FrontAxisSign", "int", "Integer", "",-1\n' +
+      '    P: "CoordAxis", "int", "Integer", "",0\n    P: "CoordAxisSign", "int", "Integer", "",1\n' +
+      '    P: "UnitScaleFactor", "double", "Number", "",1\n  }\n}\n' +
+      "Definitions: {\n  Version: 100\n  Count: " + (total + 1) + "\n" +
+      '  ObjectType: "GlobalSettings" {\n    Count: 1\n  }\n' +
+      '  ObjectType: "Geometry" {\n    Count: ' + geoBlocks.length + "\n  }\n" +
+      '  ObjectType: "Material" {\n    Count: ' + matBlocks.length + "\n  }\n" +
+      '  ObjectType: "Model" {\n    Count: ' + modelBlocks.length + "\n  }\n}\n" +
+      "Objects: {\n" + geoBlocks.join("\n") + "\n" + matBlocks.join("\n") + "\n" + modelBlocks.join("\n") + "\n}\n" +
+      "Connections: {\n" + conns.join("\n") + "\n}\n";
+  }
+  async function m3ExportFBX(filename) {
+    if (!m3three || !m3three.model) return false;
+    const text = m3FBXText(m3FilteredGroup(() => true));
+    m3DownloadBlob(new Blob([text], { type: "text/plain" }), filename);
+    return true;
+  }
+  window.M3_EXPORT_FMT = async function (fmt, filename) {
+    if (fmt === "obj") return m3ExportOBJ(filename);
+    if (fmt === "fbx") return m3ExportFBX(filename);
+    return false;
+  };
+  window.M3_MESH_COUNT = function () {
+    if (!m3three || !m3three.model) return 0;
+    let n = 0;
+    m3three.model.traverse((o) => { if (o.isMesh) n++; });
+    return n;
+  };
+  window.M3_SPLIT = async function (mode) {
+    if (!m3three || !m3three.model) return false;
+    const base = (m3SrcName || "framelab-mesh").replace(/\.[a-z0-9]+$/i, "");
+    if (mode === "top" || mode === "bottom") {
+      const grp = m3FilteredGroup((cen, midY) => (mode === "top" ? cen.y >= midY : cen.y < midY));
+      if (!grp.children.length) return false;
+      await m3ExportObject(grp, base + "-" + mode + ".glb");
+      return true;
+    }
+    if (mode === "parts") {
+      const total = window.M3_MESH_COUNT();
+      if (total < 2) return false;
+      for (let i = 0; i < Math.min(total, 8); i++) {
+        const idx = i;
+        const grp = m3FilteredGroup((cen, midY, mi) => mi === idx);
+        if (grp.children.length) await m3ExportObject(grp, base + "-part" + (idx + 1) + ".glb");
+      }
+      return true;
+    }
+    return false;
+  };
+  window.M3_ADD_BASE = function (shape) {
+    if (!m3three || !m3three.model) return false;
+    const s = m3three, THREE = s.THREE;
+    if (s.baseMesh) { s.scene.remove(s.baseMesh); s.baseMesh = null; }
+    const box = new THREE.Box3().setFromObject(s.model);
+    const size = box.getSize(new THREE.Vector3());
+    const h = Math.max(size.y * 0.05, (s.maxDim || 1) * 0.03);
+    const r = Math.max(size.x, size.z) * 0.58;
+    let geo;
+    if (shape === "square") geo = new THREE.BoxGeometry(r * 1.7, h, r * 1.7);
+    else if (shape === "hex") geo = new THREE.CylinderGeometry(r, r * 1.04, h, 6);
+    else geo = new THREE.CylinderGeometry(r, r * 1.04, h, 48);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x2a2a33, roughness: 0.6, metalness: 0.2 });
+    s.baseMesh = new THREE.Mesh(geo, mat);
+    s.baseMesh.position.set((box.min.x + box.max.x) / 2, box.min.y - h * 0.32, (box.min.z + box.max.z) / 2);
+    s.scene.add(s.baseMesh);
+    return true;
+  };
+  window.M3_REMOVE_BASE = function () {
+    if (!m3three || !m3three.baseMesh) return;
+    m3three.scene.remove(m3three.baseMesh);
+    m3three.baseMesh = null;
+  };
+  window.M3_EXPORT_WITH_BASE = async function () {
+    if (!m3three || !m3three.model || !m3three.baseMesh) return false;
+    const s = m3three, THREE = s.THREE;
+    const grp = new THREE.Group();
+    grp.add(s.model.clone(true));
+    grp.add(s.baseMesh.clone());
+    const base = (m3SrcName || "framelab-mesh").replace(/\.[a-z0-9]+$/i, "");
+    await m3ExportObject(grp, base + "-with-base.glb");
+    return true;
+  };
+  window.M3_EDIT = function (action) {
+    if (!m3three || !m3three.model) return false;
+    const s = m3three;
+    window.M3_STOP_MOTION();
+    if (action === "mirror") s.model.scale.x *= -1;
+    else if (action === "rotate") s.model.rotation.y += Math.PI / 2;
+    else if (action === "reset") {
+      s.model.rotation.set(0, 0, 0);
+      s.model.scale.set(Math.abs(s.model.scale.x) > 0 ? 1 : 1, 1, 1);
+      s.model.scale.x = 1;
+    }
+    s.animHome = { pos: s.model.position.clone(), rot: s.model.rotation.clone(), scl: s.model.scale.clone() };
+    return true;
+  };
+
+  /* ===== P5: procedural motion engine (Animate panel) ===== */
+  const M3_MOTIONS = {
+    sway:    { loop: true,  fn: (t) => ({ rz: Math.sin(t * 1.6) * 0.05, dy: Math.sin(t * 3.2) * 0.012 }) },
+    dance:   { loop: true,  fn: (t) => ({ dy: Math.abs(Math.sin(t * 6)) * 0.12, rz: Math.sin(t * 6) * 0.14, ry: Math.sin(t * 3) * 0.5 }) },
+    nod:     { loop: true,  fn: (t) => ({ rx: Math.sin(t * 5) * 0.18 }) },
+    shake:   { loop: true,  fn: (t) => ({ ry: Math.sin(t * 6) * 0.3 }) },
+    alert:   { loop: true,  fn: (t) => ({ rz: Math.sin(t * 26) * 0.03, dy: Math.abs(Math.sin(t * 13)) * 0.03 }) },
+    wave:    { loop: true,  fn: (t) => ({ rz: Math.sin(t * 7) * 0.16, dy: Math.sin(t * 3.5) * 0.02 }) },
+    victory: { loop: true,  fn: (t) => ({ dy: Math.abs(Math.sin(t * 7)) * 0.16, ry: Math.sin(t * 3.5) * 0.3 }) },
+    arise:   { loop: false, dur: 1.6, fn: (t, p) => { const e = 1 - Math.pow(1 - p, 3); return { dy: -0.3 * (1 - e), sc: 0.6 + 0.4 * e }; } },
+    attack:  { loop: false, dur: 0.7, fn: (t, p) => { const s2 = Math.sin(p * Math.PI); return { dz: s2 * 0.35, rx: -s2 * 0.2 }; } },
+    behit:   { loop: false, dur: 0.9, fn: (t, p) => { const s2 = Math.sin(p * Math.PI); return { dy: s2 * 0.5, rx: s2 * 0.5 }; } },
+    spin:    { loop: false, dur: 1.0, fn: (t, p) => ({ ry: p * Math.PI * 2 }) },
+    bow:     { loop: false, dur: 1.4, fn: (t, p) => ({ rx: Math.sin(p * Math.PI) * 0.55 }) },
+    jump:    { loop: false, dur: 0.8, fn: (t, p) => ({ dy: Math.sin(p * Math.PI) * 0.4 }) }
+  };
+  function m3AnimRestore() {
+    const s = m3three;
+    if (!s || !s.model || !s.animHome) return;
+    s.model.position.copy(s.animHome.pos);
+    s.model.rotation.copy(s.animHome.rot);
+    s.model.scale.copy(s.animHome.scl);
+  }
+  function m3AnimTick() {
+    const s = m3three;
+    if (!s || !s.model || !s.anim) return;
+    const m = M3_MOTIONS[s.anim.name];
+    if (!m) { s.anim = null; return; }
+    const t = (Date.now() - s.anim.t0) / 1000;
+    const p = m.loop ? 0 : t / m.dur;
+    if (!m.loop && p >= 1) {
+      m3AnimRestore();
+      s.anim = null;
+      if (window.M3_ON_MOTION_END) window.M3_ON_MOTION_END();
+      return;
+    }
+    const o = m.fn(t, Math.min(p, 1)) || {};
+    const h = s.animHome, u = s.maxDim || 1;
+    s.model.position.set(h.pos.x, h.pos.y + (o.dy || 0) * u, h.pos.z + (o.dz || 0) * u);
+    s.model.rotation.set(h.rot.x + (o.rx || 0), h.rot.y + (o.ry || 0), h.rot.z + (o.rz || 0));
+    const sc = o.sc || 1;
+    s.model.scale.set(h.scl.x * sc, h.scl.y * sc, h.scl.z * sc);
+  }
+  window.M3_HAS_MODEL = function () { return !!(m3three && m3three.model); };
+  window.M3_PLAY_MOTION = function (name) {
+    if (!m3three || !m3three.model || !M3_MOTIONS[name]) return false;
+    const s = m3three;
+    if (!s.animHome) s.animHome = { pos: s.model.position.clone(), rot: s.model.rotation.clone(), scl: s.model.scale.clone() };
+    s.anim = { name: name, t0: Date.now() };
+    return true;
+  };
+  window.M3_STOP_MOTION = function () {
+    if (!m3three) return;
+    m3AnimRestore();
+    m3three.anim = null;
+  };
+
+  /* ===== P4b: Tripo viewer batch — render dock, export popup, engine
+     bridge, snapshot, texture toggle, uploaded-model viewing ===== */
+  function m3SetRenderMode(mode) {
+    if (mode === "metalmap" || mode === "roughmap") { m3ChanMode = mode; }
+    else { m3ChanMode = null; m3Mode = mode; }
+    m3ApplyMode();
+  }
+  function m3RestoreMats() {
+    if (!m3three || !m3three.model) return;
+    m3three.model.traverse((o) => {
+      if (o.isMesh && o.userData._om) o.material = o.userData._om;
+    });
+  }
+  function m3ApplyChanMode() {
+    const s = m3three;
+    if (!s || !s.model) return;
+    let found = false;
+    s.model.traverse((o) => {
+      if (!o.isMesh) return;
+      if (!o.userData._om) o.userData._om = o.material;
+      const src = o.userData._om;
+      const tex = src && !Array.isArray(src) ? (m3ChanMode === "metalmap" ? src.metalnessMap : src.roughnessMap) : null;
+      if (tex) found = true;
+      o.material = new s.THREE.MeshBasicMaterial({ map: tex || null, color: tex ? 0xffffff : 0x23232a });
+    });
+    if (!found) {
+      const note = document.getElementById("m3ResultNote");
+      if (note) note.textContent = "This GLB carries no " + (m3ChanMode === "metalmap" ? "metallic" : "roughness") + " map, so that channel view is empty — the Normal view works on any mesh.";
+    }
+  }
+  function m3ToggleTextures() {
+    if (!m3three || !m3three.model) return;
+    m3TexOff = !m3TexOff;
+    m3three.model.traverse((o) => {
+      if (!o.isMesh) return;
+      if (!o.userData._om) o.userData._om = o.material;
+      const mats = Array.isArray(o.userData._om) ? o.userData._om : [o.userData._om];
+      mats.forEach((mm) => {
+        if (!mm || !("map" in mm)) return;
+        if (m3TexOff) { if (mm.userData._map === undefined) mm.userData._map = mm.map; mm.map = null; }
+        else if (mm.userData._map !== undefined) { mm.map = mm.userData._map; }
+        mm.needsUpdate = true;
+      });
+    });
+    const b = document.getElementById("m3RdTex");
+    if (b) b.classList.toggle("active", m3TexOff);
+  }
+  let m3TexOff = false;
+  const M3_ENGINES = [
+    ["Unity", "Drag the .glb into your Assets folder — Unity 2022.2+ imports glTF directly."],
+    ["Unreal Engine", "Import into the Content Browser with the glTF importer — PBR materials come across."],
+    ["Godot 4", "Drop the .glb into the project folder — it imports as a ready scene."],
+    ["Blender", "File > Import > glTF 2.0 — geometry, materials and textures intact."],
+    ["3ds Max", "File > Import and pick the .glb (2023+ reads glTF natively)."],
+    ["Maya", "Use the glTF plugin, or hop through Blender for a clean FBX."]
+  ];
+  function m3WireBridge(url) {
+    const list = document.getElementById("m3BridgeList");
+    if (!list) return;
+    const base = (m3SrcName || "framelab-mesh").replace(/\.[a-z0-9]+$/i, "");
+    list.innerHTML = "";
+    M3_ENGINES.forEach(([name, tip]) => {
+      const row = document.createElement("div");
+      row.className = "m3-bridge-row";
+      const nm = document.createElement("strong"); nm.textContent = name;
+      const tp = document.createElement("span"); tp.textContent = tip;
+      const a = document.createElement("a");
+      a.className = "m3-bridge-dl";
+      a.href = url;
+      a.setAttribute("download", base + "-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "") + ".glb");
+      a.textContent = "\u2b07 GLB";
+      row.appendChild(nm); row.appendChild(tp); row.appendChild(a);
+      list.appendChild(row);
+    });
+  }
+  window.M3_LOAD_GLB = function (url, name) {
+    const flip = document.getElementById("flip3d");
+    if (flip) flip.click();
+    m3SrcName = name || "uploaded-model.glb";
+    m3SkipAssetReg = true;
+    const res = document.getElementById("m3Result");
+    if (res) res.hidden = false;
+    if (glbLink) { glbLink.href = url; glbLink.setAttribute("download", m3SrcName); }
+    if (objLink) objLink.hidden = true;
+    showGlbPreview(url);
+    const note = document.getElementById("m3ResultNote");
+    if (note) note.textContent = "Viewing your uploaded model — orbit it, read its real stats, swap materials, export it back any time.";
+    const stage = document.getElementById("m3Stage");
+    if (stage) stage.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  const rdEnv = document.getElementById("m3RdEnv");
+  if (rdEnv) rdEnv.addEventListener("click", () => { const b = document.getElementById("m3EnvBtn"); if (b) b.click(); });
+  const rdSnap = document.getElementById("m3RdSnap");
+  if (rdSnap) rdSnap.addEventListener("click", () => {
+    if (!m3three) return;
+    m3three.renderer.render(m3three.scene, m3three.camera);
+    m3three.renderer.domElement.toBlob((blob) => {
+      if (!blob) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "framelab-view.png";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }, "image/png");
+  });
+  const rdTex = document.getElementById("m3RdTex");
+  if (rdTex) rdTex.addEventListener("click", m3ToggleTextures);
+  const rdHelp = document.getElementById("m3RdHelp");
+  const helpPop = document.getElementById("m3HelpPop");
+  if (rdHelp && helpPop) rdHelp.addEventListener("click", () => { helpPop.hidden = !helpPop.hidden; });
+  document.querySelectorAll("#m3RenderDock .m3-sphere").forEach((b) => {
+    b.addEventListener("click", () => m3SetRenderMode(b.getAttribute("data-rmode")));
+  });
+  const expPop = document.getElementById("m3ExpPop");
+  const expBtn = document.getElementById("m3ExportBtn");
+  if (expBtn && expPop) expBtn.addEventListener("click", () => {
+    const tex = document.getElementById("m3ExpTex");
+    if (tex) tex.textContent = window.M3_TEXSIZE === 4096 ? "Ultra 4K" : window.M3_TEXSIZE === 2048 ? "Ultra 2K" : "Standard 1024";
+    const fmt = document.getElementById("m3ExpFmt");
+    if (fmt) {
+      const objOpt = fmt.querySelector('option[value="obj"]');
+      if (objOpt) { objOpt.disabled = !objLink || objLink.hidden; if (objOpt.disabled && fmt.value === "obj") fmt.value = "glb"; }
+    }
+    expPop.hidden = !expPop.hidden;
+    const bp = document.getElementById("m3BridgePop");
+    if (bp && !expPop.hidden) bp.hidden = true;
+  });
+  const expGo = document.getElementById("m3ExpGo");
+  if (expGo) expGo.addEventListener("click", () => {
+    const nameEl = document.getElementById("m3ExpName");
+    const fmtEl = document.getElementById("m3ExpFmt");
+    const base = (((nameEl && nameEl.value.trim()) || "framelab-mesh").replace(/[^\w\- ]+/g, "").trim()) || "framelab-mesh";
+    if (fmtEl && (fmtEl.value === "obj" || fmtEl.value === "fbx") && window.M3_EXPORT_FMT) {
+      const fv = fmtEl.value;
+      window.M3_EXPORT_FMT(fv, base + "." + fv).then((ok) => {
+        if (!ok && glbLink) { glbLink.setAttribute("download", base + ".glb"); glbLink.click(); }
+      });
+      if (expPop) expPop.hidden = true;
+      return;
+    }
+    const useObj = !!(fmtEl && fmtEl.value === "obj" && objLink && !objLink.hidden);
+    const link = useObj ? objLink : glbLink;
+    if (link) { link.setAttribute("download", base + (useObj ? ".obj" : ".glb")); link.click(); }
+    if (expPop) expPop.hidden = true;
+  });
+  const bridgeBtn = document.getElementById("m3BridgeBtn");
+  const bridgePop = document.getElementById("m3BridgePop");
+  if (bridgeBtn && bridgePop) bridgeBtn.addEventListener("click", () => {
+    bridgePop.hidden = !bridgePop.hidden;
+    if (!bridgePop.hidden && expPop) expPop.hidden = true;
+  });
+  const genLink = document.getElementById("m3DropGenLink");
+  if (genLink) genLink.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const f = document.getElementById("flip2d");
+    if (f) f.click();
+  });
+
+  [["m3ModeLit", "lit"], ["m3ModeClay", "clay"], ["m3ModeWire", "wire"], ["m3ModeNormal", "normal"]].forEach(([id, mode]) => {
+    const b = document.getElementById(id);
+    if (b) b.addEventListener("click", () => { m3ChanMode = null; m3Mode = mode; m3ApplyMode(); });
+  });
+  const envBtn = document.getElementById("m3EnvBtn");
+  const envPop = document.getElementById("m3EnvPop");
+  if (envBtn && envPop) envBtn.addEventListener("click", () => { envPop.hidden = !envPop.hidden; });
+  const envStrength = document.getElementById("m3EnvStrength");
+  if (envStrength) envStrength.addEventListener("input", () => {
+    if (!m3three) return;
+    const v = parseInt(envStrength.value, 10) / 100;
+    m3three.renderer.toneMappingExposure = v;
+    m3three.scene.traverse((o) => {
+      if (o.isMesh && o.material && "envMapIntensity" in o.material) o.material.envMapIntensity = v;
+    });
+    if (m3three.clayMat) m3three.clayMat.envMapIntensity = v;
+  });
+  const envHdri = document.getElementById("m3EnvHdri");
+  if (envHdri) envHdri.addEventListener("change", () => {
+    if (!m3three) return;
+    const s = m3three, wrap = document.getElementById("m3CanvasWrap");
+    if (envHdri.value === "studio") { s.key.intensity = 2.4; s.key.color.set(0xffffff); if (wrap) wrap.style.background = "radial-gradient(120% 100% at 50% 30%, #26282f, #141519)"; }
+    else if (envHdri.value === "dusk") { s.key.intensity = 1.5; s.key.color.set(0xffc38a); if (wrap) wrap.style.background = "radial-gradient(120% 100% at 50% 30%, #2b2119, #171310)"; }
+    else { s.key.intensity = 1.6; s.key.color.set(0xffffff); if (wrap) wrap.style.background = ""; }
+  });
+  const envRotate = document.getElementById("m3EnvRotate");
+  if (envRotate) envRotate.addEventListener("click", () => {
+    const on = envRotate.getAttribute("aria-checked") !== "true";
+    envRotate.setAttribute("aria-checked", String(on));
+    envRotate.classList.toggle("on", on);
+    if (m3three) m3three.controls.autoRotate = on;
+    if (viewer) { if (on) viewer.setAttribute("auto-rotate", ""); else viewer.removeAttribute("auto-rotate"); }
+  });
+  const envBg = document.getElementById("m3EnvBg");
+  if (envBg) envBg.addEventListener("click", () => {
+    const on = envBg.getAttribute("aria-checked") !== "true";
+    envBg.setAttribute("aria-checked", String(on));
+    envBg.classList.toggle("on", on);
+    const wrap = document.getElementById("m3CanvasWrap");
+    if (wrap) wrap.classList.toggle("nobg", !on);
+  });
+  const shareBtn = document.getElementById("m3ShareBtn");
+  if (shareBtn) shareBtn.addEventListener("click", async () => {
+    const data = { title: document.title, text: "Free 2D + 3D AI hub — m4ster FrameLab TEST", url: location.href };
+    try {
+      if (navigator.share) { await navigator.share(data); return; }
+      await navigator.clipboard.writeText(location.href);
+      say("Link copied — share it anywhere.");
+    } catch (e) { /* user cancelled the share sheet */ }
+  });
+  const reuseBtn = document.getElementById("m3ReuseBtn");
+  if (reuseBtn) reuseBtn.addEventListener("click", () => {
+    const rail = document.querySelector(".m3-rail");
+    if (rail) rail.scrollIntoView({ behavior: "smooth", block: "start" });
+    say("Same image, same model — tweak anything and hit Generate again.");
+  });
+  [["m3DockAnimate", "Animate"], ["m3DockPrint", "Print"]].forEach(([id, name]) => {
+    const b = document.getElementById(id);
+    if (b) b.addEventListener("click", () => {
+      const target = document.getElementById(name === "Animate" ? "labAnimate" : "labPrint");
+      if (target) { target.scrollIntoView({ behavior: "smooth", block: "start" }); }
+      else say(name + " panel lands in the next drop of this build — the viewer comes first.");
+    });
+  });
+
   async function runOne(id) {
     if (id === "sf3d") return m3RunSF3D(file, say);
-    if (id === "instantmesh") return m3RunInstantMesh(file, say);
     if (id === "trellis2") return m3RunTrellis2(file, say);
-    return m3RunTrellis(file, say);
+    if (id === "trellis") return m3RunTrellis(file, say);
+    if (id === "hunyuan-mini") return m3RunHunyuanMini(file, say);
+    return m3RunInstantMesh(file, say);
   }
 
   go.addEventListener("click", async () => {
@@ -5130,36 +6590,55 @@ function wire3DLab() {
     go.disabled = true;
     go.textContent = "WORKING…";
     result.hidden = true;
+    hideGlbPreview();
     objUrls.forEach((u) => URL.revokeObjectURL(u));
     objUrls = [];
     const mode = provSel.value;
+    /* the optional token is read once, here, at run start — every
+     * request this run makes then carries it (see m3AuthHeaders) */
+    M3_TOKEN = aiKeyFor("hf-flux");
     const t0 = Date.now();
     try {
-      let out, usedName;
+      let out, usedName, usedId;
       if (mode === "auto") {
-        const chain = ["sf3d", "instantmesh", "trellis2", "trellis"];
+        /* AUTO chain: fast SF3D → textured TRELLIS.2 → InstantMesh →
+         * TRELLIS (community) → Hunyuan3D-2 Mini Turbo (shape-only).
+         * Any failure switches to the next with an announcement; a
+         * ZeroGPU quota refusal is announced as a busy GPU budget. */
+        const chain = (window.M3_MULTIVIEW || window.M3_SMART_TOPO) ? ["instantmesh", "sf3d", "trellis2", "trellis", "hunyuan-mini"] : ["sf3d", "trellis2", "instantmesh", "trellis", "hunyuan-mini"];
         let lastErr = null;
-        for (let ci = 0; ci < chain.length; ci++) {
-          const id = chain[ci];
-          try { out = await runOne(id); usedName = M3_PROVIDERS[id].name; lastErr = null; break; }
-          catch (e) {
+        for (let i = 0; i < chain.length; i++) {
+          try {
+            out = await runOne(chain[i]);
+            usedName = M3_PROVIDERS[chain[i]].name;
+            usedId = chain[i];
+            lastErr = null;
+            break;
+          } catch (e) {
             lastErr = e;
-            const nx = chain[ci + 1];
-            if (nx) say(M3_PROVIDERS[id].name + " couldn't do it (" + shortErr(e) + ") — switching to " + M3_PROVIDERS[nx].name + ", same as the 2D hub does…");
+            if (i + 1 < chain.length) {
+              const curName = M3_PROVIDERS[chain[i]].name, nextName = M3_PROVIDERS[chain[i + 1]].name;
+              if (isQuotaErr(e)) {
+                say(curName + " — the free GPU budget is busy right now (" + shortErr(e) + ") — switching to " + nextName + "…");
+              } else {
+                say(curName + " couldn't do it (" + shortErr(e) + ") — switching to " + nextName + ", same as the 2D hub does…");
+              }
+              /* hold the announcement for a beat — otherwise the next
+               * provider's first status overwrites it before it paints */
+              await new Promise((r) => setTimeout(r, 900));
+            }
           }
         }
         if (!out) throw lastErr || new Error("no provider ran");
       } else {
         out = await runOne(mode);
         usedName = M3_PROVIDERS[mode].name;
+        usedId = mode;
       }
       const secs = Math.max(1, Math.round((Date.now() - t0) / 1000));
       const glbUrl = URL.createObjectURL(out.glb);
       objUrls.push(glbUrl);
       glbLink.href = glbUrl;
-      const vWrap = document.getElementById("m3ViewerWrap");
-      const viewer = document.getElementById("m3Viewer");
-      if (vWrap && viewer) { ensureM3Viewer(); viewer.src = glbUrl; vWrap.hidden = false; }
       glbSize.textContent = "· " + fmtSize(out.glb.size);
       if (out.obj) {
         const objUrl = URL.createObjectURL(out.obj);
@@ -5170,18 +6649,22 @@ function wire3DLab() {
       } else {
         objLink.hidden = true;
       }
-      resultNote.textContent = "Made by " + usedName + " in ~" + secs + "s, free. GLB drops straight into Unity / Unreal / Godot.";
+      resultNote.textContent = "Made by " + usedName + " in ~" + secs + "s, free. GLB drops straight into Unity / Unreal / Godot." +
+        (usedId === "hunyuan-mini"
+          ? " Note: Hunyuan3D-2 Mini Turbo is shape-only — this mesh is untextured (plain surface, no colors baked in), ready for your own materials."
+          : "");
       result.hidden = false;
       say("Done — your mesh is ready below. ⬇");
+      showGlbPreview(glbUrl);
     } catch (e) {
       let em = shortErr(e);
       if (!/[.!?]$/.test(em)) em += ".";
-      say((mode === "auto" ? "Every free 3D provider failed: " : "That provider failed: ") +
+      say((mode === "auto" ? "All five free 3D providers failed: " : "That provider failed: ") +
         em + " No fake mesh, no charge — give the free GPUs a minute and try again.", true);
     } finally {
       running = false;
       go.disabled = !file;
-      go.textContent = "GENERATE MESH";
+      go.textContent = "✨ Generate";
     }
   });
 }
@@ -5254,4 +6737,1060 @@ function wire3DLab() {
     });
   }, { threshold: 0.12 });
   io.observe(el);
+})();
+
+/* ===== P5: Animate panel wiring ===== */
+document.addEventListener("DOMContentLoaded", function () {
+  const sec = document.getElementById("labAnimate");
+  if (!sec) return;
+  const PRESETS = [
+    ["sway", "Idle Sway", "gentle breathing loop"],
+    ["dance", "All Night Dance", "bounce + groove loop"],
+    ["nod", "Agree Gesture", "yes nod loop"],
+    ["shake", "Disagree Shake", "no shake loop"],
+    ["alert", "Alert", "startled tremble loop"],
+    ["wave", "Wave", "hello sway loop"],
+    ["victory", "Victory Bounce", "celebration loop"],
+    ["arise", "Arise", "rise up, one-shot"],
+    ["attack", "Attack", "forward lunge, one-shot"],
+    ["behit", "BeHit FlyUp", "knockback, one-shot"],
+    ["spin", "Spin", "full turn, one-shot"],
+    ["bow", "Bow", "deep bow, one-shot"],
+    ["jump", "Jump", "hop, one-shot"]
+  ];
+  const grid = document.getElementById("laGrid");
+  const status = document.getElementById("laStatus");
+  const mine = document.getElementById("laMine");
+  let current = null;
+  function say(msg) { if (status) status.textContent = msg; }
+  function clearActive() {
+    current = null;
+    grid.querySelectorAll(".la-preset").forEach((b) => b.classList.remove("active"));
+  }
+  function logMine(key, name) {
+    const empty = document.getElementById("laMineEmpty");
+    if (empty) empty.remove();
+    if (mine.querySelector('[data-k="' + key + '"]')) return;
+    const chip = document.createElement("span");
+    chip.className = "la-mine-chip";
+    chip.setAttribute("data-k", key);
+    chip.appendChild(document.createTextNode(name));
+    const rb = document.createElement("button");
+    rb.type = "button";
+    rb.textContent = "Replay";
+    rb.addEventListener("click", () => play(key, name));
+    chip.appendChild(rb);
+    mine.appendChild(chip);
+  }
+  function play(key, name) {
+    if (!window.M3_PLAY_MOTION) { say("The 3D viewer is not ready yet."); return; }
+    if (!window.M3_HAS_MODEL || !window.M3_HAS_MODEL()) {
+      say("No mesh loaded yet — generate one in the 3D studio above, or upload a GLB in My Assets, then hit a motion.");
+      const st = document.getElementById("m3Stage");
+      if (st) st.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (current === key) {
+      window.M3_STOP_MOTION();
+      clearActive();
+      say("Stopped.");
+      return;
+    }
+    if (window.M3_PLAY_MOTION(key)) {
+      clearActive();
+      current = key;
+      const btn = grid.querySelector('[data-k="' + key + '"]');
+      if (btn) btn.classList.add("active");
+      logMine(key, name);
+      say("Playing: " + name + " — watch the viewer. Click it again to stop.");
+      const st = document.getElementById("m3Stage");
+      if (st) st.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+  window.M3_ON_MOTION_END = function () { clearActive(); say("Motion finished."); };
+  PRESETS.forEach(([key, name, tag]) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "la-preset";
+    b.setAttribute("data-k", key);
+    b.setAttribute("data-name", name.toLowerCase());
+    const st = document.createElement("strong"); st.textContent = name;
+    const sp = document.createElement("span"); sp.textContent = tag;
+    b.appendChild(st); b.appendChild(sp);
+    b.addEventListener("click", () => play(key, name));
+    grid.appendChild(b);
+  });
+  const search = document.getElementById("laSearch");
+  if (search) search.addEventListener("input", () => {
+    const q = search.value.trim().toLowerCase();
+    grid.querySelectorAll(".la-preset").forEach((b) => {
+      b.style.display = !q || b.getAttribute("data-name").includes(q) ? "" : "none";
+    });
+  });
+  const rig = document.getElementById("laRigBtn");
+  if (rig) rig.addEventListener("click", () => play("sway", "Idle Sway"));
+  const T2M = [
+    [/dance|groove|party/, "dance", "All Night Dance"],
+    [/spin|turn|twirl/, "spin", "Spin"],
+    [/jump|hop|leap/, "jump", "Jump"],
+    [/wave|hello|hi\b|greet/, "wave", "Wave"],
+    [/bow/, "bow", "Bow"],
+    [/agree|yes|nod/, "nod", "Agree Gesture"],
+    [/disagree|no\b|shake/, "shake", "Disagree Shake"],
+    [/alert|startle|scare/, "alert", "Alert"],
+    [/attack|fight|punch|lunge/, "attack", "Attack"],
+    [/hit|knock|fly/, "behit", "BeHit FlyUp"],
+    [/arise|rise|stand|spawn/, "arise", "Arise"],
+    [/victory|win|celebrat|champion/, "victory", "Victory Bounce"],
+    [/idle|sway|breathe|stand/, "sway", "Idle Sway"]
+  ];
+  const t2mBtn = document.getElementById("laT2mBtn");
+  const t2mIn = document.getElementById("laT2mInput");
+  const t2mStatus = document.getElementById("laT2mStatus");
+  function runT2M() {
+    const text = (t2mIn.value || "").toLowerCase();
+    if (!text.trim()) { t2mStatus.textContent = "Type a motion first — try \u201cvictory dance\u201d."; return; }
+    for (const [re, key, name] of T2M) {
+      if (re.test(text)) { t2mStatus.textContent = "Matched: " + name; play(key, name); return; }
+    }
+    t2mStatus.textContent = "That motion is not in the free library yet. Try: dance, spin, jump, wave, bow, agree, attack, victory, idle.";
+  }
+  if (t2mBtn) t2mBtn.addEventListener("click", runT2M);
+  if (t2mIn) t2mIn.addEventListener("keydown", (e) => { if (e.key === "Enter") runT2M(); });
+  const vidBtn = document.getElementById("laVidBtn");
+  const vidFile = document.getElementById("laVidFile");
+  const vidPrev = document.getElementById("laVidPrev");
+  if (vidBtn && vidFile) {
+    vidBtn.addEventListener("click", () => vidFile.click());
+    vidFile.addEventListener("change", () => {
+      const f = vidFile.files && vidFile.files[0];
+      if (f && vidPrev) { vidPrev.src = URL.createObjectURL(f); vidPrev.hidden = false; }
+      vidFile.value = "";
+    });
+  }
+  // visibility follows the 2D/3D flip, like the studio itself
+  const f3 = document.getElementById("flip3d");
+  const f2 = document.getElementById("flip2d");
+  if (f3) f3.addEventListener("click", () => { sec.hidden = false; });
+  if (f2) f2.addEventListener("click", () => { sec.hidden = true; if (window.M3_STOP_MOTION) window.M3_STOP_MOTION(); clearActive(); });
+  const dock = document.getElementById("m3DockAnimate");
+  if (dock) dock.addEventListener("click", () => { sec.hidden = false; });
+});
+
+/* ===== P6: Print & Post-Processing panel wiring ===== */
+document.addEventListener("DOMContentLoaded", function () {
+  const sec = document.getElementById("labPrint");
+  if (!sec) return;
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => (n == null ? "—" : Number(n).toLocaleString("en-US"));
+  function hasModel() { return !!(window.M3_HAS_MODEL && window.M3_HAS_MODEL()); }
+  function needModel(el) { if (el) el.textContent = "No mesh loaded yet — generate one in the studio or upload a GLB in My Assets first."; }
+  function refreshCheck() {
+    const st = window.M3_LAST_STATS;
+    if (!st) return;
+    $("ppFaces").textContent = fmt(st.faces);
+    $("ppVerts").textContent = fmt(st.verts);
+    $("ppOpen").textContent = fmt(st.openEdges);
+    $("ppDegen").textContent = fmt(st.degenerate);
+    const v = $("ppVerdict");
+    if (st.openEdges === 0 && st.degenerate === 0) v.textContent = "Watertight and clean — this one drops straight into a slicer.";
+    else if (st.openEdges === 0) v.textContent = "Watertight shell. " + fmt(st.degenerate) + " degenerate triangles — most slicers ignore or auto-fix those.";
+    else v.textContent = fmt(st.openEdges) + " open edges: the shell is not watertight. Bambu Studio / PrusaSlicer will offer a one-click repair — expect a cleanup pass before a clean print.";
+    const pc = $("ppSplitParts");
+    if (pc && window.M3_MESH_COUNT) {
+      const n = window.M3_MESH_COUNT();
+      pc.textContent = "⬇ Each part (" + n + ")";
+      pc.disabled = n < 2;
+    }
+  }
+  setInterval(() => { if (!sec.hidden) refreshCheck(); }, 1200);
+  async function doSplit(mode, el) {
+    if (!hasModel()) { needModel(el); return; }
+    el.textContent = "Building the split GLB…";
+    try {
+      const ok = await window.M3_SPLIT(mode);
+      el.textContent = ok ? "Split GLB downloaded." : "That split came out empty — try the other half.";
+    } catch (e) { el.textContent = "Split failed in the browser: " + (e && e.message ? e.message : e); }
+  }
+  $("ppSplitTop").addEventListener("click", () => doSplit("top", $("ppSplitStatus")));
+  $("ppSplitBottom").addEventListener("click", () => doSplit("bottom", $("ppSplitStatus")));
+  $("ppSplitParts").addEventListener("click", () => doSplit("parts", $("ppSplitStatus")));
+  // multi-color quantize
+  let lastHex = [];
+  function sourceImage(cb) {
+    const thumb = document.getElementById("m3Thumb");
+    if (thumb && thumb.src && !thumb.hidden) { const im = new Image(); im.onload = () => cb(im); im.src = thumb.src; return; }
+    if (window.state && state.rows && state.rows.length && state.rows[0].frames && state.rows[0].frames[0]) { cb(state.rows[0].frames[0]); return; }
+    cb(null);
+  }
+  $("ppQuantBtn").addEventListener("click", () => {
+    const stEl = $("ppQuantStatus");
+    sourceImage((img) => {
+      if (!img) { stEl.textContent = "No source image yet — drop an image in the 3D studio or generate a 2D sprite first."; return; }
+      const W = 200, H = Math.max(1, Math.round(W * (img.height / img.width)));
+      const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+      const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0, W, H);
+      const data = cx.getImageData(0, 0, W, H).data;
+      const pts = [];
+      for (let i = 0; i < data.length; i += 16) { if (data[i + 3] > 120) pts.push([data[i], data[i + 1], data[i + 2]]); }
+      if (pts.length < 20) { stEl.textContent = "That image is mostly transparent — nothing to quantize."; return; }
+      const K = 5;
+      let cents = [];
+      for (let k = 0; k < K; k++) cents.push(pts[Math.floor((k + 0.5) * pts.length / K)].slice());
+      const assign = new Array(pts.length).fill(0);
+      for (let iter = 0; iter < 10; iter++) {
+        for (let i = 0; i < pts.length; i++) {
+          let best = 0, bd = 1e18;
+          for (let k = 0; k < K; k++) {
+            const dr = pts[i][0] - cents[k][0], dg = pts[i][1] - cents[k][1], db = pts[i][2] - cents[k][2];
+            const d = dr * dr + dg * dg + db * db;
+            if (d < bd) { bd = d; best = k; }
+          }
+          assign[i] = best;
+        }
+        const sums = cents.map(() => [0, 0, 0, 0]);
+        pts.forEach((p, i) => { const a = assign[i]; sums[a][0] += p[0]; sums[a][1] += p[1]; sums[a][2] += p[2]; sums[a][3]++; });
+        cents = cents.map((c, k) => (sums[k][3] ? [sums[k][0] / sums[k][3], sums[k][1] / sums[k][3], sums[k][2] / sums[k][3]] : c));
+      }
+      const counts = cents.map(() => 0);
+      assign.forEach((a) => counts[a]++);
+      const order = cents.map((c, k) => k).sort((a, b) => counts[b] - counts[a]);
+      const hex = (c) => "#" + c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
+      lastHex = order.map((k) => hex(cents[k]));
+      const pal = $("ppPalette");
+      pal.innerHTML = "";
+      order.forEach((k) => {
+        const d = document.createElement("div");
+        d.className = "pp-swatch";
+        const sw = document.createElement("i"); sw.style.background = hex(cents[k]);
+        const tx = document.createElement("span");
+        tx.textContent = hex(cents[k]) + " · " + Math.round(counts[k] / pts.length * 100) + "%";
+        d.appendChild(sw); d.appendChild(tx); pal.appendChild(d);
+      });
+      const out = $("ppQuantCanvas");
+      const ow = 330, oh = Math.max(1, Math.round(ow * (img.height / img.width)));
+      out.width = ow; out.height = oh;
+      const ox = out.getContext("2d");
+      ox.drawImage(img, 0, 0, ow, oh);
+      const od = ox.getImageData(0, 0, ow, oh);
+      for (let i = 0; i < od.data.length; i += 4) {
+        if (od.data[i + 3] < 120) continue;
+        let best = 0, bd = 1e18;
+        for (let k = 0; k < K; k++) {
+          const dr = od.data[i] - cents[k][0], dg = od.data[i + 1] - cents[k][1], db = od.data[i + 2] - cents[k][2];
+          const d = dr * dr + dg * dg + db * db;
+          if (d < bd) { bd = d; best = k; }
+        }
+        od.data[i] = cents[best][0]; od.data[i + 1] = cents[best][1]; od.data[i + 2] = cents[best][2];
+      }
+      ox.putImageData(od, 0, 0);
+      out.hidden = false;
+      $("ppQuantDl").hidden = false;
+      $("ppHexCopy").hidden = false;
+      stEl.textContent = "Palette built — 5 filaments cover the whole image. Biggest color first.";
+    });
+  });
+  $("ppQuantDl").addEventListener("click", () => {
+    const out = $("ppQuantCanvas");
+    const a = document.createElement("a");
+    a.href = out.toDataURL("image/png");
+    a.download = "framelab-palette.png";
+    a.click();
+  });
+  $("ppHexCopy").addEventListener("click", () => {
+    if (navigator.clipboard) navigator.clipboard.writeText(lastHex.join(", "));
+    $("ppQuantStatus").textContent = "Hex codes copied: " + lastHex.join(", ");
+  });
+  // base
+  sec.querySelectorAll("[data-base]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const stEl = $("ppBaseStatus");
+      if (!hasModel()) { needModel(stEl); return; }
+      if (window.M3_ADD_BASE(b.getAttribute("data-base"))) {
+        stEl.textContent = "Base added under the model — check the viewer. Export it with the button below.";
+        const st = document.getElementById("m3Stage");
+        if (st) st.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  });
+  $("ppBaseRemove").addEventListener("click", () => { window.M3_REMOVE_BASE(); $("ppBaseStatus").textContent = "Base removed."; });
+  $("ppBaseExport").addEventListener("click", async () => {
+    const stEl = $("ppBaseStatus");
+    if (!hasModel()) { needModel(stEl); return; }
+    stEl.textContent = "Baking the base into a GLB…";
+    try {
+      const ok = await window.M3_EXPORT_WITH_BASE();
+      stEl.textContent = ok ? "GLB with base downloaded." : "Add a base first, then export.";
+    } catch (e) { stEl.textContent = "Export failed: " + (e && e.message ? e.message : e); }
+  });
+  // edit
+  function doEdit(action, msg) {
+    const stEl = $("ppEditStatus");
+    if (!hasModel()) { needModel(stEl); return; }
+    if (window.M3_EDIT(action)) stEl.textContent = msg;
+  }
+  $("ppMirror").addEventListener("click", () => doEdit("mirror", "Mirrored on X."));
+  $("ppRotY").addEventListener("click", () => doEdit("rotate", "Rotated 90°."));
+  $("ppEditReset").addEventListener("click", () => doEdit("reset", "Transform reset."));
+  // send to printer
+  $("ppSendDl").addEventListener("click", () => {
+    const link = document.getElementById("m3Glb");
+    const stEl = $("ppSendStatus");
+    if (link && link.href && !link.href.endsWith("#")) { link.click(); stEl.textContent = "GLB downloaded — drop it into your slicer."; }
+    else stEl.textContent = "No mesh yet — generate one in the studio first, then this button grabs it.";
+  });
+  // visibility follows the flip, like Animate
+  const f3 = document.getElementById("flip3d");
+  const f2 = document.getElementById("flip2d");
+  if (f3) f3.addEventListener("click", () => { sec.hidden = false; refreshCheck(); });
+  if (f2) f2.addEventListener("click", () => { sec.hidden = true; });
+  const dock = document.getElementById("m3DockPrint");
+  if (dock) dock.addEventListener("click", () => { sec.hidden = false; refreshCheck(); });
+});
+
+/* ===== P7: Skills, agent chips, text-to-3D chain ===== */
+document.addEventListener("DOMContentLoaded", function () {
+  const $ = (id) => document.getElementById(id);
+  function rows() { return (typeof state !== "undefined" && state && state.rows) ? state.rows : []; }
+  function flip3() { const f = $("flip3d"); if (f) f.click(); }
+  function scrollTo(id) { const el = $(id); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }
+
+  /* --- Text to 3D: fully independent, inside the studio ---
+   * The studio draws the image itself through the same free AI API the
+   * 2D side uses — the 2D wizard is never opened, flipped to, or
+   * borrowed, and its rows are never touched. Steps live in the panel:
+   * 1 Describe, 2 Draw, 3 Build mesh. */
+  function t3dStep(n) {
+    const box = $("m3TSteps");
+    if (!box) return;
+    box.querySelectorAll("span").forEach((sp) => {
+      const k = parseInt(sp.getAttribute("data-s"), 10);
+      sp.classList.toggle("on", k === n);
+      sp.classList.toggle("done", k < n);
+    });
+  }
+  function t3dStatus(t) { const cs = $("m3ChainStatus"); if (cs) cs.textContent = t; }
+  window.M3_TEXT_TO_3D = async function (promptText) {
+    if (window.M3_T3D_RUNNING) { t3dStatus("Already drawing one — give it a moment."); return; }
+    const text = (promptText || "").trim();
+    if (!text) { t3dStatus("Describe the model first."); return; }
+    window.M3_T3D_RUNNING = true;
+    const btn = $("m3ChainBtn");
+    if (btn) btn.disabled = true;
+    try {
+      /* faces die on Smart: it routes AUTO to InstantMesh first. Text
+       * prompts are characters and detailed objects — build them on
+       * High Detail. The toggle is right there if he wants Smart. */
+      if (window.M3_SMART_TOPO) { const hd = $("m3TopoDetail"); if (hd) hd.click(); }
+      t3dStep(2);
+      const shaped = text + ", full body, entire figure visible with empty margin around it, head large and clearly detailed, standing straight facing the camera, plain solid white background, studio product photography, sharp focus, no text";
+      let bmp = null;
+      try {
+        bmp = await aiGenerateWith("space-flux", shaped, 1024, 1024, (st) => t3dStatus("Step 2 of 3 — drawing… " + st));
+      } catch (fluxErr) {
+        bmp = await aiGenerateImage(shaped, 512, 512, (st) => t3dStatus("Step 2 of 3 — drawing… " + st));
+      }
+      if (!bmp) throw new Error("the image step came back empty — the free queue may have eaten it, try once more.");
+      const cv = document.createElement("canvas");
+      cv.width = bmp.width || 512; cv.height = bmp.height || 512;
+      cv.getContext("2d").drawImage(bmp, 0, 0);
+      const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
+      if (!blob) throw new Error("could not package the drawn image.");
+      const thumb = $("m3ChainThumb");
+      if (thumb) { thumb.src = cv.toDataURL("image/png"); thumb.hidden = false; }
+      t3dStep(3);
+      t3dStatus("Step 3 of 3 — drawn right here in the studio. Building your mesh…");
+      if (window.M3_SET_SOURCE) window.M3_SET_SOURCE(new File([blob], "text-to-3d.png", { type: "image/png" }));
+      setTimeout(() => { const go = $("m3Go"); if (go && !go.disabled) go.click(); }, 600);
+    } catch (e) {
+      t3dStep(1);
+      t3dStatus("Text to 3D stopped: " + String((e && e.message) || e).slice(0, 220));
+    } finally {
+      window.M3_T3D_RUNNING = false;
+      if (btn) btn.disabled = false;
+    }
+  };
+  /* Skills enter through the studio: land on the 3D side, switch the
+   * rail to Text mode, fill the prompt, run the same independent flow. */
+  window.M3_ARM_CHAIN = function (promptText) {
+    flip3();
+    const tt = $("m3TabText");
+    if (tt) tt.click();
+    const inp = $("m3ChainInput");
+    if (inp) inp.value = promptText;
+    const sk = $("skStatus");
+    if (sk) sk.textContent = "Skill running in the 3D studio — image first, mesh right after, all automatic.";
+    scrollTo("lab3d");
+    window.M3_TEXT_TO_3D(promptText);
+  };
+  const chainBtn = $("m3ChainBtn");
+  if (chainBtn) chainBtn.addEventListener("click", () => {
+    const inp = $("m3ChainInput");
+    const text = inp && inp.value.trim();
+    if (!text) { t3dStatus("Describe the model first."); return; }
+    window.M3_TEXT_TO_3D(text);
+  });
+
+  /* image-mode steps: 1 Image, 2 Model, 3 Generate — the studio's own,
+   * independent of the 2D wizard's five steps. Polled from real state:
+   * a source thumb / enabled Generate means step 1 is done; a loaded
+   * model means all three are. */
+  setInterval(() => {
+    const box = $("m3ISteps");
+    if (!box) return;
+    const go = $("m3Go");
+    const thumb = $("m3Thumb");
+    const hasSrc = (thumb && !thumb.hidden) || (go && !go.disabled);
+    const hasModel = !!(window.M3_HAS_MODEL && window.M3_HAS_MODEL());
+    const cur = hasModel ? 4 : hasSrc ? 2 : 1;
+    box.querySelectorAll("span").forEach((sp) => {
+      const k = parseInt(sp.getAttribute("data-s"), 10);
+      sp.classList.toggle("on", k === cur);
+      sp.classList.toggle("done", k < cur);
+    });
+  }, 800);
+
+  /* --- skills --- */
+  const SKILLS = [
+    ["&#129528;", "Chibi Figure", "A palm-sized chibi collectible of your character — big head, tiny body, vinyl-toy finish.", "cute chibi figurine of a hero character, big head, small body, vinyl toy style, full body, centered, plain background"],
+    ["&#128126;", "Low-Poly Cartoon Buddy", "A game-ready low-poly friend, flat colors and clean shapes — built for game jams.", "low-poly cartoon animal buddy character, flat colors, simple shapes, game asset, full body, centered, plain background"],
+    ["&#127963;", "Marble Statue", "A museum-grade marble bust — heroes, pets, or your own portrait in stone.", "classical marble statue bust of a noble warrior, museum sculpture, white marble, dramatic light, plain background"],
+    ["&#128054;", "Pet Memorial", "A noble little statue of a very good dog. Edit the prompt with your pet's breed and pose.", "noble dog statue sitting proudly, bronze memorial sculpture style, full body, centered, plain background"],
+    ["&#129513;", "Brick Figure", "A minifig-style toy version of anyone — chunky, glossy, collectible.", "plastic brick minifigure character, glossy toy photography style, full body, centered, plain background"],
+    ["&#127968;", "First Home Miniature", "Your place as a tiny architectural model — desk-worthy and weirdly emotional.", "miniature architectural scale model of a cozy house, isometric, detailed tiny model, plain background"]
+  ];
+  const grid = $("skGrid");
+  if (grid) {
+    SKILLS.forEach(([art, name, tag, prompt]) => {
+      const card = document.createElement("div");
+      card.className = "sk-card";
+      const a = document.createElement("div"); a.className = "sk-art"; a.innerHTML = art;
+      const st = document.createElement("strong"); st.textContent = name;
+      const p = document.createElement("p"); p.textContent = tag;
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = "✨ Make this";
+      b.addEventListener("click", () => window.M3_ARM_CHAIN(prompt));
+      card.appendChild(a); card.appendChild(st); card.appendChild(p); card.appendChild(b);
+      grid.appendChild(card);
+    });
+  }
+
+  /* --- agent chips: shortcuts into real controls --- */
+  const chips = $("agentChips");
+  if (chips) chips.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-chip]");
+    if (!b) return;
+    const kind = b.getAttribute("data-chip");
+    if (kind === "img3d") { flip3(); scrollTo("m3Stage"); }
+    else if (kind === "batch") {
+      const sec = $("labAssets");
+      if (sec) sec.scrollIntoView({ behavior: "smooth", block: "center" });
+      const cb = $("assetsBatch");
+      if (cb && !cb.checked) cb.click();
+    } else if (kind === "rig") {
+      flip3();
+      const sec = $("labAnimate");
+      if (sec) { sec.hidden = false; sec.scrollIntoView({ behavior: "smooth", block: "center" }); }
+      const rig = $("laRigBtn");
+      if (rig) setTimeout(() => rig.click(), 350);
+    } else if (kind === "remesh") { flip3(); const t = $("m3TopoSmart"); if (t) t.click(); scrollTo("lab3d"); }
+    else if (kind === "tex2k" || kind === "tex4k") {
+      flip3();
+      const btn = document.querySelector('.m3-res [data-tex="' + (kind === "tex2k" ? "2048" : "4096") + '"]');
+      if (btn) btn.click();
+      scrollTo("lab3d");
+    } else if (kind === "mv") { flip3(); const mv = $("m3MultiView"); if (mv) mv.click(); scrollTo("lab3d"); }
+  });
+});
+
+/* ===== featured slider: arrows + auto-advance (portfolio GIF-player pattern) ===== */
+document.addEventListener("DOMContentLoaded", function () {
+  const grid = document.getElementById("galleryGrid");
+  if (!grid) return;
+  const step = () => { const c = grid.querySelector(".gcard"); return c ? c.getBoundingClientRect().width + 12 : 260; };
+  const go = (d) => {
+    const max = grid.scrollWidth - grid.clientWidth - 4;
+    let x = grid.scrollLeft + d * step();
+    if (x > max) x = 0;
+    if (x < 0) x = max;
+    grid.scrollTo({ left: x, behavior: "smooth" });
+  };
+  const prev = document.getElementById("galPrev"), next = document.getElementById("galNext");
+  if (prev) prev.addEventListener("click", () => go(-1));
+  if (next) next.addEventListener("click", () => go(1));
+  let hold = false;
+  ["pointerenter", "pointerdown", "touchstart"].forEach((ev) => grid.addEventListener(ev, () => { hold = true; }, { passive: true }));
+  grid.addEventListener("pointerleave", () => { hold = false; });
+  setInterval(() => { if (!hold && !document.hidden && grid.children.length > 1) go(1); }, 4200);
+});
+
+
+/* ---- m4ster layout tools (MML), ported from the portfolio 2026-10-21.
+ * Frames = this page's main sections. He adjusts, Publish copies the
+ * layout JSON, and it gets baked back in as window.MML_DEFAULT. ---- */
+(function(){
+  var LS='mml-layout-v2';
+  var $=function(s,r){return (r||document).querySelector(s)};
+  var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+  var body=document.body, editing=false, drag=null, toastT=null;
+
+  function load(){try{return JSON.parse(localStorage.getItem(LS))||{}}catch(e){return{}}}
+  function posOf(b){
+    var m=/translate\(([-\d.]+)px,\s*([-\d.]+)px\)(?:\s*rotate\(([-\d.]+)deg\))?(?:\s*scale\(([-\d.]+)\))?/.exec(b.style.transform||'');
+    return m?{x:Math.round(+m[1]),y:Math.round(+m[2]),r:+(m[3]||0),s:+(m[4]||1)}:{x:0,y:0,r:0,s:1};
+  }
+  function setTransform(b,x,y,s,r){
+    r=r||0;
+    b.style.transform='translate('+x+'px,'+y+'px)'+(r?' rotate('+r+'deg)':'')+' scale('+s+')';
+    var inv=1/s,hz=b.querySelector(':scope > .mml-handle');
+    if(hz)hz.style.transform='translateX(-50%) scale('+inv+')'+(r?' rotate('+(-r)+'deg)':'');
+    b.querySelectorAll(':scope > .mml-resize').forEach(function(rh){rh.style.transform='scale('+inv+')'+(r?' rotate('+(-r)+'deg)':'')});
+    var rot=b.querySelector(':scope > .mml-rotate');
+    if(rot)rot.style.transform='scale('+inv+')'+(r?' rotate('+(-r)+'deg)':'');
+  }
+  function setScale(b,x,y,s){var p=posOf(b);setTransform(b,x,y,s,p.r||0);}
+  function addFrame(){
+    var panel=document.querySelector('.panel[data-pos="0"]');
+    var z=panel?panel.querySelector('[data-mml-zone]'):null;
+    if(!z)z=document.querySelector('[data-mml-zone="lab"]');
+    if(!z){toast('No place to add a frame');return}
+    var sec=document.createElement('section');
+    sec.setAttribute('data-mml','custom-'+Date.now());
+    sec.className='mml-custom';
+    sec.innerHTML='<h3 data-mml-edit>New frame</h3><p data-mml-edit>Tap the text to edit it. Drag the handle to place it anywhere.</p>';
+    z.appendChild(sec);
+    buildHandles();commit();
+    if(sec.scrollIntoView)sec.scrollIntoView({block:'nearest'});
+    toast('Frame added — drag it anywhere');
+  }
+  function collect(){
+    var d={pos:{},pinned:[],custom:[],alive:[]};
+    $$('[data-mml]').forEach(function(b){
+      var id=b.getAttribute('data-mml'),p=posOf(b);
+      d.alive.push(id);
+      if(p.x||p.y||p.s!==1||p.r)d.pos[id]=p;
+      if(id.indexOf('custom-')===0||id.indexOf('sep-')===0){
+        var clone=b.cloneNode(true);
+        clone.querySelectorAll('.mml-handle').forEach(function(h){h.remove()});
+        clone.querySelectorAll('[data-mml-edit]').forEach(function(el){el.removeAttribute('contenteditable')});
+        var zb=b.parentNode,zid=zb&&zb.getAttribute?zb.getAttribute('data-mml-zone'):null;
+        d.custom.push({id:id,zone:zid,html:clone.outerHTML});
+      }
+    });
+    d.pinned=$$('[data-mml].mml-pinned').map(function(b){return b.getAttribute('data-mml')});
+    return d;
+  }
+  function save(){try{localStorage.setItem(LS,JSON.stringify(collect()))}catch(e){}}
+
+  /* ---- undo/redo history: every layout change pushes a snapshot ---- */
+  var hist=[],histIdx=-1,graveHtml={},graveSpot={};
+  function snapStr(){return JSON.stringify(collect());}
+  function commit(){
+    save();
+    var s=snapStr();
+    if(histIdx>=0&&hist[histIdx]===s){updateHistBtns();return;}
+    hist=hist.slice(0,histIdx+1);hist.push(s);
+    if(hist.length>60)hist.shift();
+    histIdx=hist.length-1;updateHistBtns();
+  }
+  function seedHist(){if(hist.length)return;hist=[snapStr()];histIdx=0;updateHistBtns();}
+  function cleanRestored(el){
+    if(!el||el.nodeType!==1)return el;
+    el.querySelectorAll(':scope > .mml-handle,:scope > .mml-resize,:scope > .mml-rotate').forEach(function(h){h.remove()});
+    el.querySelectorAll('[data-mml-edit]').forEach(function(x){if(editing)x.contentEditable='true';else x.removeAttribute('contenteditable')});
+    return el;
+  }
+  function restore(d){
+    try{localStorage.setItem(LS,JSON.stringify(d))}catch(e){}
+    var keepC={};(d.custom||[]).forEach(function(c){keepC[c.id]=c;});
+    $$('[data-mml]').forEach(function(b){
+      var id=b.getAttribute('data-mml');
+      if((id.indexOf('custom-')===0||id.indexOf('sep-')===0)&&!keepC[id])b.remove();
+    });
+    (d.custom||[]).forEach(function(c){
+      if(document.querySelector('[data-mml="'+c.id+'"]'))return;
+      var z=(c.zone&&document.querySelector('[data-mml-zone="'+c.zone+'"]'))||document.querySelector('[data-mml-zone="lab"]');
+      if(!z)return;
+      var tmp=document.createElement('div');tmp.innerHTML=c.html;
+      if(tmp.firstChild)z.appendChild(cleanRestored(tmp.firstChild));
+    });
+    (d.alive||[]).forEach(function(id){
+      if(document.querySelector('[data-mml="'+id+'"]'))return;
+      if(!graveHtml[id])return;
+      var spot=graveSpot[id]||{};
+      var tmp=document.createElement('div');tmp.innerHTML=graveHtml[id];
+      var el=cleanRestored(tmp.firstChild);if(!el)return;
+      if(spot.parent&&spot.parent.isConnected){
+        if(spot.next&&spot.next.parentNode===spot.parent)spot.parent.insertBefore(el,spot.next);
+        else spot.parent.appendChild(el);
+      }else{var z=document.querySelector('[data-mml-zone="lab"]');if(z)z.appendChild(el);}
+    });
+    buildHandles();
+    $$('[data-mml]').forEach(function(b){
+      var id=b.getAttribute('data-mml'),pp=(d.pos||{})[id];
+      if(pp)setTransform(b,pp.x,pp.y,pp.s||1,pp.r||0);else if(b.style.transform)b.style.transform='';
+      b.classList.toggle('mml-pinned',(d.pinned||[]).indexOf(id)>-1);
+    });
+  }
+  function undoHist(){
+    if(histIdx<=0){toast('Nothing to undo');return;}
+    histIdx--;restore(JSON.parse(hist[histIdx]));updateHistBtns();toast('Undone');
+  }
+  function redoHist(){
+    if(histIdx>=hist.length-1){toast('Nothing to redo');return;}
+    histIdx++;restore(JSON.parse(hist[histIdx]));updateHistBtns();toast('Redone');
+  }
+  function updateHistBtns(){
+    var u=document.querySelector('#mmlToolbar [data-act="undo"]'),r=document.querySelector('#mmlToolbar [data-act="redo"]');
+    if(u){var on=histIdx>0;u.disabled=!on;u.style.opacity=on?1:.4;}
+    if(r){var on2=histIdx>=0&&histIdx<hist.length-1;r.disabled=!on2;r.style.opacity=on2?1:.4;}
+  }
+  function bp(){return window.innerWidth<=700?'mobile':'desktop';}
+  function clampToViewport(){
+    if(bp()!=='mobile'||editing)return;
+    $$('[data-mml]').forEach(function(b){
+      var hid=b.closest('.panel[data-pos]');
+      if(hid&&hid.getAttribute('data-pos')!=='0')return;
+      var r=b.getBoundingClientRect();
+      if(!r.width)return;
+      var dx=0;
+      if(r.left<-16)dx=-16-r.left;
+      else if(r.right>window.innerWidth+16)dx=window.innerWidth+16-r.right;
+      if(dx){
+        var p=posOf(b);
+        var k=r.width/((b.offsetWidth||r.width)*(p.s||1));if(!isFinite(k)||k<=0)k=1;
+        setTransform(b,p.x+dx/k,p.y,p.s,p.r);
+      }
+    });
+  }
+  window.addEventListener('orientationchange',function(){setTimeout(clampToViewport,350);});
+  function apply(){
+    var d=load();
+    if(!d||!Object.keys(d).length){
+      try{var defs=window.MML_DEFAULT||{};if(defs[bp()])d=defs[bp()];}catch(e){}
+    }
+    (d.custom||[]).forEach(function(c){
+      if(document.querySelector('[data-mml="'+c.id+'"]'))return;
+      var z=(c.zone&&document.querySelector('[data-mml-zone="'+c.zone+'"]'))||document.querySelector('[data-mml-zone="lab"]');
+      if(!z)return;
+      var tmp=document.createElement('div');tmp.innerHTML=c.html;
+      if(tmp.firstChild)z.appendChild(tmp.firstChild);
+    });
+    Object.keys(d.pos||{}).forEach(function(id){
+      var b=document.querySelector('[data-mml="'+id+'"]');
+      if(b){var pp=d.pos[id];setTransform(b,pp.x,pp.y,pp.s||1,pp.r||0);}
+    });
+    (d.pinned||[]).forEach(function(id){
+      var b=document.querySelector('[data-mml="'+id+'"]'); if(b)b.classList.add('mml-pinned');
+    });
+    clampToViewport();
+  }
+  function toast(msg){
+    var t=$('#mmlToast');
+    if(!t){t=document.createElement('div');t.id='mmlToast';t.className='mml-toast';body.appendChild(t);}
+    t.textContent=msg; t.classList.add('show');
+    clearTimeout(toastT); toastT=setTimeout(function(){t.classList.remove('show')},1800);
+  }
+  function label(b){var h=b.querySelector('h1,h2,h3,h4');return (h?h.textContent:'frame').trim().slice(0,26)}
+
+  function buildHandles(root){
+    $$('[data-mml]',root||document).forEach(function(b){
+      if(b.querySelector(':scope > .mml-handle'))return;
+      var hidPanel=b.closest('.panel[data-pos]');
+      if(hidPanel&&hidPanel.getAttribute('data-pos')!=='0')return;
+      b.style.position='relative';
+      var h=document.createElement('div');
+      h.className='mml-handle';
+      h.innerHTML='<span class="mml-grip" title="Drag to move">\u22EE\u22EE</span><span></span><button class="mml-rotate-btn" type="button" title="Rotate">&#x21BB;</button><button class="mml-pin" type="button" title="Pin / unpin">&#x1F4CC;</button><button class="mml-del" type="button" title="Delete frame"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c0c8d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
+      h.children[1].textContent=label(b);
+      b.insertBefore(h,b.firstChild);
+      h.querySelector('.mml-pin').addEventListener('click',function(e){
+        e.stopPropagation();e.preventDefault();
+        b.classList.toggle('mml-pinned');commit();
+        toast(b.classList.contains('mml-pinned')?'Pinned \u2014 locked in place':'Unpinned \u2014 draggable');
+      });
+      h.querySelector('.mml-rotate-btn').addEventListener('pointerdown',function(e){
+        e.stopPropagation();e.preventDefault();
+        startRotate(e,b);
+      });
+      h.querySelector('.mml-del').addEventListener('click',function(e){
+        e.stopPropagation();e.preventDefault();
+        deleteFrame(b);
+      });
+      h.addEventListener('pointerdown',function(e){
+        if(e.target.closest('.mml-pin'))return;
+        startDrag(e,b);
+      });
+      h.addEventListener('dblclick',function(e){
+        if(e.target.closest('.mml-pin'))return;
+        b.style.transform='';commit();toast('Position cleared');
+      });
+            if(!b.querySelector(':scope > .mml-resize.nw')){
+        ['nw','ne','sw','se'].forEach(function(c){
+          var rh=document.createElement('div');
+          rh.className='mml-resize '+c;
+          b.appendChild(rh);
+          rh.addEventListener('pointerdown',function(e){e.stopPropagation();e.preventDefault();startResize(e,b)});
+        });
+      }
+      var p0=posOf(b);if(p0.s!==1||p0.r)setTransform(b,p0.x,p0.y,p0.s,p0.r);
+    });
+  }
+  function dropHandles(){$$('.mml-handle,.mml-resize').forEach(function(h){if(!h.closest('.mml-always'))h.remove()});$$('[data-mml]').forEach(function(b){if(!b.closest('.mml-always'))b.style.position=''})}
+
+  function kOf(el){var r=el.getBoundingClientRect();var w=el.offsetWidth||0;var k=w?r.width/w:1;return (isFinite(k)&&k>0)?k:1;}
+  function showGuide(ori,pos){
+    var id='mmlGuide'+ori,g=document.getElementById(id);
+    if(!g){g=document.createElement('div');g.id=id;g.className='mml-guide '+ori;document.body.appendChild(g);}
+    var kg=kOf(g);if(ori==='v')g.style.left=(pos/kg)+'px';else g.style.top=(pos/kg)+'px';
+    g.style.display='block';
+  }
+  function hideGuide(ori){
+    var g=document.getElementById('mmlGuide'+ori);
+    if(g)g.style.display='none';
+  }
+  function startDrag(e,b){
+    if(b.classList.contains('mml-pinned')){toast('Unpin it first to move it');return}
+    e.preventDefault();
+    var sx=e.clientX,sy=e.clientY,active=false;
+    var cur=posOf(b);
+    var br0=b.getBoundingClientRect();
+    var kF=br0.width/((b.offsetWidth||br0.width)*(cur.s||1));if(!isFinite(kF)||kF<=0)kF=1;
+    function mv(ev){
+      if(!active){
+        if(Math.hypot(ev.clientX-sx,ev.clientY-sy)<6)return;
+        active=true;drag={el:b};
+        b.classList.add('mml-dragging');
+      }
+      var nx=cur.x+(ev.clientX-sx)/kF,ny=cur.y+(ev.clientY-sy)/kF;
+      // alignment guides: snap to centers of other frames
+      var br=b.getBoundingClientRect();
+      var bcx=br.left+br.width/2,bcy=br.top+br.height/2;
+      var snapX=null,snapY=null;
+      $$('[data-mml]').forEach(function(o){
+        if(o===b||!o.offsetParent)return;
+        var r=o.getBoundingClientRect();
+        var ocx=r.left+r.width/2,ocy=r.top+r.height/2;
+        if(Math.abs(bcx-ocx)<6)snapX=nx+(ocx-bcx)/kF;
+        if(Math.abs(bcy-ocy)<6)snapY=ny+(ocy-bcy)/kF;
+      });
+      if(snapX!==null){nx=snapX;showGuide('v',bcx);}
+      else hideGuide('v');
+      if(snapY!==null){ny=snapY;showGuide('h',bcy);}
+      else hideGuide('h');
+      setScale(b,nx,ny,cur.s);
+    }
+    function up(){
+      window.removeEventListener('pointermove',mv);
+      window.removeEventListener('pointerup',up);
+      window.removeEventListener('pointercancel',up);
+      if(!active)return;
+      b.classList.remove('mml-dragging');
+      hideGuide('v');hideGuide('h');
+      drag=null;commit();
+      toast('Placed \u2014 layout saved');
+    }
+    window.addEventListener('pointermove',mv);
+    window.addEventListener('pointerup',up);
+    window.addEventListener('pointercancel',up);
+  }
+
+  function startResize(e,b){
+    if(b.classList.contains('mml-pinned')){toast('Unpin it first to resize it');return}
+    var r=b.getBoundingClientRect();
+    var cx=r.left+r.width/2,cy=r.top+r.height/2;
+    var sx=e.clientX,sy=e.clientY,active=false;
+    var startDist=Math.max(20,Math.hypot(sx-cx,sy-cy));
+    var cur=posOf(b),startS=cur.s;
+    function mv(ev){
+      if(!active){
+        if(Math.hypot(ev.clientX-sx,ev.clientY-sy)<6)return;
+        active=true;
+      }
+      var d=Math.max(20,Math.hypot(ev.clientX-cx,ev.clientY-cy));
+      var ns=Math.min(3,Math.max(0.3,startS*d/startDist));
+      setScale(b,cur.x,cur.y,ns);
+    }
+    function up(){
+      window.removeEventListener('pointermove',mv);
+      window.removeEventListener('pointerup',up);
+      window.removeEventListener('pointercancel',up);
+      if(!active)return;
+      commit();toast('Resized — layout saved');
+    }
+    window.addEventListener('pointermove',mv);
+    window.addEventListener('pointerup',up);
+    window.addEventListener('pointercancel',up);
+  }
+
+  function startRotate(e,b){
+    if(b.classList.contains('mml-pinned')){toast('Unpin it first to rotate it');return}
+    e.preventDefault();
+    var r=b.getBoundingClientRect();
+    var cx=r.left+r.width/2, cy=r.top+r.height/2;
+    var cur=posOf(b), startR=cur.r||0;
+    var startAng=Math.atan2(e.clientY-cy, e.clientX-cx)*180/Math.PI;
+    var label=document.createElement('div');
+    label.className='mml-deg-label';
+    document.body.appendChild(label);
+    label.style.display='block';
+    var kL=kOf(label);
+    function updateLabel(deg, x, y){
+      var norm=((Math.round(deg)%360)+360)%360;
+      label.textContent=norm+'\u00B0';
+      label.style.left=((x+16)/kL)+'px';
+      label.style.top=((y-10)/kL)+'px';
+      label.style.display='block';
+    }
+    function mv(ev){
+      var ang=Math.atan2(ev.clientY-cy, ev.clientX-cx)*180/Math.PI;
+      var deg=startR+(ang-startAng);
+      var snapped=Math.round(deg/15)*15;
+      if(Math.abs(deg-snapped)<3)deg=snapped;
+      setTransform(b,cur.x,cur.y,cur.s,Math.round(deg*10)/10);
+      updateLabel(deg, ev.clientX, ev.clientY);
+    }
+    function up(){
+      window.removeEventListener('pointermove',mv);
+      window.removeEventListener('pointerup',up);
+      window.removeEventListener('pointercancel',up);
+      if(label.parentNode)label.parentNode.removeChild(label);
+      commit();toast('Rotated \u2014 layout saved');
+    }
+    window.addEventListener('pointermove',mv);
+    window.addEventListener('pointerup',up);
+    window.addEventListener('pointercancel',up);
+    updateLabel(startR, e.clientX, e.clientY);
+  }
+
+  function deleteFrame(b){
+    var id=b.getAttribute('data-mml');
+    if(id.indexOf('custom-')!==0&&id.indexOf('sep-')!==0){
+      graveHtml[id]=b.outerHTML;
+      graveSpot[id]={parent:b.parentNode,next:b.nextSibling};
+    }
+    b.parentNode.removeChild(b);
+    commit();
+    toast('Frame deleted \u2014 Ctrl+Z or Undo to restore');
+  }
+
+  function spawnRGB(){
+    var panel=document.querySelector('.panel[data-pos="0"]');
+    var z=panel?panel.querySelector('[data-mml-zone]'):null;
+    if(!z)z=document.querySelector('[data-mml-zone="lab"]');
+    if(!z)z=document.querySelector('#mmlZone')||document.body;
+    var d=document.createElement('div');
+    d.className='rgb-sep';
+    d.setAttribute('data-mml','sep-'+Date.now());
+    d.style.margin='20px 0';
+    z.appendChild(d);
+    buildHandles();commit();
+    if(d.scrollIntoView)d.scrollIntoView({block:'nearest'});
+    toast('Separator added \u2014 drag it anywhere');
+  }
+
+  function buildToolbar(){
+    if($('#mmlToolbar'))return;
+    var t=document.createElement('div');
+    t.className='mml-toolbar';t.id='mmlToolbar';
+    t.innerHTML='<span class="mml-grip" style="cursor:grab" title="Drag to move">⋮⋮</span><span class="mml-ttitle" title="Drag to move">Toolbar</span><button class="mml-pin" type="button" data-act="pin" title="Pin toolbar">&#x1F4CC;</button><button type="button" data-act="add">+ Frame</button><button type="button" data-act="addrgb" title="Add separator">+ Line</button><button type="button" data-act="copy">Copy layout</button><button type="button" data-act="publish" class="primary">Publish</button><button type="button" data-act="undo" style="opacity:.4" title="Undo last move (Ctrl+Z)">\u21A9 Undo</button><button type="button" data-act="redo" style="opacity:.4" title="Redo (Ctrl+Shift+Z)">\u21AA Redo</button><button type="button" data-act="reset">Reset</button><button type="button" data-act="done" class="primary">Done</button>';
+    body.appendChild(t);
+    t.addEventListener('click',function(e){
+      var a=e.target&&e.target.getAttribute&&e.target.getAttribute('data-act');if(!a)return;
+      if(a==='done')setEditing(false);
+      else if(a==='pin'){t.classList.toggle('mml-pinned');saveTb();toast(t.classList.contains('mml-pinned')?'Toolbar pinned':'Toolbar unpinned');}
+      else if(a==='add')addFrame();
+      else if(a==='addrgb')spawnRGB();
+      else if(a==='undo'){undoHist();}
+      else if(a==='redo'){redoHist();}
+      else if(a==='reset'){try{localStorage.removeItem(LS);localStorage.removeItem('mml-toolbar-v1');localStorage.removeItem('mml-fab-v1')}catch(_){} location.reload();}
+      else if(a==='copy'){
+        save();
+        var txt='';
+        try{txt=localStorage.getItem(LS)||''}catch(_){}
+        copyText(txt);
+        toast('Layout copied — send it to me and I’ll bake it into the site');
+      }
+      else if(a==='publish'){
+        save();
+        var txt='';
+        try{txt=localStorage.getItem(LS)||''}catch(_){}
+        copyText(txt);
+        toast('Published ('+bp()+') copied — send it to me, every visitor sees YOUR layout');
+      }
+    });
+    restoreTb(t);
+    t.addEventListener('pointerdown',function(e){
+      if(e.target.closest('button'))return;
+      if(t.classList.contains('mml-pinned')){toast('Unpin the toolbar to move it');return}
+      e.preventDefault();
+      var r=t.getBoundingClientRect();
+      var kT=kOf(t);
+      t.style.left=(r.left/kT)+'px';t.style.top=(r.top/kT)+'px';t.style.transform='none';t.style.bottom='auto';
+      var dx=e.clientX-r.left,dy=e.clientY-r.top,rw=r.width,rh=r.height;
+      function mv(ev){
+        var vx=Math.min(Math.max(ev.clientX-dx,8),window.innerWidth-rw-8);
+        var vy=Math.min(Math.max(ev.clientY-dy,8),window.innerHeight-rh-8);
+        t.style.left=(vx/kT)+'px';
+        t.style.top=(vy/kT)+'px';
+      }
+      function up(){window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);saveTb();}
+      window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);
+    });
+  }
+  function saveTb(){
+    var t=$('#mmlToolbar');if(!t)return;
+    try{localStorage.setItem('mml-toolbar-v1',JSON.stringify({left:t.style.left||'',top:t.style.top||'',pinned:t.classList.contains('mml-pinned')}))}catch(e){}
+  }
+  function restoreTb(t){
+    var d=null;try{d=JSON.parse(localStorage.getItem('mml-toolbar-v1'))}catch(e){}
+    if(!d)return;
+    if(d.left&&d.top){t.style.left=d.left;t.style.top=d.top;t.style.transform='none';t.style.bottom='auto';}
+    if(d.pinned)t.classList.add('mml-pinned');
+  }
+  function dropToolbar(){var t=$('#mmlToolbar');if(t)t.remove()}
+  function copyText(txt){
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).catch(function(){fallback()});}
+    else fallback();
+    function fallback(){
+      var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+      body.appendChild(ta);ta.select();
+      try{document.execCommand('copy')}catch(e){}
+      ta.remove();
+    }
+  }
+
+  function setEditing(on){
+    editing=on;document.body.classList.toggle('mml-editing',!!on);
+    /* body.classList.toggle('mml-on',on); REMOVED - white screen */
+    if(on){buildHandles();buildToolbar();seedHist();pokeToolbar();toast('Tools on — drag frames anywhere, pin to lock');
+      $$('[data-mml-edit]').forEach(function(el){el.contentEditable='true'});}
+    else{dropHandles();dropToolbar();
+      $$('[data-mml-edit]').forEach(function(el){el.removeAttribute('contenteditable')});}
+    syncFab();
+  }
+  var idleT=null,lastPoke=0;
+  function pokeToolbar(){
+    var t=document.getElementById('mmlToolbar');if(!t)return;
+    t.classList.remove('mml-idle');
+    clearTimeout(idleT);
+    idleT=setTimeout(function(){var x=document.getElementById('mmlToolbar');if(x)x.classList.add('mml-idle')},6000);
+  }
+  function buildFab(){
+    if(document.getElementById('mmlFab'))return;
+    var f=document.createElement('button');
+    f.id='mmlFab';f.className='mml-fab';f.type='button';f.title='Layout tools';f.setAttribute('aria-label','Toggle layout tools');
+    f.textContent='✎';
+    var fabMoved=false;
+    f.addEventListener('pointerdown',function(e){
+      e.preventDefault();
+      var sx=e.clientX,sy=e.clientY,moved=false;
+      var r=f.getBoundingClientRect();
+      var kFb=kOf(f);
+      var dx=e.clientX-r.left,dy=e.clientY-r.top,rw=r.width,rh=r.height;
+      function mv(ev){
+        if(!moved&&Math.hypot(ev.clientX-sx,ev.clientY-sy)<6)return;
+        moved=true;fabMoved=true;
+        var vx=Math.min(Math.max(ev.clientX-dx,8),window.innerWidth-rw-8);
+        var vy=Math.min(Math.max(ev.clientY-dy,8),window.innerHeight-rh-8);
+        f.style.left=(vx/kFb)+'px';
+        f.style.top=(vy/kFb)+'px';
+        f.style.bottom='auto';f.style.right='auto';
+      }
+      function up(){
+        window.removeEventListener('pointermove',mv);
+        window.removeEventListener('pointerup',up);
+        if(moved)saveFab();
+      }
+      window.addEventListener('pointermove',mv);
+      window.addEventListener('pointerup',up);
+    });
+    f.addEventListener('click',function(){
+      if(fabMoved){fabMoved=false;return}
+      setEditing(!editing);
+    });
+    document.body.appendChild(f);
+    restoreFab();
+  }
+  function saveFab(){
+    var f=document.getElementById('mmlFab');if(!f)return;
+    try{localStorage.setItem('mml-fab-v1',JSON.stringify({left:f.style.left||'',top:f.style.top||''}))}catch(e){}
+  }
+  function clampFab(){
+    var f=document.getElementById('mmlFab');if(!f)return;
+    var r=f.getBoundingClientRect();
+    var m=10,changed=false;
+    if(r.right>window.innerWidth-m){f.style.left=(window.innerWidth-m-r.width)+'px';f.style.right='auto';changed=true;}
+    if(r.bottom>window.innerHeight-m){f.style.top=(window.innerHeight-m-r.height)+'px';f.style.bottom='auto';changed=true;}
+    if(r.left<m){f.style.left=m+'px';changed=true;}
+    if(r.top<m){f.style.top=m+'px';changed=true;}
+    if(changed)saveFab();
+  }
+  function restoreFab(){
+    var f=document.getElementById('mmlFab');if(!f)return;
+    var d=null;try{d=JSON.parse(localStorage.getItem('mml-fab-v1'))}catch(e){}
+    if(!d||!d.left||!d.top)return;
+    f.style.left=d.left;f.style.top=d.top;f.style.bottom='auto';f.style.right='auto';
+    clampFab();
+  }
+  window.addEventListener('resize',function(){clampFab();});
+  function syncFab(){
+    var f=document.getElementById('mmlFab');if(!f)return;
+    f.textContent=editing?'✕':'✎';
+    f.title=editing?'Close layout tools':'Open layout tools';
+  }
+  document.addEventListener('keydown',function(e){
+    var tag=(e.target&&e.target.tagName)||'';
+    if(tag==='INPUT'||tag==='TEXTAREA')return;
+    if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.code==='KeyE'){e.preventDefault();setEditing(!editing);}
+  });
+  document.addEventListener('keydown',function(e){
+    if(!editing)return;
+    var t=e.target;
+    if(t&&(t.isContentEditable||t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'))return;
+    if(!(e.ctrlKey||e.metaKey))return;
+    var k=(e.key||'').toLowerCase();
+    if(k==='z'&&!e.shiftKey){e.preventDefault();undoHist();}
+    else if(k==='y'||(k==='z'&&e.shiftKey)){e.preventDefault();redoHist();}
+    if(e.code==='Escape'&&editing)setEditing(false);
+  });
+  document.addEventListener('tabswitch',function(){if(editing)buildHandles();});
+  buildFab();
+  var pg=document.querySelector('.mml-always'); if(pg)buildHandles(pg);
+  var pgR=document.getElementById('pgReset');
+  if(pgR)pgR.addEventListener('click',function(){
+    $$('[data-mml^="pg-"]').forEach(function(b){
+      b.style.transform='';b.style.position='';
+      b.classList.remove('mml-pinned');
+      var h=b.querySelector(':scope > .mml-handle .mml-pin');
+      if(h)h.textContent='📌';
+    });
+    try{
+      var order=JSON.parse(localStorage.getItem(LSK)||'[]');
+      order=order.filter(function(o){return o.id.indexOf('pg-')!==0});
+      localStorage.setItem(LSK,JSON.stringify(order));
+    }catch(e){}
+    buildHandles(pg);
+    toast('Demo reset');
+  });
+  var dr=document.getElementById('mmlDemoReset');
+  if(dr)dr.addEventListener('click',function(){
+    $$('[data-mml^="demo-"]').forEach(function(b){b.style.transform='';b.classList.remove('mml-pinned')});
+    save();toast('Playground reset');
+  });
+  ['pointerdown','pointermove'].forEach(function(ev){
+    document.addEventListener(ev,function(){
+      if(!editing)return;
+      var n=Date.now();if(n-lastPoke<1500)return;lastPoke=n;pokeToolbar();
+    },true);
+  });
+  window.addEventListener('resize',function(){
+    var t=document.getElementById('mmlToolbar');if(!t||!t.style.left)return;
+    var r=t.getBoundingClientRect();
+    t.style.left=Math.max(8,Math.min(parseFloat(t.style.left),window.innerWidth-r.width-8))+'px';
+    t.style.top=Math.max(8,Math.min(parseFloat(t.style.top),window.innerHeight-r.height-8))+'px';
+    saveTb();
+  });
+  apply();
+  if(/(?:\?|&|#)edit(?:=1)?(?:&|$)/.test(location.href))setEditing(true);
 })();

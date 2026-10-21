@@ -10,6 +10,26 @@ Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
 sheet PNG plus an atlas manifest JSON your game can read directly.
 
+## v8.0 — FULL HUB PROMOTION
+
+Everything the test build proved is now production:
+
+- **2D**: the full AI Horde roster (~20 ranked models incl. Ghibli, Pixel,
+  RealVisXL), **HF Space FLUX.1-schnell** (`space-flux`) — anonymous stills in
+  ~5s at 1024px with near-perfect flat key backgrounds — plus the existing
+  Pollinations / HF Inference key slots.
+- **3D**: five providers — SF3D, TRELLIS.2, InstantMesh, TRELLIS, and
+  **Hunyuan3D-2 Mini Turbo** (fastest shape, ~15s, untextured), with the
+  optional free HF token tier and in-browser GLB preview.
+- **The Labs**: Animate (rig, text-to-motion, video-to-animation), My Assets
+  library, 3D Print panel (mesh health: non-manifold + degenerate counts,
+  Split to Print), and Skills — plus the expanded 2D→3D bridge.
+- Service worker is now network-first for code (no more stale builds).
+
+Still 100% free: no paywall, no login, no signup. Optional provider keys are
+yours, stored only in your browser's localStorage.
+
+
 ## v7.0 — THE HUB
 
 FrameLab is now the hub it was always meant to be: one site, a **2D ⇄ 3D
