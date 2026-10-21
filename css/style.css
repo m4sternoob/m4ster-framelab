@@ -2238,11 +2238,22 @@ body:not(.dim-3d) #labSkills { display: none !important; }
  * visual spot: edit mode causes ZERO layout shift, so Done moves
  * nothing. Reveal-animated frames also get their entrance settled
  * while editing (no .55s transform transition fighting drags). */
-body.mml-editing .mml-handle {
-  position: absolute; top: 2px; left: 50%;
-  transform: translateX(-50%); margin: 0;
-}
+#mmlOverlay { position: absolute; inset: 0; z-index: 5000; pointer-events: none; }
+#mmlOverlay .mml-handle { position: absolute; margin: 0; transform: translateX(-50%); pointer-events: auto; }
+#mmlOverlay .mml-resize { pointer-events: auto; }
 body.mml-editing [data-mml].reveal,
 body.mml-editing [data-mml].reveal-pop {
   opacity: 1 !important; transition: none !important;
+}
+
+/* ===== Frame fit fixes (2026-10-21) =====
+ * viz: stop the layout grid stretching the box past its content.
+ * stage on phones: the stepper/canvas row forced a 757px panel on a
+ * 390px screen — let it wrap and shrink instead. */
+.viz-panel { align-self: start; }
+@media (max-width: 760px) {
+  .stage-panel { min-width: 0; max-width: 100%; }
+  .canvas-wrap { min-width: 0; }
+  .stepper { flex-wrap: wrap; row-gap: 6px; }
+  .stage-msg { max-width: 100%; box-sizing: border-box; }
 }
