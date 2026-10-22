@@ -1,5 +1,5 @@
 /* ==========================================================================
- * m4ster-sprite-gen — free, open-source, unlimited 2D sprite generator.
+ * m4ster FrameLab — free, open-source, unlimited 2D sprite generator.
  * Runs 100% client-side. The only network call is the AI image source
  * (Pollinations, no auth). Everything after generation is deterministic:
  * same input pixels -> same output pixels, every time.
