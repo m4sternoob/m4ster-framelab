@@ -3,7 +3,7 @@
 **For the gamers, by the gamers.**
 
 Free, open-source, unlimited 2D game sprite studio that runs 100% in your
-browser. No API keys, no signup, no credit card, no payments — ever.
+browser. No API keys needed, no signup, no credit card, no payments — ever.
 (Repo renamed to `m4ster-framelab` on 2026-10-22 — the old `m4ster-sprite-gen` URL redirects here.)
 
 Type what you want in the big prompt box and hit **MAKE IT** — or pick a
@@ -340,7 +340,7 @@ Every generation walks six visible steps in the UI:
 1. **Prompt** — one prompt per animation state, asking for a horizontal
    row-strip of poses on a flat chroma background, one pose per invisible slot.
 2. **Row gen** — the image source. **AI** uses whichever model is picked
-   in the model switcher (Pollinations, AI Horde, Hugging Face, OpenRouter);
+   in the model switcher (AI Horde, HF Space, Pollinations, Hugging Face);
    **Procedural** is a seeded offline pixel-art generator; **Upload** accepts
    your own strip (any image in, frames out).
 3. **Alpha cleanup** — chroma key with a color-distance threshold, plus
