@@ -1,4 +1,4 @@
-/* m4ster FrameLab — "alive" edition.
+/* m4ster-sprite-gen v3 — "alive" edition.
  * Theme system in the tracker's Customize spirit: html[data-theme] + CSS vars,
  * animated background aura (theme-aware orbs), alive micro-interactions.
  * No frameworks, no webfonts, no build step. */
@@ -1008,7 +1008,7 @@ textarea:focus:not(:focus-visible) { outline: none; }
   html.has-orb, html.has-orb * { cursor: none !important; }
 }
 .cursor-orb {
-  position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none;
+  position: fixed; left: 0; top: 0; z-index: 100000; pointer-events: none;
   width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
   background: radial-gradient(circle, var(--violet-soft) 0%, var(--violet) 38%, transparent 72%);
   opacity: .85; will-change: transform;
